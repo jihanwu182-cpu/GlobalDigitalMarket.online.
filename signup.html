@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Create Account | GlobalMarket</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 25px;
+      font-family: Arial, sans-serif;
+      color: #f4f7fb;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(32,214,163,.12), transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(22,134,255,.15), transparent 30%),
+        #07111f;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 450px;
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 25px;
+      font-size: 25px;
+      font-weight: 800;
+    }
+
+    .logo span {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      margin-right: 8px;
+      border-radius: 12px;
+      background: linear-gradient(135deg,#20d6a3,#1686ff);
+    }
+
+    .card {
+      padding: 32px;
+      border-radius: 20px;
+      background: #0d1929;
+      border: 1px solid rgba(255,255,255,.09);
+      box-shadow: 0 25px 70px rgba(0,0,0,.35);
+    }
+
+    h1 {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .intro {
+      color: #8998aa;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 7px;
+      font-size: 13px;
+      color: #c2ccda;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      outline: none;
+      color: white;
+      background: #081422;
+    }
+
+    input:focus {
+      border-color: #20d6a3;
+    }
+
+    .button {
+      width: 100%;
+      margin-top: 23px;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      color: white;
+      font-weight: 700;
+      background: linear-gradient(135deg,#20d6a3,#1686ff);
+    }
+
+    .button:hover {
+      opacity: .9;
+    }
+
+    .login {
+      text-align: center;
+      margin-top: 20px;
+      color: #8492a5;
+      font-size: 13px;
+    }
+
+    .login a {
+      color: #48dfb0;
+      text-decoration: none;
+    }
+
+    .notice {
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 9px;
+      background: rgba(255,255,255,.04);
+      color: #7f8da0;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 20px;
+      color: #8391a3;
+      text-decoration: none;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="logo">
+      <span>G</span>
+      GlobalMarket
+    </div>
+
+    <div class="card">
+
+      <h1>Create your account</h1>
+
+      <p class="intro">
+        Create an account to access the GlobalMarket platform.
+      </p>
+
+      <form id="signupForm">
+
+        <label for="name">Full name</label>
+        <input
+          type="text"
+          id="name"
+          placeholder="Enter your full name"
+          required
+        >
+
+        <label for="email">Email address</label>
+        <input
+          type="email"
+          id="email"
+          placeholder="you@example.com"
+          required
+        >
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          placeholder="Create a password"
+          minlength="8"
+          required
+        >
+
+        <button class="button" type="submit">
+          Create Account
+        </button>
+
+      </form>
+
+      <div class="login">
+        Already have an account?
+        <a href="login.html">Sign in</a>
+      </div>
+
+      <div class="notice">
+        This page is currently a front-end demonstration.
+        A real account system requires a secure backend,
+        password hashing, email verification and appropriate
+        privacy/security controls.
+      </div>
+
+    </div>
+
+    <a class="back" href="index.html">
+      ← Back to GlobalMarket
+    </a>
+
+  </div>
+
+  <script>
+    document.getElementById("signupForm").addEventListener("submit", function(event) {
+      event.preventDefault();
+
+      alert(
+        "Your signup form is working as a demonstration. " +
+        "Connect it to a secure backend before accepting real accounts."
+      );
+    });
+  </script>
+
+</body>
+</html>
