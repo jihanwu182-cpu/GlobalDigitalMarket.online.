@@ -1,6 +1,522 @@
-broker-investment/
-├── index.html
-├── style.css
-├── script.js
-├── dashboard.html
-└── README.md
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>GlobalMarket.com | Investment Platform</title>
+  <meta name="description" content="GlobalMarket.com investment and market platform. Explore markets, manage your portfolio and learn about investing.">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+      background: #07111f;
+      color: #ffffff;
+      line-height: 1.6;
+    }
+
+    header {
+      background: #0b1728;
+      border-bottom: 1px solid #1b3049;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .navbar {
+      max-width: 1200px;
+      margin: auto;
+      padding: 18px 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 800;
+      color: #35d07f;
+    }
+
+    .logo span {
+      color: white;
+    }
+
+    nav a {
+      color: #d9e3ef;
+      text-decoration: none;
+      margin-left: 25px;
+      font-size: 15px;
+    }
+
+    nav a:hover {
+      color: #35d07f;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+      margin-left: 25px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 11px 18px;
+      border-radius: 7px;
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-outline {
+      color: white;
+      border: 1px solid #35d07f;
+      background: transparent;
+    }
+
+    .btn-primary {
+      background: #35d07f;
+      color: #04100a;
+    }
+
+    .hero {
+      max-width: 1200px;
+      margin: auto;
+      padding: 90px 25px;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 50px;
+      align-items: center;
+    }
+
+    .hero h1 {
+      font-size: 54px;
+      line-height: 1.1;
+      margin-bottom: 25px;
+    }
+
+    .hero h1 span {
+      color: #35d07f;
+    }
+
+    .hero p {
+      color: #aebed0;
+      font-size: 18px;
+      max-width: 650px;
+      margin-bottom: 30px;
+    }
+
+    .hero-buttons {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .market-card {
+      background: linear-gradient(145deg, #10243a, #091525);
+      border: 1px solid #203b56;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+
+    .market-card h3 {
+      margin-bottom: 20px;
+    }
+
+    .market-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 16px 0;
+      border-bottom: 1px solid #20344b;
+    }
+
+    .market-row:last-child {
+      border-bottom: none;
+    }
+
+    .positive {
+      color: #35d07f;
+    }
+
+    .negative {
+      color: #ff6b6b;
+    }
+
+    .section {
+      max-width: 1200px;
+      margin: auto;
+      padding: 70px 25px;
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 45px;
+    }
+
+    .section-title h2 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+
+    .section-title p {
+      color: #9dafc2;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .feature {
+      background: #0c1b2d;
+      border: 1px solid #1d344d;
+      border-radius: 14px;
+      padding: 28px;
+    }
+
+    .feature-icon {
+      font-size: 30px;
+      margin-bottom: 15px;
+    }
+
+    .feature h3 {
+      margin-bottom: 10px;
+    }
+
+    .feature p {
+      color: #9dafc2;
+      font-size: 15px;
+    }
+
+    .cta {
+      max-width: 1200px;
+      margin: 30px auto 80px;
+      padding: 60px 30px;
+      text-align: center;
+      background: linear-gradient(135deg, #0d2d27, #0b1c30);
+      border: 1px solid #245543;
+      border-radius: 20px;
+    }
+
+    .cta h2 {
+      font-size: 36px;
+      margin-bottom: 15px;
+    }
+
+    .cta p {
+      color: #b4c3d3;
+      margin-bottom: 25px;
+    }
+
+    footer {
+      background: #050c15;
+      border-top: 1px solid #1a2b3d;
+      padding: 35px 25px;
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    footer p {
+      color: #8194a8;
+      font-size: 14px;
+    }
+
+    footer a {
+      color: #9dafc2;
+      text-decoration: none;
+      margin-left: 15px;
+    }
+
+    .risk {
+      max-width: 1200px;
+      margin: 0 auto 30px;
+      padding: 0 25px;
+      text-align: center;
+      color: #71869c;
+      font-size: 12px;
+    }
+
+    @media (max-width: 850px) {
+      .hero {
+        grid-template-columns: 1fr;
+        padding-top: 60px;
+      }
+
+      .hero h1 {
+        font-size: 40px;
+      }
+
+      .features {
+        grid-template-columns: 1fr;
+      }
+
+      nav {
+        display: none;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .navbar {
+        padding: 15px;
+      }
+
+      .nav-buttons {
+        margin-left: auto;
+      }
+
+      .btn {
+        padding: 9px 12px;
+        font-size: 13px;
+      }
+
+      .hero,
+      .section {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .hero h1 {
+        font-size: 34px;
+      }
+
+      .cta h2 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="navbar">
+
+      <div class="logo">
+        Global<span>Market</span>.com
+      </div>
+
+      <nav>
+        <a href="#markets">Markets</a>
+        <a href="#features">Features</a>
+        <a href="#about">About</a>
+      </nav>
+
+      <div class="nav-buttons">
+        <a href="dashboard.html" class="btn btn-outline">Login</a>
+        <a href="dashboard.html" class="btn btn-primary">Get Started</a>
+      </div>
+
+    </div>
+  </header>
+
+
+  <main>
+
+    <section class="hero">
+
+      <div>
+        <h1>
+          Build a smarter
+          <span>investment journey.</span>
+        </h1>
+
+        <p>
+          Explore market information, monitor your portfolio,
+          and access tools designed to help you make informed
+          financial decisions.
+        </p>
+
+        <div class="hero-buttons">
+          <a href="dashboard.html" class="btn btn-primary">
+            Open Dashboard
+          </a>
+
+          <a href="#features" class="btn btn-outline">
+            Explore Features
+          </a>
+        </div>
+      </div>
+
+
+      <div class="market-card" id="markets">
+
+        <h3>Market Overview</h3>
+
+        <div class="market-row">
+          <span>Global Equity Index</span>
+          <span class="positive">+1.24%</span>
+        </div>
+
+        <div class="market-row">
+          <span>Technology Index</span>
+          <span class="positive">+0.86%</span>
+        </div>
+
+        <div class="market-row">
+          <span>Global Bonds</span>
+          <span class="negative">-0.32%</span>
+        </div>
+
+        <div class="market-row">
+          <span>Commodities</span>
+          <span class="positive">+0.47%</span>
+        </div>
+
+        <p style="font-size:12px;color:#71869c;margin-top:20px;">
+          Demonstration data — connect an authorized market-data
+          provider before displaying live prices.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <section class="section" id="features">
+
+      <div class="section-title">
+        <h2>Platform Features</h2>
+        <p>Tools for managing and understanding your investment activity.</p>
+      </div>
+
+
+      <div class="features">
+
+        <div class="feature">
+          <div class="feature-icon">📊</div>
+          <h3>Portfolio Tracking</h3>
+          <p>
+            Organize and monitor your investment holdings
+            through a centralized dashboard.
+          </p>
+        </div>
+
+
+        <div class="feature">
+          <div class="feature-icon">📈</div>
+          <h3>Market Insights</h3>
+          <p>
+            Review market information and performance data
+            to support your own research.
+          </p>
+        </div>
+
+
+        <div class="feature">
+          <div class="feature-icon">🔐</div>
+          <h3>Account Security</h3>
+          <p>
+            Designed with secure authentication and
+            responsible account-management practices.
+          </p>
+        </div>
+
+
+        <div class="feature">
+          <div class="feature-icon">💼</div>
+          <h3>Investment Tools</h3>
+          <p>
+            Access tools that can help you organize your
+            financial planning and investment research.
+          </p>
+        </div>
+
+
+        <div class="feature">
+          <div class="feature-icon">📱</div>
+          <h3>Responsive Design</h3>
+          <p>
+            Use the platform comfortably on desktop,
+            tablet, and mobile devices.
+          </p>
+        </div>
+
+
+        <div class="feature">
+          <div class="feature-icon">🛡️</div>
+          <h3>Transparent Information</h3>
+          <p>
+            Clearly communicate fees, risks, terms and
+            platform information to users.
+          </p>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <section class="section" id="about">
+
+      <div class="section-title">
+        <h2>Built for informed decisions</h2>
+
+        <p>
+          GlobalMarket.com is designed as a modern financial
+          technology interface for portfolio and market tools.
+        </p>
+      </div>
+
+    </section>
+
+
+    <section class="cta">
+
+      <h2>Ready to explore the platform?</h2>
+
+      <p>
+        Access your dashboard to explore the available tools.
+      </p>
+
+      <a href="dashboard.html" class="btn btn-primary">
+        Go to Dashboard
+      </a>
+
+    </section>
+
+  </main>
+
+
+  <div class="risk">
+    Investment involves risk. Past performance does not guarantee
+    future results. This demonstration website does not constitute
+    financial advice or an offer to buy or sell financial products.
+  </div>
+
+
+  <footer>
+
+    <div class="footer-inner">
+
+      <p>
+        © 2026 GlobalMarket.com. All rights reserved.
+      </p>
+
+      <div>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Risk Disclosure</a>
+      </div>
+
+    </div>
+
+  </footer>
+
+</body>
+</html>
