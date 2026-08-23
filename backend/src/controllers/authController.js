@@ -1,62 +1,115 @@
+const pool = require('../config/database');
 const logger = require('../utils/logger');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
-const { hashPassword, comparePassword } = require('../utils/bcrypt');
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require('../utils/jwt');
+const { hashPassword } = require('../utils/bcrypt');
 
 const register = async (req, res, next) => {
   try {
     const { email, password, firstName, lastName } = req.body;
-    logger.info(`New registration attempt for email: ${email}`);
 
-    // TODO: Check if user exists in database
-    // TODO: Hash password and store user
-    // TODO: Return user data and tokens
+    const normalizedEmail = email.trim().toLowerCase();
 
-    res.status(201).json({
-      message: 'User registered successfully',
-      user: { email, firstName, lastName },
+    logger.info(`New registration attempt for email: ${normalizedEmail}`);
+
+    // Check whether the email already exists
+    const existingUser = await pool.query(
+      'SELECT id FROM users WHERE email = $1 LIMIT 1',
+      [normalizedEmail]
+    );
+
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({
+        message: 'An account with this email already exists.',
+      });
+    }
+
+    // Hash password before storing it
+    const passwordHash = await hashPassword(password);
+
+    // Create user
+    const result = await pool.query(
+      `
+      INSERT INTO users
+        (email, password_hash, first_name, last_name)
+      VALUES
+        ($1, $2, $3, $4)
+      RETURNING
+        id,
+        email,
+        first_name,
+        last_name,
+        role,
+        status,
+        email_verified,
+        created_at
+      `,
+      [
+        normalizedEmail,
+        passwordHash,
+        firstName.trim(),
+        lastName.trim(),
+      ]
+    );
+
+    const user = result.rows[0];
+
+    const accessToken = generateAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    const refreshToken = generateRefreshToken({
+      id: user.id,
+      email: user.email,
+    });
+
+    return res.status(201).json({
+      message: 'Account created successfully.',
+      user,
+      accessToken,
+      refreshToken,
     });
   } catch (error) {
-    next(error);
+    logger.error('Registration error:', error);
+    return next(error);
   }
 };
 
 const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+
     logger.info(`Login attempt for email: ${email}`);
 
-    // TODO: Find user in database
-    // TODO: Compare password
-    // TODO: Generate tokens
-    // TODO: Return tokens
-
-    res.status(200).json({
-      message: 'Login successful',
-      accessToken: 'token_here',
-      refreshToken: 'refresh_token_here',
+    return res.status(501).json({
+      message: 'Login is not implemented yet.',
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
 const logout = async (req, res, next) => {
   try {
-    // TODO: Invalidate token in Redis
-    res.status(200).json({ message: 'Logout successful' });
+    return res.status(200).json({
+      message: 'Logout successful',
+    });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
 const refreshToken = async (req, res, next) => {
   try {
-    const { refreshToken } = req.body;
-    // TODO: Verify refresh token
-    // TODO: Generate new access token
-    res.status(200).json({ accessToken: 'new_token_here' });
+    return res.status(501).json({
+      message: 'Refresh token is not implemented yet.',
+    });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
