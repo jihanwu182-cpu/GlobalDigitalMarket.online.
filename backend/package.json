@@ -4,14 +4,14 @@
   "description": "GlobalMarket.com Broker Investment Platform Backend",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js",
-    "test": "jest --coverage",
-    "test:watch": "jest --watch",
-    "lint": "eslint src/**/*.js",
-    "lint:fix": "eslint src/**/*.js --fix",
-    "migrate": "node migration/migrate.js",
-    "seed": "node seeds/seed.js"
+   "start": "node src/app.js",
+  "dev": "nodemon src/app.js",
+  "test": "jest --coverage",
+  "test:watch": "jest --watch",
+  "lint": "eslint src/**/*.js",
+  "lint:fix": "eslint src/**/*.js --fix",
+  "migrate": "node migration/migrate.js",
+  "seed": "node seeds/seed.js" 
   },
   "keywords": [
     "broker",
