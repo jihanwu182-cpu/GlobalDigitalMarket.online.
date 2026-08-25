@@ -4,8 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>GlobalMarket | Markets & Investment</title>
-  <meta name="description" content="GlobalMarket provides market information, portfolio tools and investment education.">
+  <title>GlobaDigitalMarket.online | Markets & Investment</title>
+
+  <meta
+    name="description"
+    content="GlobaDigitalMarket.online provides market information, portfolio tools and investment education."
+  >
 
   <style>
     * {
@@ -47,19 +51,21 @@
     }
 
     nav {
-      height: 74px;
+      min-height: 74px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 20px;
     }
 
     .logo {
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 21px;
+      font-size: 20px;
       font-weight: 800;
       letter-spacing: -.5px;
+      white-space: nowrap;
     }
 
     .logo-icon {
@@ -75,7 +81,7 @@
 
     .nav-links {
       display: flex;
-      gap: 28px;
+      gap: 25px;
       align-items: center;
       color: #b8c4d5;
       font-size: 14px;
@@ -168,6 +174,7 @@
     .gradient-text {
       background: linear-gradient(90deg,#20d6a3,#54a8ff);
       -webkit-background-clip: text;
+      background-clip: text;
       color: transparent;
     }
 
@@ -453,7 +460,7 @@
       margin: 8px 0;
     }
 
-    .disclaimer {
+    .copyright {
       padding-top: 25px;
       border-top: 1px solid rgba(255,255,255,.06);
       color: #667487;
@@ -463,6 +470,7 @@
     /* MOBILE */
 
     @media(max-width: 800px) {
+
       .nav-links,
       .nav-buttons {
         display: none;
@@ -508,6 +516,10 @@
       .cta-box h2 {
         font-size: 31px;
       }
+
+      .logo {
+        font-size: 16px;
+      }
     }
   </style>
 </head>
@@ -520,7 +532,7 @@
 
       <a href="#" class="logo">
         <span class="logo-icon">G</span>
-        GlobalMarket
+        GlobaDigitalMarket.online
       </a>
 
       <div class="nav-links">
@@ -531,11 +543,16 @@
       </div>
 
       <div class="nav-buttons">
-        <a href="#" class="btn btn-outline">Sign In</a>
-        
-      </div><a href="signup.html" class="btn btn-primary">
-  Create Your Account →
-</a>
+
+        <a href="signin.html" class="btn btn-outline">
+          Sign In
+        </a>
+
+        <a href="signup.html" class="btn btn-primary">
+          Create Account
+        </a>
+
+      </div>
 
       <div class="menu">☰</div>
 
@@ -543,23 +560,27 @@
   </div>
 </header>
 
-
 <main>
 
   <!-- HERO -->
 
   <section class="hero">
+
     <div class="container">
 
       <div class="hero-grid">
 
         <div>
 
-          <span class="badge">● Markets & Investment Platform</span>
+          <span class="badge">
+            ● Markets & Investment Platform
+          </span>
 
           <h1>
             Make smarter decisions in
-            <span class="gradient-text">global markets.</span>
+            <span class="gradient-text">
+              global markets.
+            </span>
           </h1>
 
           <p>
@@ -569,32 +590,41 @@
           </p>
 
           <div class="hero-actions">
-            <a href="signup.html" class="btn btn-primary">Get Started</a>
-              Explore GlobalMarket →
+
+            <a href="signup.html" class="btn btn-primary">
+              Get Started →
             </a>
 
             <a href="#markets" class="btn btn-outline">
               View Markets
             </a>
+
           </div>
 
         </div>
-
 
         <div class="dashboard-card">
 
           <div class="card-top">
 
             <div>
-              <div class="small">Market overview</div>
-              <div class="price">$104,286.42</div>
+              <div class="small">
+                Market overview
+              </div>
+
+              <div class="price">
+                $104,286.42
+              </div>
             </div>
 
-            <div class="positive">+2.41%</div>
+            <div class="positive">
+              +2.41%
+            </div>
 
           </div>
 
           <div class="chart">
+
             <div class="bar" style="height:35%"></div>
             <div class="bar" style="height:45%"></div>
             <div class="bar" style="height:38%"></div>
@@ -607,6 +637,7 @@
             <div class="bar" style="height:88%"></div>
             <div class="bar" style="height:82%"></div>
             <div class="bar" style="height:94%"></div>
+
           </div>
 
           <div class="market-row">
@@ -629,13 +660,15 @@
       </div>
 
     </div>
-  </section>
 
+  </section>
 
   <!-- STATS -->
 
   <div class="stats">
+
     <div class="container">
+
       <div class="stats-grid">
 
         <div class="stat">
@@ -659,9 +692,10 @@
         </div>
 
       </div>
-    </div>
-  </div>
 
+    </div>
+
+  </div>
 
   <!-- FEATURES -->
 
@@ -670,41 +704,57 @@
     <div class="container">
 
       <div class="section-title">
-        <h2>Everything you need to understand markets.</h2>
+
+        <h2>
+          Everything you need to understand markets.
+        </h2>
+
         <p>
           A clean platform built around useful information,
           portfolio visibility and responsible investing.
         </p>
-      </div>
 
+      </div>
 
       <div class="cards">
 
         <div class="feature">
+
           <div class="feature-icon">📊</div>
+
           <h3>Market Insights</h3>
+
           <p>
             Follow market movements and explore financial
             information in an easy-to-understand interface.
           </p>
+
         </div>
 
         <div class="feature">
+
           <div class="feature-icon">💼</div>
+
           <h3>Portfolio Tools</h3>
+
           <p>
             Organize your investments and monitor your portfolio
             from one convenient dashboard.
           </p>
+
         </div>
 
         <div class="feature">
+
           <div class="feature-icon">🔐</div>
+
           <h3>Security First</h3>
+
           <p>
             Built with security-conscious architecture and
             responsible handling of account information.
           </p>
+
         </div>
 
       </div>
@@ -713,7 +763,6 @@
 
   </section>
 
-
   <!-- MARKETS -->
 
   <section id="markets" class="markets">
@@ -721,13 +770,17 @@
     <div class="container">
 
       <div class="section-title">
-        <h2>Market overview</h2>
+
+        <h2>
+          Market overview
+        </h2>
+
         <p>
           Example market data displayed for demonstration.
           Connect a legitimate market-data provider for live prices.
         </p>
-      </div>
 
+      </div>
 
       <div class="market-table">
 
@@ -772,7 +825,6 @@
 
   </section>
 
-
   <!-- PLANS -->
 
   <section id="plans">
@@ -780,20 +832,27 @@
     <div class="container">
 
       <div class="section-title">
-        <h2>Choose your experience.</h2>
+
+        <h2>
+          Choose your experience.
+        </h2>
+
         <p>
           These example tiers demonstrate how services could be
           structured. They are not investment-return promises.
         </p>
-      </div>
 
+      </div>
 
       <div class="plans">
 
         <div class="plan">
 
           <h3>Explorer</h3>
-          <div class="label">For learning and market research</div>
+
+          <div class="label">
+            For learning and market research
+          </div>
 
           <ul>
             <li>Market information</li>
@@ -808,11 +867,13 @@
 
         </div>
 
-
         <div class="plan featured">
 
           <h3>Professional</h3>
-          <div class="label">For active market users</div>
+
+          <div class="label">
+            For active market users
+          </div>
 
           <ul>
             <li>Advanced market tools</li>
@@ -821,17 +882,19 @@
             <li>Market alerts</li>
           </ul>
 
-          <a href="#get-started" class="btn btn-primary">
+          <a href="signup.html" class="btn btn-primary">
             Get Started
           </a>
 
         </div>
 
-
         <div class="plan">
 
           <h3>Business</h3>
-          <div class="label">For organizations</div>
+
+          <div class="label">
+            For organizations
+          </div>
 
           <ul>
             <li>Advanced reporting</li>
@@ -852,7 +915,6 @@
 
   </section>
 
-
   <!-- ABOUT -->
 
   <section id="about">
@@ -860,41 +922,64 @@
     <div class="container">
 
       <div class="section-title">
-        <h2>Built around transparency.</h2>
+
+        <h2>
+          Built around transparency.
+        </h2>
+
         <p>
-          GlobalMarket is designed to help users access financial
-          information and tools without confusing claims or unrealistic
-          promises.
+          GlobaDigitalMarket.online is designed to help users access
+          financial information and tools without confusing claims
+          or unrealistic promises.
         </p>
+
       </div>
 
       <div class="cards">
 
         <div class="feature">
+
           <div class="feature-icon">✓</div>
-          <h3>Clear Information</h3>
+
+          <h3>
+            Clear Information
+          </h3>
+
           <p>
             Financial information should be understandable and
             presented with appropriate context.
           </p>
+
         </div>
 
         <div class="feature">
+
           <div class="feature-icon">⚡</div>
-          <h3>Simple Experience</h3>
+
+          <h3>
+            Simple Experience
+          </h3>
+
           <p>
             A modern interface helps users focus on the information
             that matters to them.
           </p>
+
         </div>
 
         <div class="feature">
+
           <div class="feature-icon">🎓</div>
-          <h3>Education</h3>
+
+          <h3>
+            Education
+          </h3>
+
           <p>
             Learn about markets and financial concepts before making
             investment decisions.
           </p>
+
         </div>
 
       </div>
@@ -902,7 +987,6 @@
     </div>
 
   </section>
-
 
   <!-- CTA -->
 
@@ -912,14 +996,16 @@
 
       <div class="cta-box">
 
-        <h2>Start exploring GlobalMarket.</h2>
+        <h2>
+          Start exploring GlobaDigitalMarket.online.
+        </h2>
 
         <p>
           Discover market information, educational resources and
           portfolio tools designed for a clearer financial experience.
         </p>
 
-        <a href="#" class="btn btn-primary">
+        <a href="signup.html" class="btn btn-primary">
           Create Your Account →
         </a>
 
@@ -931,7 +1017,6 @@
 
 </main>
 
-
 <!-- FOOTER -->
 
 <footer>
@@ -941,48 +1026,63 @@
     <div class="footer-grid">
 
       <div>
+
         <a href="#" class="logo">
+
           <span class="logo-icon">G</span>
-          GlobalMarket
+
+          GlobaDigitalMarket.online
+
         </a>
 
         <p>
           Market information and investment tools
           designed for a modern financial experience.
         </p>
+
       </div>
 
       <div>
+
         <h4>Platform</h4>
+
         <a href="#markets">Markets</a>
         <a href="#features">Features</a>
         <a href="#plans">Plans</a>
+
       </div>
 
       <div>
+
         <h4>Company</h4>
+
         <a href="#about">About</a>
         <a href="#">Contact</a>
         <a href="#">Support</a>
+
       </div>
 
       <div>
+
         <h4>Legal</h4>
+
         <a href="#">Privacy</a>
         <a href="#">Terms</a>
-        <a href="#">Risk Disclosure</a>
+
       </div>
 
     </div>
 
+    <div class="copyright">
+      ©️ 2026 GlobaDigitalMarket.online. All rights reserved.
+    </div>
 
-    <div class="disclaimer">
-      © 2026 GlobalMarket. All rights reserved.
-      <br><br>
-      Risk disclosure: Financial markets involve risk, and past
-      performance does not guarantee future results. Nothing on this
-      website constitutes personalized financial, investment, tax or
-      legal advice. Market figures shown on this page are illustrative
-      unless explicitly identified as live data from a verified provider.
-      Users should independently evaluate risks and seek qualified
-      professional a
+  </div>
+
+</footer>
+
+</body>
+</html>
+  
+
+  
