@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -8,142 +9,163 @@ import {
   Typography,
   CircularProgress,
 } from '@mui/material';
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import authService from '../services/authService';
-
-const RegisterSchema = Yup.object().shape({
-  firstName: Yup.string().required('First name is required'),
-  lastName: Yup.string().required('Last name is required'),
-  email: Yup.string().email('Invalid email').required('Email is required'),
-  password: Yup.string()
-    .min(8, 'Password must be at least 8 characters')
-    .required('Password is required'),
-  confirmPassword: Yup.string()
-    .oneOf([Yup.ref('password')], 'Passwords must match')
-    .required('Confirm password is required'),
-});
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
 
-  const handleSubmit = async (values: any, { setSubmitting }: any) => {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
+    event.preventDefault();
+
+    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+      toast.error('Please fill in all fields.');
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+
     try {
+      setLoading(true);
+
       await authService.register(
-        values.email,
-        values.password,
-        values.firstName,
-        values.lastName
+        email,
+        password,
+        firstName,
+        lastName
       );
-      toast.success('Registration successful! Please login.');
+
+      toast.success('Account created successfully! Please login.');
+
       navigate('/login');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+      console.error('Registration error:', error);
+
+      const message =
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Registration failed. Please try again.';
+
+      toast.error(message);
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <Card sx={{ boxShadow: 3 }}>
+    <Card sx={{ width: '100%', boxShadow: 3 }}>
       <CardContent sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3, textAlign: 'center' }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            mb: 3,
+            textAlign: 'center',
+            fontWeight: 700,
+          }}
+        >
           Create Account
         </Typography>
 
-        <Formik
-          initialValues={{
-            firstName: '',
-            lastName: '',
-            email: '',
-            password: '',
-            confirmPassword: '',
+        <Box
+          component="form"
+          onSubmit={handleRegister}
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
           }}
-          validationSchema={RegisterSchema}
-          onSubmit={handleSubmit}
         >
-          {({ values, errors, touched, handleChange, handleBlur, isSubmitting }) => (
-            <Form>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  fullWidth
-                  label="First Name"
-                  name="firstName"
-                  value={values.firstName}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={touched.firstName && Boolean(errors.firstName)}
-                  helperText={touched.firstName && errors.firstName}
-                  disabled={isSubmitting}
-                />
-                <TextField
-                  fullWidth
-                  label="Last Name"
-                  name="lastName"
-                  value={values.lastName}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={touched.lastName && Boolean(errors.lastName)}
-                  helperText={touched.lastName && errors.lastName}
-                  disabled={isSubmitting}
-                />
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={values.email}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={touched.email && Boolean(errors.email)}
-                  helperText={touched.email && errors.email}
-                  disabled={isSubmitting}
-                />
-                <TextField
-                  fullWidth
-                  label="Password"
-                  name="password"
-                  type="password"
-                  value={values.password}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={touched.password && Boolean(errors.password)}
-                  helperText={touched.password && errors.password}
-                  disabled={isSubmitting}
-                />
-                <TextField
-                  fullWidth
-                  label="Confirm Password"
-                  name="confirmPassword"
-                  type="password"
-                  value={values.confirmPassword}
-                  onChange={handleChange}
-                  onBlur={handleBlur}
-                  error={touched.confirmPassword && Boolean(errors.confirmPassword)}
-                  helperText={touched.confirmPassword && errors.confirmPassword}
-                  disabled={isSubmitting}
-                />
-                <Button
-                  fullWidth
-                  variant="contained"
-                  type="submit"
-                  disabled={isSubmitting}
-                  sx={{ mt: 2 }}
-                >
-                  {isSubmitting ? <CircularProgress size={24} /> : 'Register'}
-                </Button>
-                <Typography variant="body2" sx={{ textAlign: 'center', mt: 2 }}>
-                  Already have an account?{' '}
-                  <Button color="primary" onClick={() => navigate('/login')}>
-                    Login
-                  </Button>
-                </Typography>
-              </Box>
-            </Form>
-          )}
-        </Formik>
+          <TextField
+            fullWidth
+            label="First Name"
+            value={firstName}
+            onChange={(event) => setFirstName(event.target.value)}
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="Last Name"
+            value={lastName}
+            onChange={(event) => setLastName(event.target.value)}
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            disabled={loading}
+          />
+
+          <TextField
+            fullWidth
+            label="Confirm Password"
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            disabled={loading}
+          />
+
+          <Button
+            fullWidth
+            variant="contained"
+            type="submit"
+            disabled={loading}
+            sx={{ mt: 1, py: 1.5 }}
+          >
+            {loading ? (
+              <CircularProgress size={24} />
+            ) : (
+              'Create Account'
+            )}
+          </Button>
+
+          <Typography
+            variant="body2"
+            sx={{ textAlign: 'center', mt: 1 }}
+          >
+            Already have an account?
+          </Typography>
+
+          <Button
+            variant="text"
+            onClick={() => navigate('/login')}
+            disabled={loading}
+          >
+            Login
+          </Button>
+        </Box>
       </CardContent>
     </Card>
   );
