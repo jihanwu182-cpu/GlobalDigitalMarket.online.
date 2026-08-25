@@ -27,7 +27,13 @@ const Register: React.FC = () => {
   ) => {
     event.preventDefault();
 
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !password ||
+      !confirmPassword
+    ) {
       toast.error('Please fill in all fields.');
       return;
     }
