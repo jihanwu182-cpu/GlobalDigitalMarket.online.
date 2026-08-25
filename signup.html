@@ -1,249 +1,76 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+  document.getElementById("signupForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
 
-  <title>GlobalMarket | Create Account</title>
+    const fullName = document.getElementById("fullName").value.trim();
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    if (!fullName || !email || !password) {
+      alert("Please complete all fields.");
+      return;
     }
 
-    body {
-      font-family: Arial, sans-serif;
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at top right, rgba(22,134,255,.18), transparent 35%),
-        radial-gradient(circle at bottom left, rgba(32,214,163,.12), transparent 35%),
-        #07111f;
-      color: #f4f7fb;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 25px;
+    const nameParts = fullName.split(/\s+/);
+
+    const firstName = nameParts.shift();
+    const lastName = nameParts.join(" ") || "";
+
+    if (!lastName) {
+      alert("Please enter your first and last name.");
+      return;
     }
 
-    .container {
-      width: 100%;
-      max-width: 460px;
-    }
+    const button = document.querySelector(".btn");
 
-    .logo {
-      text-align: center;
-      margin-bottom: 25px;
-      font-size: 25px;
-      font-weight: 800;
-    }
+    button.disabled = true;
+    button.textContent = "Creating Account...";
 
-    .logo-icon {
-      display: inline-grid;
-      place-items: center;
-      width: 42px;
-      height: 42px;
-      margin-right: 8px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #20d6a3, #1686ff);
-      vertical-align: middle;
-    }
+    try {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          firstName: firstName,
+          lastName: lastName,
+          email: email,
+          password: password
+        })
+      });
 
-    .card {
-      background: #0d1929;
-      border: 1px solid rgba(255,255,255,.09);
-      border-radius: 20px;
-      padding: 32px;
-      box-shadow: 0 25px 70px rgba(0,0,0,.35);
-    }
+      const data = await response.json();
 
-    h1 {
-      font-size: 30px;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      color: #91a0b3;
-      font-size: 14px;
-      margin-bottom: 28px;
-      line-height: 1.6;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 7px;
-      color: #dce4ee;
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .field {
-      margin-bottom: 18px;
-    }
-
-    input {
-      width: 100%;
-      padding: 14px 15px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.13);
-      background: #081422;
-      color: white;
-      outline: none;
-      font-size: 15px;
-    }
-
-    input:focus {
-      border-color: #20d6a3;
-      box-shadow: 0 0 0 3px rgba(32,214,163,.08);
-    }
-
-    .password-note {
-      color: #748399;
-      font-size: 11px;
-      margin-top: 6px;
-    }
-
-    .btn {
-      width: 100%;
-      border: 0;
-      border-radius: 10px;
-      padding: 14px;
-      background: linear-gradient(135deg, #20d6a3, #1686ff);
-      color: white;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      margin-top: 5px;
-    }
-
-    .btn:hover {
-      opacity: .92;
-    }
-
-    .back {
-      display: block;
-      text-align: center;
-      margin-top: 20px;
-      color: #8fa0b5;
-      font-size: 14px;
-      text-decoration: none;
-    }
-
-    .back:hover {
-      color: white;
-    }
-
-    .notice {
-      margin-top: 20px;
-      padding: 12px;
-      border-radius: 9px;
-      background: rgba(32,214,163,.06);
-      border: 1px solid rgba(32,214,163,.12);
-      color: #91a0b3;
-      font-size: 11px;
-      line-height: 1.5;
-    }
-
-    @media (max-width: 500px) {
-      .card {
-        padding: 25px 20px;
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || "Unable to create account."
+        );
       }
 
-      h1 {
-        font-size: 26px;
+      alert("Account created successfully!");
+
+      if (data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
       }
-    }
-  </style>
-</head>
 
-<body>
+      if (data.refreshToken) {
+        localStorage.setItem("refreshToken", data.refreshToken);
+      }
 
-  <div class="container">
+      window.location.href = "index.html";
 
-    <div class="logo">
-      <span class="logo-icon">G</span>
-      GlobalMarket
-    </div>
-
-    <div class="card">
-
-      <h1>Create your account</h1>
-
-      <p class="subtitle">
-        Create an account to access the GlobalMarket platform.
-      </p>
-
-      <form id="signupForm">
-
-        <div class="field">
-          <label for="fullName">Full Name</label>
-          <input
-            type="text"
-            id="fullName"
-            name="fullName"
-            placeholder="Enter your full name"
-            required
-          >
-        </div>
-
-        <div class="field">
-          <label for="email">Email Address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="you@example.com"
-            required
-          >
-        </div>
-
-        <div class="field">
-          <label for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="Create a password"
-            minlength="8"
-            required
-          >
-
-          <div class="password-note">
-            Password must contain at least 8 characters.
-          </div>
-        </div>
-
-        <button type="submit" class="btn">
-          Create Account
-        </button>
-
-      </form>
-
-      <div class="notice">
-        This form is currently a demonstration. Do not enter a real
-        password or other sensitive information until the secure
-        backend connection has been completed.
-      </div>
-
-      <a href="index.html" class="back">
-        ← Back to GlobalMarket
-      </a>
-
-    </div>
-
-  </div>
-
-  <script>
-    document.getElementById("signupForm").addEventListener("submit", function(event) {
-      event.preventDefault();
+    } catch (error) {
+      console.error("Signup error:", error);
 
       alert(
-        "The signup page is working. " +
-        "The secure backend connection still needs to be connected before real accounts can be created."
+        error.message ||
+        "Something went wrong while creating your account."
       );
-    });
-  </script>
 
-</body>
-</html>
+    } finally {
+      button.disabled = false;
+      button.textContent = "Create Account";
+    }
+  });
+</script>
