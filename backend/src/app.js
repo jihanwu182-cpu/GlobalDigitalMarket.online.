@@ -9,9 +9,9 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// ===============================
-// SECURITY & MIDDLEWARE
-// ===============================
+// =====================================
+// MIDDLEWARE
+// =====================================
 
 app.use(
   helmet({
@@ -19,41 +19,54 @@ app.use(
   })
 );
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*'
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || '*'
+  })
+);
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({
-  limit: '10mb',
-  extended: true
-}));
+app.use(
+  express.urlencoded({
+    limit: '10mb',
+    extended: true
+  })
+);
 
-// ===============================
-// FRONTEND PATH
-// ===============================
+// =====================================
+// PROJECT ROOT
+// =====================================
 
+// app.js is inside:
 // backend/src/app.js
-// ../.. = project root
+//
+// Going two levels up gives:
+// project-root/
+
 const projectRoot = path.resolve(__dirname, '../..');
 
-// Frontend folder
-const frontendPath = path.join(projectRoot, 'frontend');
+// =====================================
+// FRONTEND PAGES
+// =====================================
 
-// Serve frontend files
-app.use(express.static(frontendPath));
-
-// ===============================
-// HOMEPAGE
-// ===============================
-
+// Homepage
 app.get('/', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
+  res.sendFile(path.join(projectRoot, 'index.html'));
 });
 
-// ===============================
+// Signup page
+app.get('/signup.html', (req, res) => {
+  res.sendFile(path.join(projectRoot, 'signup.html'));
+});
+
+// Also allow /index.html
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(projectRoot, 'index.html'));
+});
+
+// =====================================
 // HEALTH CHECK
-// ===============================
+// =====================================
 
 app.get('/health', (req, res) => {
   res.status(200).json({
@@ -63,9 +76,9 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ===============================
+// =====================================
 // API ROUTES
-// ===============================
+// =====================================
 
 app.use(
   `${process.env.API_PREFIX || '/api'}/auth`,
@@ -97,9 +110,9 @@ app.use(
   require('./routes/walletRoutes')
 );
 
-// ===============================
-// 404 HANDLER
-// ===============================
+// =====================================
+// 404
+// =====================================
 
 app.use((req, res) => {
   res.status(404).json({
@@ -107,15 +120,15 @@ app.use((req, res) => {
   });
 });
 
-// ===============================
+// =====================================
 // ERROR HANDLER
-// ===============================
+// =====================================
 
 app.use(errorHandler);
 
-// ===============================
+// =====================================
 // SERVER
-// ===============================
+// =====================================
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
