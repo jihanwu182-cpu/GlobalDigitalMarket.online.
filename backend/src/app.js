@@ -19,7 +19,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Serve GlobalDigitalMarket.online frontend
-const frontendPath = path.join(__dirname, '../..');
+const frontendPath = path.join(__dirname, '../../frontend');
 
 app.use(express.static(frontendPath));
 
