@@ -1,16 +1,8 @@
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { Outlet } from 'react-router-dom';
 import { Box, Container } from '@mui/material';
-import { RootState } from '../store';
 
 const AuthLayout: React.FC = () => {
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-
-  if (isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-
   return (
     <Box
       sx={{
@@ -19,6 +11,7 @@ const AuthLayout: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: 2,
       }}
     >
       <Container maxWidth="sm">
