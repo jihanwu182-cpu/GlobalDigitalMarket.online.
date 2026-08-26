@@ -1,3 +1,4 @@
+// App component
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -35,7 +36,6 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-
           {/* Authentication */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -49,7 +49,6 @@ const App: React.FC = () => {
 
           {/* Unknown pages */}
           <Route path="*" element={<Navigate to="/login" replace />} />
-
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
