@@ -1,6 +1,16 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
+
+import {
+  ThemeProvider,
+  createTheme,
+} from '@mui/material/styles';
+
 import CssBaseline from '@mui/material/CssBaseline';
 
 import Login from './Pages/Login';
@@ -23,6 +33,7 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
+
   typography: {
     fontFamily: 'Roboto, sans-serif',
   },
@@ -35,16 +46,60 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
 
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/trading" element={<Trading />} />
-          <Route path="/market" element={<Market />} />
-          <Route path="/wallet" element={<Wallet />} />
+          {/* Login */}
+          <Route
+            path="/login"
+            element={<Login />}
+          />
 
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          {/* Register */}
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
+          {/* Dashboard */}
+          <Route
+            path="/"
+            element={<Dashboard />}
+          />
+
+          {/* Portfolio */}
+          <Route
+            path="/portfolio"
+            element={<Portfolio />}
+          />
+
+          {/* Trading */}
+          <Route
+            path="/trading"
+            element={<Trading />}
+          />
+
+          {/* Market */}
+          <Route
+            path="/market"
+            element={<Market />}
+          />
+
+          {/* Wallet */}
+          <Route
+            path="/wallet"
+            element={<Wallet />}
+          />
+
+          {/* Unknown page */}
+          <Route
+            path="*"
+            element={
+              <Navigate
+                to="/login"
+                replace
+              />
+            }
+          />
+
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
