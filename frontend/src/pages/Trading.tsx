@@ -18,7 +18,7 @@ interface TradingFormValues {
 }
 
 const TradingSchema = Yup.object({
-  symbol: Yup.string().required('Select a market'),
+  symbol: Yup.string().required('Market is required'),
   amount: Yup.string().required('Amount is required'),
   type: Yup.string()
     .oneOf(['buy', 'sell'])
@@ -32,21 +32,45 @@ const Trading: React.FC = () => {
     type: 'buy',
   };
 
-  const handleSubmit = async (values: TradingFormValues) => {
-    console.log('Trade submitted:', values);
-    alert(
-      `${values.type.toUpperCase()} order for ${values.symbol} submitted.`
-    );
+  const handleSubmit = async (
+    values: TradingFormValues
+  ) => {
+    try {
+      console.log('Trade submitted:', values);
+
+      alert(
+        `${values.type.toUpperCase()} order for ${values.symbol} submitted successfully.`
+      );
+    } catch (error) {
+      console.error('Trading error:', error);
+      alert('Unable to submit trade.');
+    }
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Card sx={{ maxWidth: 600, mx: 'auto', boxShadow: 3 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        p: 3,
+        backgroundColor: '#f5f5f5',
+      }}
+    >
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 600,
+          mx: 'auto',
+          boxShadow: 3,
+        }}
+      >
         <CardContent sx={{ p: 4 }}>
           <Typography
             variant="h4"
             component="h1"
-            sx={{ mb: 3, fontWeight: 700 }}
+            sx={{
+              mb: 3,
+              fontWeight: 700,
+            }}
           >
             Trading
           </Typography>
@@ -72,6 +96,7 @@ const Trading: React.FC = () => {
                     gap: 2,
                   }}
                 >
+                  {/* Market */}
                   <TextField
                     select
                     fullWidth
@@ -80,31 +105,38 @@ const Trading: React.FC = () => {
                     value={values.symbol}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    error={
-                      touched.symbol &&
-                      Boolean(errors.symbol)
-                    }
-                    helperText={
+                    error={Boolean(
                       touched.symbol && errors.symbol
+                    )}
+                    helperText={
+                      touched.symbol &&
+                      typeof errors.symbol === 'string'
+                        ? errors.symbol
+                        : ''
                     }
                   >
                     <MenuItem value="BTCUSDT">
-                      BTC/USDT
+                      BTC / USDT
                     </MenuItem>
 
                     <MenuItem value="ETHUSDT">
-                      ETH/USDT
+                      ETH / USDT
                     </MenuItem>
 
                     <MenuItem value="XRPUSDT">
-                      XRP/USDT
+                      XRP / USDT
                     </MenuItem>
 
                     <MenuItem value="EURUSD">
-                      EUR/USD
+                      EUR / USD
+                    </MenuItem>
+
+                    <MenuItem value="AAPL">
+                      Apple (AAPL)
                     </MenuItem>
                   </TextField>
 
+                  {/* Trade Type */}
                   <TextField
                     select
                     fullWidth
@@ -113,12 +145,14 @@ const Trading: React.FC = () => {
                     value={values.type}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    error={
-                      touched.type &&
-                      Boolean(errors.type)
-                    }
-                    helperText={
+                    error={Boolean(
                       touched.type && errors.type
+                    )}
+                    helperText={
+                      touched.type &&
+                      typeof errors.type === 'string'
+                        ? errors.type
+                        : ''
                     }
                   >
                     <MenuItem value="buy">
@@ -130,6 +164,7 @@ const Trading: React.FC = () => {
                     </MenuItem>
                   </TextField>
 
+                  {/* Amount */}
                   <TextField
                     fullWidth
                     label="Amount"
@@ -138,13 +173,18 @@ const Trading: React.FC = () => {
                     value={values.amount}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    error={
-                      touched.amount &&
-                      Boolean(errors.amount)
-                    }
-                    helperText={
+                    error={Boolean(
                       touched.amount && errors.amount
+                    )}
+                    helperText={
+                      touched.amount &&
+                      typeof errors.amount === 'string'
+                        ? errors.amount
+                        : ''
                     }
+                    inputProps={{
+                      min: 0,
+                    }}
                   />
 
                   <Button
@@ -152,9 +192,14 @@ const Trading: React.FC = () => {
                     variant="contained"
                     type="submit"
                     disabled={isSubmitting}
-                    sx={{ py: 1.5, mt: 1 }}
+                    sx={{
+                      mt: 1,
+                      py: 1.5,
+                    }}
                   >
-                    Place Trade
+                    {isSubmitting
+                      ? 'Submitting...'
+                      : 'Place Trade'}
                   </Button>
                 </Box>
               </Form>
