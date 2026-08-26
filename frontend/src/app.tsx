@@ -1,4 +1,3 @@
-// App component
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -36,18 +35,15 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-          {/* Authentication */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
 
-          {/* Main pages */}
           <Route path="/" element={<Dashboard />} />
           <Route path="/portfolio" element={<Portfolio />} />
           <Route path="/trading" element={<Trading />} />
           <Route path="/market" element={<Market />} />
           <Route path="/wallet" element={<Wallet />} />
 
-          {/* Unknown pages */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
