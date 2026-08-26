@@ -33,7 +33,6 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
-
   typography: {
     fontFamily: 'Roboto, sans-serif',
   },
@@ -46,7 +45,6 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-
           <Route
             path="/login"
             element={<Login />}
@@ -91,7 +89,6 @@ const App: React.FC = () => {
               />
             }
           />
-
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
