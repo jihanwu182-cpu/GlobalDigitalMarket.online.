@@ -33,6 +33,7 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
+
   typography: {
     fontFamily: 'Roboto, sans-serif',
   },
@@ -45,7 +46,7 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-          {/* Authentication */}
+
           <Route
             path="/login"
             element={<Login />}
@@ -56,7 +57,6 @@ const App: React.FC = () => {
             element={<Register />}
           />
 
-          {/* Main pages */}
           <Route
             path="/"
             element={<Dashboard />}
@@ -82,7 +82,6 @@ const App: React.FC = () => {
             element={<Wallet />}
           />
 
-          {/* Unknown pages */}
           <Route
             path="*"
             element={
@@ -92,6 +91,7 @@ const App: React.FC = () => {
               />
             }
           />
+
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
