@@ -66,7 +66,13 @@ const Login: React.FC = () => {
         p: 2,
       }}
     >
-      <Card sx={{ width: '100%', maxWidth: 450, boxShadow: 3 }}>
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 450,
+          boxShadow: 3,
+        }}
+      >
         <CardContent sx={{ p: 4 }}>
           <Typography
             variant="h4"
@@ -146,7 +152,10 @@ const Login: React.FC = () => {
                     variant="contained"
                     type="submit"
                     disabled={isSubmitting}
-                    sx={{ mt: 2, py: 1.5 }}
+                    sx={{
+                      mt: 2,
+                      py: 1.5,
+                    }}
                   >
                     {isSubmitting ? (
                       <CircularProgress size={24} />
@@ -166,7 +175,9 @@ const Login: React.FC = () => {
 
                     <Button
                       color="primary"
-                      onClick={() => navigate('/register')}
+                      onClick={() =>
+                        navigate('/register')
+                      }
                     >
                       Register
                     </Button>
