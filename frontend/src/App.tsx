@@ -13,13 +13,13 @@ import {
 
 import CssBaseline from '@mui/material/CssBaseline';
 
-import Login from './Pages/Login';
-import Register from './Pages/Register';
-import Dashboard from './Pages/Dashboard';
-import Portfolio from './Pages/Portfolio';
-import Trading from './Pages/Trading';
-import Market from './Pages/Market';
-import Wallet from './Pages/Wallet';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Portfolio from './pages/Portfolio';
+import Trading from './pages/Trading';
+import Market from './pages/Market';
+import Wallet from './pages/Wallet';
 
 const theme = createTheme({
   palette: {
@@ -33,7 +33,6 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
-
   typography: {
     fontFamily: 'Roboto, sans-serif',
   },
@@ -46,50 +45,44 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-
-          {/* Login */}
+          {/* Authentication */}
           <Route
             path="/login"
             element={<Login />}
           />
 
-          {/* Register */}
           <Route
             path="/register"
             element={<Register />}
           />
 
-          {/* Dashboard */}
+          {/* Main pages */}
           <Route
             path="/"
             element={<Dashboard />}
           />
 
-          {/* Portfolio */}
           <Route
             path="/portfolio"
             element={<Portfolio />}
           />
 
-          {/* Trading */}
           <Route
             path="/trading"
             element={<Trading />}
           />
 
-          {/* Market */}
           <Route
             path="/market"
             element={<Market />}
           />
 
-          {/* Wallet */}
           <Route
             path="/wallet"
             element={<Wallet />}
           />
 
-          {/* Unknown page */}
+          {/* Unknown pages */}
           <Route
             path="*"
             element={
@@ -99,7 +92,6 @@ const App: React.FC = () => {
               />
             }
           />
-
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
