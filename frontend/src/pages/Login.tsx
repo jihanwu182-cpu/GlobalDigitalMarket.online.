@@ -13,8 +13,9 @@ import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import authService from '../services/authService';
-import { login as loginAction } from '../store/authSlice';
+
+import authService from '../Services/authService';
+import { login as loginAction } from '../Store/authSlice';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string()
@@ -175,9 +176,7 @@ const Login: React.FC = () => {
 
                     <Button
                       color="primary"
-                      onClick={() =>
-                        navigate('/register')
-                      }
+                      onClick={() => navigate('/register')}
                     >
                       Register
                     </Button>
