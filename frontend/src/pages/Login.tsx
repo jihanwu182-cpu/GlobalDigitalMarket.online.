@@ -14,8 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 
-import authService from '../Services/authService';
-import { login as loginAction } from '../Store/authSlice';
+import authService from '../services/authService';
+import { login as loginAction } from '../store/authSlice';
 
 const LoginSchema = Yup.object().shape({
   email: Yup.string()
