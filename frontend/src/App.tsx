@@ -3,13 +3,13 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Portfolio from './pages/Portfolio';
-import Trading from './pages/Trading';
-import Market from './pages/Market';
-import Wallet from './pages/Wallet';
+import Login from './Pages/Login';
+import Register from './Pages/Register';
+import Dashboard from './Pages/Dashboard';
+import Portfolio from './Pages/Portfolio';
+import Trading from './Pages/Trading';
+import Market from './Pages/Market';
+import Wallet from './Pages/Wallet';
 
 const theme = createTheme({
   palette: {
