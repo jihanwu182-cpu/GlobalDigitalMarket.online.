@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  Outlet,
 } from 'react-router-dom';
 
 import {
@@ -21,6 +22,13 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 
+import authService from './services/authService';
+
+
+// ============================================================
+// THEME
+// ============================================================
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -33,10 +41,31 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
+
   typography: {
     fontFamily: 'Roboto, Arial, sans-serif',
   },
 });
+
+
+// ============================================================
+// PROTECTED ROUTE
+// ============================================================
+
+const ProtectedRoute: React.FC = () => {
+  const authenticated = authService.isAuthenticated();
+
+  if (!authenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <Outlet />;
+};
+
+
+// ============================================================
+// APP
+// ============================================================
 
 const App: React.FC = () => {
   return (
@@ -46,13 +75,10 @@ const App: React.FC = () => {
       <HashRouter>
         <Routes>
 
-          {/* Dashboard */}
-          <Route
-            path="/"
-            element={<Dashboard />}
-          />
+          {/* ==================================================
+              PUBLIC PAGES
+          ================================================== */}
 
-          {/* Authentication */}
           <Route
             path="/login"
             element={<Login />}
@@ -63,28 +89,62 @@ const App: React.FC = () => {
             element={<Register />}
           />
 
-          {/* Main Platform Pages */}
-          <Route
-            path="/portfolio"
-            element={<Portfolio />}
-          />
+
+          {/* ==================================================
+              PROTECTED PAGES
+          ================================================== */}
+
+          <Route element={<ProtectedRoute />}>
+
+            {/* Real logged-in dashboard */}
+            <Route
+              path="/dashboard"
+              element={<Dashboard />}
+            />
+
+            <Route
+              path="/portfolio"
+              element={<Portfolio />}
+            />
+
+            <Route
+              path="/trading"
+              element={<Trading />}
+            />
+
+            <Route
+              path="/market"
+              element={<Market />}
+            />
+
+            <Route
+              path="/wallet"
+              element={<Wallet />}
+            />
+
+          </Route>
+
+
+          {/* ==================================================
+              HOME
+          ================================================== */}
 
           <Route
-            path="/trading"
-            element={<Trading />}
+            path="/"
+            element={
+              authService.isAuthenticated() ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Navigate to="/login" replace />
+              )
+            }
           />
 
-          <Route
-            path="/market"
-            element={<Market />}
-          />
 
-          <Route
-            path="/wallet"
-            element={<Wallet />}
-          />
+          {/* ==================================================
+              UNKNOWN PAGE
+          ================================================== */}
 
-          {/* Unknown page */}
           <Route
             path="*"
             element={<Navigate to="/" replace />}
