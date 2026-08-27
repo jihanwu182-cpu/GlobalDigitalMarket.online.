@@ -24,10 +24,30 @@ const Trading: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Card sx={{ maxWidth: 600, mx: 'auto' }}>
-        <CardContent>
-          <Typography variant="h4" sx={{ mb: 3 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        padding: 3,
+        backgroundColor: '#f5f5f5',
+      }}
+    >
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 600,
+          margin: '0 auto',
+          boxShadow: 3,
+        }}
+      >
+        <CardContent sx={{ padding: 4 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              marginBottom: 3,
+              fontWeight: 700,
+            }}
+          >
             Trading
           </Typography>
 
@@ -108,13 +128,19 @@ const Trading: React.FC = () => {
                     value={values.amount}
                     onChange={handleChange}
                     onBlur={handleBlur}
+                    inputProps={{
+                      min: 0,
+                    }}
                   />
 
                   <Button
                     fullWidth
                     variant="contained"
                     type="submit"
-                    sx={{ py: 1.5 }}
+                    sx={{
+                      paddingY: 1.5,
+                      marginTop: 1,
+                    }}
                   >
                     Place Trade
                   </Button>
