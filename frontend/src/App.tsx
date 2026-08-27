@@ -4,7 +4,6 @@ import {
   Routes,
   Route,
   Navigate,
-  Outlet,
 } from 'react-router-dom';
 
 import {
@@ -22,7 +21,89 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 
-import authService from './services/authService';
+
+// ============================================================
+// ERROR BOUNDARY
+// ============================================================
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+
+    this.state = {
+      hasError: false,
+      errorMessage: '',
+    };
+  }
+
+  static getDerivedStateFromError(
+    error: Error
+  ): ErrorBoundaryState {
+    return {
+      hasError: true,
+      errorMessage:
+        error?.message || 'Unknown application error',
+    };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('APPLICATION ERROR:', error);
+    console.error('ERROR INFO:', errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            minHeight: '100vh',
+            background: '#f5f5f5',
+            padding: '30px',
+            fontFamily: 'Arial, sans-serif',
+          }}
+        >
+          <h1 style={{ color: '#d32f2f' }}>
+            Application Error
+          </h1>
+
+          <p>
+            The website loaded, but the application
+            encountered an error.
+          </p>
+
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid #ddd',
+              borderRadius: '8px',
+              padding: '20px',
+              marginTop: '20px',
+              wordBreak: 'break-word',
+            }}
+          >
+            <strong>Error:</strong>
+
+            <p>{this.state.errorMessage}</p>
+          </div>
+
+          <p style={{ marginTop: '20px' }}>
+            Please send this error message to support.
+          </p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 
 // ============================================================
@@ -49,54 +130,28 @@ const theme = createTheme({
 
 
 // ============================================================
-// PROTECTED ROUTE
-// ============================================================
-
-const ProtectedRoute: React.FC = () => {
-  const authenticated = authService.isAuthenticated();
-
-  if (!authenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <Outlet />;
-};
-
-
-// ============================================================
 // APP
 // ============================================================
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
 
-      <HashRouter>
-        <Routes>
+        <HashRouter>
+          <Routes>
 
-          {/* ==================================================
-              PUBLIC PAGES
-          ================================================== */}
+            <Route
+              path="/login"
+              element={<Login />}
+            />
 
-          <Route
-            path="/login"
-            element={<Login />}
-          />
+            <Route
+              path="/register"
+              element={<Register />}
+            />
 
-          <Route
-            path="/register"
-            element={<Register />}
-          />
-
-
-          {/* ==================================================
-              PROTECTED PAGES
-          ================================================== */}
-
-          <Route element={<ProtectedRoute />}>
-
-            {/* Real logged-in dashboard */}
             <Route
               path="/dashboard"
               element={<Dashboard />}
@@ -122,37 +177,30 @@ const App: React.FC = () => {
               element={<Wallet />}
             />
 
-          </Route>
+            <Route
+              path="/"
+              element={
+                <Navigate
+                  to="/login"
+                  replace
+                />
+              }
+            />
 
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to="/login"
+                  replace
+                />
+              }
+            />
 
-          {/* ==================================================
-              HOME
-          ================================================== */}
-
-          <Route
-            path="/"
-            element={
-              authService.isAuthenticated() ? (
-                <Navigate to="/dashboard" replace />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-
-
-          {/* ==================================================
-              UNKNOWN PAGE
-          ================================================== */}
-
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
-
-        </Routes>
-      </HashRouter>
-    </ThemeProvider>
+          </Routes>
+        </HashRouter>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 
