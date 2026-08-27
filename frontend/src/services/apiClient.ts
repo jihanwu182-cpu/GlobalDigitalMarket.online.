@@ -1,16 +1,20 @@
 import axios from 'axios';
 
 const API_URL =
-  process.env.REACT_APP_API_URL || 'https://globalmarket-com.onrender.com/api';
+  'https://globalmarket-com.onrender.com/api';
 
 const apiClient = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 30000,
 });
 
-// Add authentication token to requests
+// =====================================
+// ADD AUTH TOKEN
+// =====================================
+
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -19,23 +23,48 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    console.log(
+      'API REQUEST:',
+      config.method?.toUpperCase(),
+      `${API_URL}${config.url}`
+    );
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error);
+  }
 );
 
-// Handle API responses/errors
+// =====================================
+// HANDLE RESPONSE
+// =====================================
+
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(
+      'API RESPONSE:',
+      response.status,
+      response.config.url
+    );
+
+    return response;
+  },
+
   (error) => {
-    if (error.response?.status === 401) {
+    console.error(
+      'API ERROR:',
+      error?.response?.status,
+      error?.response?.data || error?.message
+    );
+
+    if (error?.response?.status === 401) {
       localStorage.removeItem('authToken');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
 
-      // Only redirect if we're not already on the login page
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
+      if (window.location.hash !== '#/login') {
+        window.location.hash = '#/login';
       }
     }
 
