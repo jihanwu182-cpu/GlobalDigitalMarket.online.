@@ -1,16 +1,6 @@
 import React from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from 'react-router-dom';
-
-import {
-  ThemeProvider,
-  createTheme,
-} from '@mui/material/styles';
-
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 
 import Login from './pages/Login';
@@ -46,64 +36,52 @@ const App: React.FC = () => {
       <BrowserRouter>
         <Routes>
 
+          {/* Login */}
           <Route
             path="/login"
             element={<Login />}
           />
 
+          {/* Create Account */}
           <Route
             path="/register"
-            element={
-              <div
-                style={{
-                  minHeight: '100vh',
-                  padding: '50px',
-                  textAlign: 'center',
-                  backgroundColor: 'white',
-                }}
-              >
-                <h1>REGISTER ROUTE WORKS</h1>
-
-                <p>
-                  React Router is loading the register route correctly.
-                </p>
-              </div>
-            }
+            element={<Register />}
           />
 
+          {/* Dashboard */}
           <Route
             path="/"
             element={<Dashboard />}
           />
 
+          {/* Portfolio */}
           <Route
             path="/portfolio"
             element={<Portfolio />}
           />
 
+          {/* Trading */}
           <Route
             path="/trading"
             element={<Trading />}
           />
 
+          {/* Market */}
           <Route
             path="/market"
             element={<Market />}
           />
 
+          {/* Wallet */}
           <Route
             path="/wallet"
             element={<Wallet />}
           />
 
+          {/* Unknown pages */}
           <Route
             path="*"
-            element={
-              <Navigate
-                to="/"
-                replace
-              />
-            }
+            element={<Navigate to="/" replace />}
           />
 
         </Routes>
