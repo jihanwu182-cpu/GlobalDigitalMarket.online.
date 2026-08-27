@@ -91,7 +91,7 @@ const Sidebar: React.FC = () => {
             fontWeight: 'bold',
           }}
         >
-          GlobalMarket
+          GlobalDigitalMarket.online
         </Typography>
       </Box>
 
