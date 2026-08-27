@@ -33,9 +33,6 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
-  typography: {
-    fontFamily: 'Roboto, sans-serif',
-  },
 });
 
 const App: React.FC = () => {
@@ -45,17 +42,49 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/portfolio" element={<Portfolio />} />
-          <Route path="/trading" element={<Trading />} />
-          <Route path="/market" element={<Market />} />
-          <Route path="/wallet" element={<Wallet />} />
+          <Route
+            path="/login"
+            element={<Login />}
+          />
+
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
+          <Route
+            path="/"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/portfolio"
+            element={<Portfolio />}
+          />
+
+          <Route
+            path="/trading"
+            element={<Trading />}
+          />
+
+          <Route
+            path="/market"
+            element={<Market />}
+          />
+
+          <Route
+            path="/wallet"
+            element={<Wallet />}
+          />
 
           <Route
             path="*"
-            element={<Navigate to="/login" replace />}
+            element={
+              <Navigate
+                to="/login"
+                replace
+              />
+            }
           />
         </Routes>
       </BrowserRouter>
