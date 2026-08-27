@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Drawer,
   List,
@@ -8,14 +8,16 @@ import {
   Box,
   Typography,
 } from '@mui/material';
+
 import {
   Dashboard as DashboardIcon,
-  Portfolio as PortfolioIcon,
+  Work as PortfolioIcon,
   TrendingUp as TradingIcon,
   Equalizer as MarketIcon,
   AccountBalance as WalletIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
@@ -27,11 +29,31 @@ const Sidebar: React.FC = () => {
   const dispatch = useDispatch();
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-    { text: 'Portfolio', icon: <PortfolioIcon />, path: '/portfolio' },
-    { text: 'Trading', icon: <TradingIcon />, path: '/trading' },
-    { text: 'Market', icon: <MarketIcon />, path: '/market' },
-    { text: 'Wallet', icon: <WalletIcon />, path: '/wallet' },
+    {
+      text: 'Dashboard',
+      icon: <DashboardIcon />,
+      path: '/',
+    },
+    {
+      text: 'Portfolio',
+      icon: <PortfolioIcon />,
+      path: '/portfolio',
+    },
+    {
+      text: 'Trading',
+      icon: <TradingIcon />,
+      path: '/trading',
+    },
+    {
+      text: 'Market',
+      icon: <MarketIcon />,
+      path: '/market',
+    },
+    {
+      text: 'Wallet',
+      icon: <WalletIcon />,
+      path: '/wallet',
+    },
   ];
 
   const handleLogout = () => {
@@ -44,6 +66,7 @@ const Sidebar: React.FC = () => {
       sx={{
         width: DRAWER_WIDTH,
         flexShrink: 0,
+
         '& .MuiDrawer-paper': {
           width: DRAWER_WIDTH,
           boxSizing: 'border-box',
@@ -54,8 +77,20 @@ const Sidebar: React.FC = () => {
       variant="permanent"
       anchor="left"
     >
-      <Box sx={{ p: 2, textAlign: 'center', borderBottom: '1px solid #333' }}>
-        <Typography variant="h5" component="div" sx={{ fontWeight: 'bold' }}>
+      <Box
+        sx={{
+          p: 2,
+          textAlign: 'center',
+          borderBottom: '1px solid #333',
+        }}
+      >
+        <Typography
+          variant="h5"
+          component="div"
+          sx={{
+            fontWeight: 'bold',
+          }}
+        >
           GlobalMarket
         </Typography>
       </Box>
@@ -67,25 +102,54 @@ const Sidebar: React.FC = () => {
             key={item.text}
             onClick={() => navigate(item.path)}
             sx={{
+              cursor: 'pointer',
+
               '&:hover': {
                 backgroundColor: '#16213e',
               },
             }}
           >
-            <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>
+            <ListItemIcon
+              sx={{
+                color: '#fff',
+                minWidth: 40,
+              }}
+            >
               {item.icon}
             </ListItemIcon>
-            <ListItemText primary={item.text} />
+
+            <ListItemText
+              primary={item.text}
+            />
           </ListItem>
         ))}
       </List>
 
-      <Box sx={{ p: 2, borderTop: '1px solid #333' }}>
-        <ListItem button onClick={handleLogout}>
-          <ListItemIcon sx={{ color: '#fff', minWidth: 40 }}>
+      <Box
+        sx={{
+          p: 2,
+          borderTop: '1px solid #333',
+        }}
+      >
+        <ListItem
+          button
+          onClick={handleLogout}
+          sx={{
+            cursor: 'pointer',
+          }}
+        >
+          <ListItemIcon
+            sx={{
+              color: '#fff',
+              minWidth: 40,
+            }}
+          >
             <LogoutIcon />
           </ListItemIcon>
-          <ListItemText primary="Logout" />
+
+          <ListItemText
+            primary="Logout"
+          />
         </ListItem>
       </Box>
     </Drawer>
