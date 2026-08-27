@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -7,65 +7,98 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  Alert,
 } from '@mui/material';
-import { Formik, Form } from 'formik';
-import * as Yup from 'yup';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { toast } from 'react-toastify';
 
 import authService from '../services/authService';
-import { login as loginAction } from '../store/authSlice';
-
-const LoginSchema = Yup.object().shape({
-  email: Yup.string()
-    .email('Invalid email')
-    .required('Email is required'),
-
-  password: Yup.string()
-    .required('Password is required'),
-});
-
-interface LoginValues {
-  email: string;
-  password: string;
-}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
-  const handleSubmit = async (
-    values: LoginValues,
-    {
-      setSubmitting,
-    }: {
-      setSubmitting: (value: boolean) => void;
-    }
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  const handleLogin = async (
+    event: React.FormEvent<HTMLFormElement>
   ) => {
+    event.preventDefault();
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    if (!email.trim()) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Please enter your password.');
+      return;
+    }
+
     try {
+      setLoading(true);
+
+      console.log('LOGIN STARTED');
+
       const response = await authService.login(
-        values.email,
-        values.password
+        email.trim(),
+        password
       );
 
-      dispatch(
-        loginAction({
-          user: response.user,
-          token: response.accessToken,
-        })
-      );
+      console.log('LOGIN RESPONSE:', response);
 
-      toast.success('Login successful!');
+      if (!response?.accessToken) {
+        throw new Error(
+          'Login succeeded but no access token was returned by the server.'
+        );
+      }
 
-      navigate('/');
+      setSuccessMessage('Login successful!');
+
+      // Give the user a moment to see the success message.
+      setTimeout(() => {
+        navigate('/');
+      }, 500);
+
     } catch (error: any) {
-      toast.error(
-        error?.response?.data?.error ||
-          'Login failed. Please check your email and password.'
-      );
+      console.error('LOGIN ERROR:', error);
+
+      if (error?.response) {
+        console.error(
+          'Backend status:',
+          error.response.status
+        );
+
+        console.error(
+          'Backend response:',
+          error.response.data
+        );
+      }
+
+      if (error?.response?.data?.message) {
+        setErrorMessage(
+          error.response.data.message
+        );
+      } else if (error?.response?.data?.error) {
+        setErrorMessage(
+          error.response.data.error
+        );
+      } else if (error?.message) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          'Login failed. Please try again.'
+        );
+      }
+
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
@@ -88,6 +121,7 @@ const Login: React.FC = () => {
         }}
       >
         <CardContent sx={{ padding: 4 }}>
+
           <Typography
             variant="h4"
             component="h1"
@@ -100,109 +134,94 @@ const Login: React.FC = () => {
             Login to Global Digital Market
           </Typography>
 
-          <Formik
-            initialValues={{
-              email: '',
-              password: '',
+          {errorMessage && (
+            <Alert
+              severity="error"
+              sx={{ mb: 2 }}
+            >
+              {errorMessage}
+            </Alert>
+          )}
+
+          {successMessage && (
+            <Alert
+              severity="success"
+              sx={{ mb: 2 }}
+            >
+              {successMessage}
+            </Alert>
+          )}
+
+          <Box
+            component="form"
+            onSubmit={handleLogin}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
             }}
-            validationSchema={LoginSchema}
-            onSubmit={handleSubmit}
           >
-            {({
-              values,
-              errors,
-              touched,
-              handleChange,
-              handleBlur,
-              isSubmitting,
-            }) => {
-              const emailError =
-                touched.email &&
-                typeof errors.email === 'string'
-                  ? errors.email
-                  : '';
 
-              const passwordError =
-                touched.password &&
-                typeof errors.password === 'string'
-                  ? errors.password
-                  : '';
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
+              disabled={loading}
+              autoComplete="email"
+            />
 
-              return (
-                <Form>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 2,
-                    }}
-                  >
-                    <TextField
-                      fullWidth
-                      label="Email"
-                      name="email"
-                      type="email"
-                      value={values.email}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      disabled={isSubmitting}
-                      error={Boolean(emailError)}
-                      helperText={emailError}
-                    />
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+              disabled={loading}
+              autoComplete="current-password"
+            />
 
-                    <TextField
-                      fullWidth
-                      label="Password"
-                      name="password"
-                      type="password"
-                      value={values.password}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      disabled={isSubmitting}
-                      error={Boolean(passwordError)}
-                      helperText={passwordError}
-                    />
+            <Button
+              fullWidth
+              variant="contained"
+              type="submit"
+              disabled={loading}
+              sx={{
+                marginTop: 1,
+                paddingY: 1.5,
+              }}
+            >
+              {loading ? (
+                <>
+                  <CircularProgress
+                    size={24}
+                    sx={{ mr: 1 }}
+                  />
+                  Logging in...
+                </>
+              ) : (
+                'Login'
+              )}
+            </Button>
 
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      type="submit"
-                      disabled={isSubmitting}
-                      sx={{
-                        marginTop: 1,
-                        paddingY: 1.5,
-                      }}
-                    >
-                      {isSubmitting ? (
-                        <CircularProgress size={24} />
-                      ) : (
-                        'Login'
-                      )}
-                    </Button>
+            <Button
+              fullWidth
+              variant="text"
+              type="button"
+              disabled={loading}
+              onClick={() =>
+                navigate('/register')
+              }
+            >
+              Create an account
+            </Button>
 
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        textAlign: 'center',
-                        marginTop: 2,
-                      }}
-                    >
-                      Don't have an account?
-                    </Typography>
-
-                    <Button
-                      fullWidth
-                      variant="text"
-                      type="button"
-                      onClick={() => navigate('/register')}
-                    >
-                      Register
-                    </Button>
-                  </Box>
-                </Form>
-              );
-            }}
-          </Formik>
+          </Box>
         </CardContent>
       </Card>
     </Box>
