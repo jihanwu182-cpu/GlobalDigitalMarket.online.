@@ -1,6 +1,16 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import {
+  HashRouter,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
+
+import {
+  ThemeProvider,
+  createTheme,
+} from '@mui/material/styles';
+
 import CssBaseline from '@mui/material/CssBaseline';
 
 import Login from './pages/Login';
@@ -33,59 +43,51 @@ const App: React.FC = () => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
 
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
 
-          {/* Login */}
-          <Route
-            path="/login"
-            element={<Login />}
-          />
-
-          {/* Create Account */}
-          <Route
-            path="/register"
-            element={<Register />}
-          />
-
-          {/* Dashboard */}
           <Route
             path="/"
             element={<Dashboard />}
           />
 
-          {/* Portfolio */}
+          <Route
+            path="/login"
+            element={<Login />}
+          />
+
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
           <Route
             path="/portfolio"
             element={<Portfolio />}
           />
 
-          {/* Trading */}
           <Route
             path="/trading"
             element={<Trading />}
           />
 
-          {/* Market */}
           <Route
             path="/market"
             element={<Market />}
           />
 
-          {/* Wallet */}
           <Route
             path="/wallet"
             element={<Wallet />}
           />
 
-          {/* Unknown pages */}
           <Route
             path="*"
             element={<Navigate to="/" replace />}
           />
 
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeProvider>
   );
 };
