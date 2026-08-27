@@ -18,10 +18,18 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleRegister = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleRegister = (
+    event: React.FormEvent<HTMLFormElement>
+  ) => {
     event.preventDefault();
 
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !password ||
+      !confirmPassword
+    ) {
       alert('Please fill in all fields.');
       return;
     }
@@ -36,89 +44,119 @@ const Register: React.FC = () => {
       return;
     }
 
-    alert('Registration form is working.');
+    alert('Registration form is working!');
   };
 
   return (
-    <Card sx={{ width: '100%', boxShadow: 3 }}>
-      <CardContent sx={{ p: 4 }}>
-        <Typography
-          variant="h4"
-          component="h1"
-          sx={{
-            mb: 3,
-            textAlign: 'center',
-            fontWeight: 700,
-          }}
-        >
-          Create Account
-        </Typography>
-
-        <Box
-          component="form"
-          onSubmit={handleRegister}
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-          }}
-        >
-          <TextField
-            fullWidth
-            label="First Name"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-
-          <TextField
-            fullWidth
-            label="Last Name"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-          />
-
-          <TextField
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-
-          <TextField
-            fullWidth
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-
-          <TextField
-            fullWidth
-            label="Confirm Password"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
-
-          <Button
-            fullWidth
-            variant="contained"
-            type="submit"
-            sx={{ mt: 1, py: 1.5 }}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f5f5f5',
+        padding: 2,
+      }}
+    >
+      <Card
+        sx={{
+          width: '100%',
+          maxWidth: 450,
+        }}
+      >
+        <CardContent sx={{ padding: 4 }}>
+          <Typography
+            variant="h4"
+            component="h1"
+            sx={{
+              textAlign: 'center',
+              fontWeight: 700,
+              mb: 3,
+            }}
           >
             Create Account
-          </Button>
+          </Typography>
 
-          <Button
-            variant="text"
-            onClick={() => navigate('/login')}
+          <Box
+            component="form"
+            onSubmit={handleRegister}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+            }}
           >
-            Already have an account? Login
-          </Button>
-        </Box>
-      </CardContent>
-    </Card>
+            <TextField
+              fullWidth
+              label="First Name"
+              value={firstName}
+              onChange={(event) =>
+                setFirstName(event.target.value)
+              }
+            />
+
+            <TextField
+              fullWidth
+              label="Last Name"
+              value={lastName}
+              onChange={(event) =>
+                setLastName(event.target.value)
+              }
+            />
+
+            <TextField
+              fullWidth
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
+            />
+
+            <TextField
+              fullWidth
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
+            />
+
+            <TextField
+              fullWidth
+              label="Confirm Password"
+              type="password"
+              value={confirmPassword}
+              onChange={(event) =>
+                setConfirmPassword(event.target.value)
+              }
+            />
+
+            <Button
+              fullWidth
+              variant="contained"
+              type="submit"
+              sx={{
+                mt: 1,
+                py: 1.5,
+              }}
+            >
+              Create Account
+            </Button>
+
+            <Button
+              type="button"
+              variant="text"
+              onClick={() => navigate('/login')}
+            >
+              Already have an account? Login
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+    </Box>
   );
 };
 
