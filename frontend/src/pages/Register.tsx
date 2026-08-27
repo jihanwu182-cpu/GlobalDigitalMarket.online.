@@ -34,7 +34,6 @@ const Register: React.FC = () => {
     setErrorMessage('');
     setSuccessMessage('');
 
-    // Check required fields
     if (
       !firstName.trim() ||
       !lastName.trim() ||
@@ -46,7 +45,6 @@ const Register: React.FC = () => {
       return;
     }
 
-    // Check password length
     if (password.length < 8) {
       setErrorMessage(
         'Password must be at least 8 characters long.'
@@ -54,16 +52,14 @@ const Register: React.FC = () => {
       return;
     }
 
-    // Check passwords
     if (password !== confirmPassword) {
       setErrorMessage('Passwords do not match.');
       return;
     }
 
-    // Check email format
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!emailPattern.test(email)) {
+    if (!emailPattern.test(email.trim())) {
       setErrorMessage('Please enter a valid email address.');
       return;
     }
@@ -78,37 +74,44 @@ const Register: React.FC = () => {
         lastName.trim()
       );
 
+      console.log('REGISTRATION RESPONSE:', response);
+
       setSuccessMessage(
-        response.message ||
-          'Account created successfully!'
+        response.message || 'Account created successfully!'
       );
 
-      // If backend automatically logged the user in
-      if (response.accessToken) {
-        setTimeout(() => {
-          navigate('/');
-        }, 1000);
-      } else {
-        // Otherwise send user to login
-        setTimeout(() => {
-          navigate('/login');
-        }, 1500);
-      }
+      /*
+       * IMPORTANT:
+       * We are NOT navigating automatically yet.
+       * This lets us confirm that the real backend registration
+       * is working before moving to the dashboard.
+       */
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('REGISTRATION ERROR:', error);
 
-      let message =
-        'Registration failed. Please try again.';
+      if (error?.response) {
+        console.error(
+          'Backend status:',
+          error.response.status
+        );
+
+        console.error(
+          'Backend response:',
+          error.response.data
+        );
+      }
 
       if (error?.response?.data?.message) {
-        message = error.response.data.message;
+        setErrorMessage(error.response.data.message);
       } else if (error?.response?.data?.error) {
-        message = error.response.data.error;
+        setErrorMessage(error.response.data.error);
       } else if (error?.message) {
-        message = error.message;
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          'Registration failed. Please try again.'
+        );
       }
-
-      setErrorMessage(message);
     } finally {
       setLoading(false);
     }
@@ -132,7 +135,6 @@ const Register: React.FC = () => {
         }}
       >
         <CardContent sx={{ p: 4 }}>
-
           <Typography
             variant="h4"
             component="h1"
@@ -146,19 +148,13 @@ const Register: React.FC = () => {
           </Typography>
 
           {errorMessage && (
-            <Alert
-              severity="error"
-              sx={{ mb: 2 }}
-            >
+            <Alert severity="error" sx={{ mb: 2 }}>
               {errorMessage}
             </Alert>
           )}
 
           {successMessage && (
-            <Alert
-              severity="success"
-              sx={{ mb: 2 }}
-            >
+            <Alert severity="success" sx={{ mb: 2 }}>
               {successMessage}
             </Alert>
           )}
@@ -172,7 +168,6 @@ const Register: React.FC = () => {
               gap: 2,
             }}
           >
-
             <TextField
               fullWidth
               label="First Name"
@@ -250,6 +245,16 @@ const Register: React.FC = () => {
               )}
             </Button>
 
+            {successMessage && (
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={() => navigate('/login')}
+              >
+                Continue to Login
+              </Button>
+            )}
+
             <Button
               type="button"
               disabled={loading}
@@ -257,7 +262,6 @@ const Register: React.FC = () => {
             >
               Already have an account? Login
             </Button>
-
           </Box>
         </CardContent>
       </Card>
