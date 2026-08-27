@@ -6,6 +6,9 @@ interface User {
   firstName: string;
   lastName: string;
   role?: string;
+  status?: string;
+  emailVerified?: boolean;
+  createdAt?: string;
 }
 
 interface AuthState {
@@ -16,41 +19,176 @@ interface AuthState {
   error: string | null;
 }
 
+
+// ============================================================
+// SAFELY LOAD SAVED USER
+// ============================================================
+
+const getSavedUser = (): User | null => {
+  try {
+    const savedUser = localStorage.getItem('user');
+
+    if (!savedUser) {
+      return null;
+    }
+
+    const parsedUser = JSON.parse(savedUser);
+
+    if (
+      !parsedUser ||
+      typeof parsedUser !== 'object' ||
+      !parsedUser.email
+    ) {
+      localStorage.removeItem('user');
+      return null;
+    }
+
+    return parsedUser as User;
+
+  } catch (error) {
+    console.error('Unable to read saved user:', error);
+
+    localStorage.removeItem('user');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+
+    return null;
+  }
+};
+
+
+// ============================================================
+// INITIAL STATE
+// ============================================================
+
+const savedToken = localStorage.getItem('authToken');
+const savedUser = getSavedUser();
+
 const initialState: AuthState = {
-  isAuthenticated: !!localStorage.getItem('authToken'),
-  user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
-  token: localStorage.getItem('authToken'),
+  isAuthenticated: Boolean(savedToken && savedUser),
+  user: savedUser,
+  token: savedToken,
   loading: false,
   error: null,
 };
 
+
+// ============================================================
+// AUTH SLICE
+// ============================================================
+
 const authSlice = createSlice({
   name: 'auth',
+
   initialState,
+
   reducers: {
-    login: (state, action: PayloadAction<{ user: User; token: string }>) => {
+
+    // ========================================================
+    // LOGIN
+    // ========================================================
+
+    login: (
+      state,
+      action: PayloadAction<{
+        user: User;
+        token: string;
+      }>
+    ) => {
       state.isAuthenticated = true;
       state.user = action.payload.user;
       state.token = action.payload.token;
+      state.loading = false;
       state.error = null;
-      localStorage.setItem('authToken', action.payload.token);
-      localStorage.setItem('user', JSON.stringify(action.payload.user));
+
+      localStorage.setItem(
+        'authToken',
+        action.payload.token
+      );
+
+      localStorage.setItem(
+        'user',
+        JSON.stringify(action.payload.user)
+      );
     },
+
+
+    // ========================================================
+    // LOGOUT
+    // ========================================================
+
     logout: (state) => {
       state.isAuthenticated = false;
       state.user = null;
       state.token = null;
+      state.loading = false;
+      state.error = null;
+
       localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
     },
-    setLoading: (state, action: PayloadAction<boolean>) => {
+
+
+    // ========================================================
+    // LOADING
+    // ========================================================
+
+    setLoading: (
+      state,
+      action: PayloadAction<boolean>
+    ) => {
       state.loading = action.payload;
     },
-    setError: (state, action: PayloadAction<string | null>) => {
+
+
+    // ========================================================
+    // ERROR
+    // ========================================================
+
+    setError: (
+      state,
+      action: PayloadAction<string | null>
+    ) => {
       state.error = action.payload;
     },
+
+
+    // ========================================================
+    // CLEAR AUTHENTICATION
+    // ========================================================
+
+    clearAuth: (state) => {
+      state.isAuthenticated = false;
+      state.user = null;
+      state.token = null;
+      state.loading = false;
+      state.error = null;
+
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+    },
+
   },
 });
 
-export const { login, logout, setLoading, setError } = authSlice.actions;
+
+// ============================================================
+// EXPORT ACTIONS
+// ============================================================
+
+export const {
+  login,
+  logout,
+  setLoading,
+  setError,
+  clearAuth,
+} = authSlice.actions;
+
+
+// ============================================================
+// EXPORT REDUCER
+// ============================================================
+
 export default authSlice.reducer;
