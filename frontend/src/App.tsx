@@ -33,6 +33,9 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
+  typography: {
+    fontFamily: 'Roboto, Arial, sans-serif',
+  },
 });
 
 const App: React.FC = () => {
@@ -42,6 +45,7 @@ const App: React.FC = () => {
 
       <BrowserRouter>
         <Routes>
+
           <Route
             path="/login"
             element={<Login />}
@@ -49,7 +53,22 @@ const App: React.FC = () => {
 
           <Route
             path="/register"
-            element={<Register />}
+            element={
+              <div
+                style={{
+                  minHeight: '100vh',
+                  padding: '50px',
+                  textAlign: 'center',
+                  backgroundColor: 'white',
+                }}
+              >
+                <h1>REGISTER ROUTE WORKS</h1>
+
+                <p>
+                  React Router is loading the register route correctly.
+                </p>
+              </div>
+            }
           />
 
           <Route
@@ -81,11 +100,12 @@ const App: React.FC = () => {
             path="*"
             element={
               <Navigate
-                to="/login"
+                to="/"
                 replace
               />
             }
           />
+
         </Routes>
       </BrowserRouter>
     </ThemeProvider>
