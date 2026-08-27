@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   Box,
@@ -44,58 +45,32 @@ const Login: React.FC = () => {
     try {
       setLoading(true);
 
-      console.log('LOGIN STARTED');
-
       const response = await authService.login(
         email.trim(),
         password
       );
 
-      console.log('LOGIN RESPONSE:', response);
-
       if (!response?.accessToken) {
         throw new Error(
-          'Login succeeded but no access token was returned by the server.'
+          'Login succeeded, but the server did not return an access token.'
         );
       }
 
       setSuccessMessage('Login successful!');
 
-      // Give the user a moment to see the success message.
-      setTimeout(() => {
-        navigate('/');
-      }, 500);
+      // Go directly to the dashboard.
+      navigate('/dashboard', { replace: true });
 
     } catch (error: any) {
       console.error('LOGIN ERROR:', error);
 
-      if (error?.response) {
-        console.error(
-          'Backend status:',
-          error.response.status
-        );
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Login failed. Please check your email and password.';
 
-        console.error(
-          'Backend response:',
-          error.response.data
-        );
-      }
-
-      if (error?.response?.data?.message) {
-        setErrorMessage(
-          error.response.data.message
-        );
-      } else if (error?.response?.data?.error) {
-        setErrorMessage(
-          error.response.data.error
-        );
-      } else if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(
-          'Login failed. Please try again.'
-        );
-      }
+      setErrorMessage(message);
 
     } finally {
       setLoading(false);
@@ -109,7 +84,7 @@ const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 2,
+        p: 2,
         backgroundColor: '#f5f5f5',
       }}
     >
@@ -120,13 +95,13 @@ const Login: React.FC = () => {
           boxShadow: 3,
         }}
       >
-        <CardContent sx={{ padding: 4 }}>
+        <CardContent sx={{ p: 4 }}>
 
           <Typography
             variant="h4"
             component="h1"
             sx={{
-              marginBottom: 3,
+              mb: 3,
               textAlign: 'center',
               fontWeight: 700,
             }}
@@ -135,19 +110,13 @@ const Login: React.FC = () => {
           </Typography>
 
           {errorMessage && (
-            <Alert
-              severity="error"
-              sx={{ mb: 2 }}
-            >
+            <Alert severity="error" sx={{ mb: 2 }}>
               {errorMessage}
             </Alert>
           )}
 
           {successMessage && (
-            <Alert
-              severity="success"
-              sx={{ mb: 2 }}
-            >
+            <Alert severity="success" sx={{ mb: 2 }}>
               {successMessage}
             </Alert>
           )}
@@ -161,7 +130,6 @@ const Login: React.FC = () => {
               gap: 2,
             }}
           >
-
             <TextField
               fullWidth
               label="Email"
@@ -192,8 +160,8 @@ const Login: React.FC = () => {
               type="submit"
               disabled={loading}
               sx={{
-                marginTop: 1,
-                paddingY: 1.5,
+                mt: 1,
+                py: 1.5,
               }}
             >
               {loading ? (
@@ -214,14 +182,12 @@ const Login: React.FC = () => {
               variant="text"
               type="button"
               disabled={loading}
-              onClick={() =>
-                navigate('/register')
-              }
+              onClick={() => navigate('/register')}
             >
               Create an account
             </Button>
-
           </Box>
+
         </CardContent>
       </Card>
     </Box>
