@@ -4,7 +4,7 @@ services:
     name: globaldigitalmarket-online
     rootDir: frontend
     buildCommand: npm install && npm run build
-    staticPublishPath: ./build
+    staticPublishPath: build
     routes:
       - type: rewrite
         source: /*
