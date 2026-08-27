@@ -11,13 +11,19 @@ const {
   comparePassword,
 } = require('../utils/bcrypt');
 
+
 // =====================================
 // REGISTER
 // =====================================
 
 const register = async (req, res, next) => {
   try {
-    const { email, password, firstName, lastName } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+    } = req.body;
 
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({
@@ -28,11 +34,17 @@ const register = async (req, res, next) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     logger.info(
-      `New registration attempt for email: ${normalizedEmail}`
+      `Registration attempt: ${normalizedEmail}`
     );
 
+    // Check existing user
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1 LIMIT 1',
+      `
+      SELECT id
+      FROM users
+      WHERE email = $1
+      LIMIT 1
+      `,
       [normalizedEmail]
     );
 
@@ -42,12 +54,19 @@ const register = async (req, res, next) => {
       });
     }
 
+    // Hash password
     const passwordHash = await hashPassword(password);
 
+    // Create user
     const result = await pool.query(
       `
       INSERT INTO users
-        (email, password_hash, first_name, last_name)
+        (
+          email,
+          password_hash,
+          first_name,
+          last_name
+        )
       VALUES
         ($1, $2, $3, $4)
       RETURNING
@@ -93,11 +112,13 @@ const register = async (req, res, next) => {
       accessToken,
       refreshToken,
     });
+
   } catch (error) {
     logger.error('Registration error:', error);
     return next(error);
   }
 };
+
 
 // =====================================
 // LOGIN
@@ -105,20 +126,26 @@ const register = async (req, res, next) => {
 
 const login = async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    const {
+      email,
+      password,
+    } = req.body;
 
+    // Validate input
     if (!email || !password) {
       return res.status(400).json({
         message: 'Email and password are required.',
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
     logger.info(
-      `Login attempt for email: ${normalizedEmail}`
+      `Login attempt: ${normalizedEmail}`
     );
 
+    // Find user
     const result = await pool.query(
       `
       SELECT
@@ -137,6 +164,7 @@ const login = async (req, res, next) => {
       [normalizedEmail]
     );
 
+    // User doesn't exist
     if (result.rows.length === 0) {
       return res.status(401).json({
         message: 'Invalid email or password.',
@@ -145,42 +173,46 @@ const login = async (req, res, next) => {
 
     const user = result.rows[0];
 
-    // Check account status if your database provides it.
-    if (
-      user.status &&
-      !['active', 'ACTIVE'].includes(user.status)
-    ) {
-      return res.status(403).json({
-        message: 'This account is not active.',
-      });
-    }
+    // Check password
+    const passwordMatches =
+      await comparePassword(
+        password,
+        user.password_hash
+      );
 
-    const passwordIsValid = await comparePassword(
-      password,
-      user.password_hash
-    );
-
-    if (!passwordIsValid) {
+    if (!passwordMatches) {
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
     }
 
-    const accessToken = generateAccessToken({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    });
+    // Check account status if available
+    if (
+      user.status &&
+      ['suspended', 'disabled', 'blocked'].includes(
+        String(user.status).toLowerCase()
+      )
+    ) {
+      return res.status(403).json({
+        message: 'Your account is not active.',
+      });
+    }
 
-    const refreshToken = generateRefreshToken({
-      id: user.id,
-      email: user.email,
-    });
+    // Generate tokens
+    const accessToken =
+      generateAccessToken({
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
 
-    logger.info(
-      `Successful login for email: ${normalizedEmail}`
-    );
+    const refreshToken =
+      generateRefreshToken({
+        id: user.id,
+        email: user.email,
+      });
 
+    // Return login response
     return res.status(200).json({
       message: 'Login successful.',
       user: {
@@ -193,11 +225,13 @@ const login = async (req, res, next) => {
       accessToken,
       refreshToken,
     });
+
   } catch (error) {
     logger.error('Login error:', error);
     return next(error);
   }
 };
+
 
 // =====================================
 // LOGOUT
@@ -213,6 +247,7 @@ const logout = async (req, res, next) => {
   }
 };
 
+
 // =====================================
 // REFRESH TOKEN
 // =====================================
@@ -227,8 +262,9 @@ const refreshToken = async (req, res, next) => {
   }
 };
 
+
 // =====================================
-// EXPORTS
+// EXPORT
 // =====================================
 
 module.exports = {
