@@ -21,17 +21,27 @@ const LoginSchema = Yup.object().shape({
   email: Yup.string()
     .email('Invalid email')
     .required('Email is required'),
+
   password: Yup.string()
     .required('Password is required'),
 });
+
+interface LoginValues {
+  email: string;
+  password: string;
+}
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const handleSubmit = async (
-    values: { email: string; password: string },
-    { setSubmitting }: { setSubmitting: (value: boolean) => void }
+    values: LoginValues,
+    {
+      setSubmitting,
+    }: {
+      setSubmitting: (value: boolean) => void;
+    }
   ) => {
     try {
       const response = await authService.login(
@@ -47,10 +57,12 @@ const Login: React.FC = () => {
       );
 
       toast.success('Login successful!');
+
       navigate('/');
     } catch (error: any) {
       toast.error(
-        error.response?.data?.error || 'Login failed'
+        error?.response?.data?.error ||
+          'Login failed. Please check your email and password.'
       );
     } finally {
       setSubmitting(false);
@@ -64,7 +76,8 @@ const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        p: 2,
+        padding: 2,
+        backgroundColor: '#f5f5f5',
       }}
     >
       <Card
@@ -74,18 +87,17 @@ const Login: React.FC = () => {
           boxShadow: 3,
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        <CardContent sx={{ padding: 4 }}>
           <Typography
             variant="h4"
             component="h1"
-            gutterBottom
             sx={{
-              mb: 3,
+              marginBottom: 3,
               textAlign: 'center',
-              fontWeight: 'bold',
+              fontWeight: 700,
             }}
           >
-            Login to GlobalMarket
+            Login to Global Digital Market
           </Typography>
 
           <Formik
@@ -103,87 +115,93 @@ const Login: React.FC = () => {
               handleChange,
               handleBlur,
               isSubmitting,
-            }) => (
-              <Form>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
-                  }}
-                >
-                  <TextField
-                    fullWidth
-                    label="Email"
-                    name="email"
-                    type="email"
-                    value={values.email}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={
-                      touched.email &&
-                      Boolean(errors.email)
-                    }
-                    helperText={
-                      touched.email && errors.email
-                    }
-                    disabled={isSubmitting}
-                  />
+            }) => {
+              const emailError =
+                touched.email &&
+                typeof errors.email === 'string'
+                  ? errors.email
+                  : '';
 
-                  <TextField
-                    fullWidth
-                    label="Password"
-                    name="password"
-                    type="password"
-                    value={values.password}
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    error={
-                      touched.password &&
-                      Boolean(errors.password)
-                    }
-                    helperText={
-                      touched.password && errors.password
-                    }
-                    disabled={isSubmitting}
-                  />
+              const passwordError =
+                touched.password &&
+                typeof errors.password === 'string'
+                  ? errors.password
+                  : '';
 
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    type="submit"
-                    disabled={isSubmitting}
+              return (
+                <Form>
+                  <Box
                     sx={{
-                      mt: 2,
-                      py: 1.5,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2,
                     }}
                   >
-                    {isSubmitting ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      'Login'
-                    )}
-                  </Button>
+                    <TextField
+                      fullWidth
+                      label="Email"
+                      name="email"
+                      type="email"
+                      value={values.email}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isSubmitting}
+                      error={Boolean(emailError)}
+                      helperText={emailError}
+                    />
 
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      textAlign: 'center',
-                      mt: 2,
-                    }}
-                  >
-                    Don't have an account?{' '}
+                    <TextField
+                      fullWidth
+                      label="Password"
+                      name="password"
+                      type="password"
+                      value={values.password}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      disabled={isSubmitting}
+                      error={Boolean(passwordError)}
+                      helperText={passwordError}
+                    />
 
                     <Button
-                      color="primary"
+                      fullWidth
+                      variant="contained"
+                      type="submit"
+                      disabled={isSubmitting}
+                      sx={{
+                        marginTop: 1,
+                        paddingY: 1.5,
+                      }}
+                    >
+                      {isSubmitting ? (
+                        <CircularProgress size={24} />
+                      ) : (
+                        'Login'
+                      )}
+                    </Button>
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        textAlign: 'center',
+                        marginTop: 2,
+                      }}
+                    >
+                      Don't have an account?
+                    </Typography>
+
+                    <Button
+                      fullWidth
+                      variant="text"
+                      type="button"
                       onClick={() => navigate('/register')}
                     >
                       Register
                     </Button>
-                  </Typography>
-                </Box>
-              </Form>
-            )}
+                  </Box>
+                </Form>
+              );
+            }}
           </Formik>
         </CardContent>
       </Card>
