@@ -12,9 +12,9 @@ const {
 } = require('../utils/bcrypt');
 
 
-// =====================================
+// ============================================================
 // REGISTER
-// =====================================
+// ============================================================
 
 const register = async (req, res, next) => {
   try {
@@ -25,19 +25,20 @@ const register = async (req, res, next) => {
       lastName,
     } = req.body;
 
+    // Validate required fields
     if (!email || !password || !firstName || !lastName) {
       return res.status(400).json({
-        message: 'All fields are required.',
+        message: 'Please provide email, password, first name and last name.',
       });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
 
     logger.info(
-      `Registration attempt: ${normalizedEmail}`
+      `New registration attempt for email: ${normalizedEmail}`
     );
 
-    // Check existing user
+    // Check if user already exists
     const existingUser = await pool.query(
       `
       SELECT id
@@ -87,8 +88,21 @@ const register = async (req, res, next) => {
       ]
     );
 
-    const user = result.rows[0];
+    const databaseUser = result.rows[0];
 
+    // Format user for frontend
+    const user = {
+      id: databaseUser.id,
+      email: databaseUser.email,
+      firstName: databaseUser.first_name,
+      lastName: databaseUser.last_name,
+      role: databaseUser.role,
+      status: databaseUser.status,
+      emailVerified: databaseUser.email_verified,
+      createdAt: databaseUser.created_at,
+    };
+
+    // Generate tokens
     const accessToken = generateAccessToken({
       id: user.id,
       email: user.email,
@@ -102,13 +116,7 @@ const register = async (req, res, next) => {
 
     return res.status(201).json({
       message: 'Account created successfully.',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: user.role,
-      },
+      user,
       accessToken,
       refreshToken,
     });
@@ -120,9 +128,9 @@ const register = async (req, res, next) => {
 };
 
 
-// =====================================
+// ============================================================
 // LOGIN
-// =====================================
+// ============================================================
 
 const login = async (req, res, next) => {
   try {
@@ -138,11 +146,10 @@ const login = async (req, res, next) => {
       });
     }
 
-    const normalizedEmail =
-      email.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
 
     logger.info(
-      `Login attempt: ${normalizedEmail}`
+      `Login attempt for email: ${normalizedEmail}`
     );
 
     // Find user
@@ -156,7 +163,8 @@ const login = async (req, res, next) => {
         last_name,
         role,
         status,
-        email_verified
+        email_verified,
+        created_at
       FROM users
       WHERE email = $1
       LIMIT 1
@@ -164,21 +172,20 @@ const login = async (req, res, next) => {
       [normalizedEmail]
     );
 
-    // User doesn't exist
+    // Do not reveal whether the email exists
     if (result.rows.length === 0) {
       return res.status(401).json({
         message: 'Invalid email or password.',
       });
     }
 
-    const user = result.rows[0];
+    const databaseUser = result.rows[0];
 
     // Check password
-    const passwordMatches =
-      await comparePassword(
-        password,
-        user.password_hash
-      );
+    const passwordMatches = await comparePassword(
+      password,
+      databaseUser.password_hash
+    );
 
     if (!passwordMatches) {
       return res.status(401).json({
@@ -186,42 +193,49 @@ const login = async (req, res, next) => {
       });
     }
 
-    // Check account status if available
+    // Check account status if the database has one
     if (
-      user.status &&
-      ['suspended', 'disabled', 'blocked'].includes(
-        String(user.status).toLowerCase()
+      databaseUser.status &&
+      ['blocked', 'suspended', 'disabled'].includes(
+        String(databaseUser.status).toLowerCase()
       )
     ) {
       return res.status(403).json({
-        message: 'Your account is not active.',
+        message: 'Your account is currently unavailable. Please contact support.',
       });
     }
 
+    // Format user for frontend
+    const user = {
+      id: databaseUser.id,
+      email: databaseUser.email,
+      firstName: databaseUser.first_name,
+      lastName: databaseUser.last_name,
+      role: databaseUser.role,
+      status: databaseUser.status,
+      emailVerified: databaseUser.email_verified,
+      createdAt: databaseUser.created_at,
+    };
+
     // Generate tokens
-    const accessToken =
-      generateAccessToken({
-        id: user.id,
-        email: user.email,
-        role: user.role,
-      });
+    const accessToken = generateAccessToken({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
 
-    const refreshToken =
-      generateRefreshToken({
-        id: user.id,
-        email: user.email,
-      });
+    const refreshToken = generateRefreshToken({
+      id: user.id,
+      email: user.email,
+    });
 
-    // Return login response
+    logger.info(
+      `Successful login for email: ${normalizedEmail}`
+    );
+
     return res.status(200).json({
       message: 'Login successful.',
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: user.role,
-      },
+      user,
       accessToken,
       refreshToken,
     });
@@ -233,9 +247,9 @@ const login = async (req, res, next) => {
 };
 
 
-// =====================================
+// ============================================================
 // LOGOUT
-// =====================================
+// ============================================================
 
 const logout = async (req, res, next) => {
   try {
@@ -248,24 +262,47 @@ const logout = async (req, res, next) => {
 };
 
 
-// =====================================
+// ============================================================
 // REFRESH TOKEN
-// =====================================
+// ============================================================
 
 const refreshToken = async (req, res, next) => {
   try {
+    const token =
+      req.body.refreshToken ||
+      req.body.token;
+
+    if (!token) {
+      return res.status(401).json({
+        message: 'Refresh token is required.',
+      });
+    }
+
+    /*
+     * The refresh-token verification should normally be handled
+     * by your JWT utility.
+     *
+     * If your existing jwt.js exports verifyRefreshToken,
+     * we will connect it here.
+     *
+     * For now, return a clear response instead of pretending
+     * that refresh-token functionality is working.
+     */
+
     return res.status(501).json({
-      message: 'Refresh token is not implemented yet.',
+      message: 'Refresh token verification is not configured yet.',
     });
+
   } catch (error) {
+    logger.error('Refresh token error:', error);
     return next(error);
   }
 };
 
 
-// =====================================
-// EXPORT
-// =====================================
+// ============================================================
+// EXPORTS
+// ============================================================
 
 module.exports = {
   register,
