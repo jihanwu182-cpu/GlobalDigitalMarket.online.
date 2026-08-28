@@ -22,6 +22,159 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  errorMessage: string;
+}
+
+class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+
+    this.state = {
+      hasError: false,
+      errorMessage: '',
+    };
+  }
+
+  static getDerivedStateFromError(
+    error: Error
+  ): ErrorBoundaryState {
+    return {
+      hasError: true,
+      errorMessage:
+        error?.message ||
+        'An unexpected application error occurred.',
+    };
+  }
+
+  componentDidCatch(
+    error: Error,
+    errorInfo: React.ErrorInfo
+  ) {
+    console.error(
+      'GLOBAL REACT ERROR:',
+      error
+    );
+
+    console.error(
+      'REACT ERROR INFO:',
+      errorInfo
+    );
+  }
+
+  handleReload = () => {
+    window.location.reload();
+  };
+
+  handleHome = () => {
+    window.location.hash = '#/';
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            background: '#f5f5f5',
+            fontFamily:
+              'Arial, sans-serif',
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '600px',
+              background: '#ffffff',
+              padding: '30px',
+              borderRadius: '12px',
+              boxShadow:
+                '0 4px 20px rgba(0,0,0,0.15)',
+            }}
+          >
+            <h1
+              style={{
+                marginTop: 0,
+                color: '#d32f2f',
+              }}
+            >
+              Application Error
+            </h1>
+
+            <p>
+              The application encountered an
+              unexpected error.
+            </p>
+
+            <div
+              style={{
+                background: '#f5f5f5',
+                padding: '15px',
+                borderRadius: '8px',
+                marginTop: '20px',
+                marginBottom: '20px',
+                wordBreak: 'break-word',
+              }}
+            >
+              <strong>Error:</strong>
+
+              <br />
+
+              {this.state.errorMessage}
+            </div>
+
+            <button
+              onClick={this.handleReload}
+              style={{
+                padding: '12px 20px',
+                marginRight: '10px',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: '#1976d2',
+                color: '#ffffff',
+                fontSize: '16px',
+              }}
+            >
+              Reload
+            </button>
+
+            <button
+              onClick={this.handleHome}
+              style={{
+                padding: '12px 20px',
+                border: '1px solid #1976d2',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: '#ffffff',
+                color: '#1976d2',
+                fontSize: '16px',
+              }}
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 const theme = createTheme({
   palette: {
     primary: {
@@ -35,71 +188,74 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily:
+      'Roboto, Arial, sans-serif',
   },
 });
 
 const App: React.FC = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
 
-      <HashRouter>
-        <Routes>
+        <HashRouter>
+          <Routes>
 
-          {/* Public Homepage */}
-          <Route
-            path="/"
-            element={<Home />}
-          />
+            <Route
+              path="/"
+              element={<Home />}
+            />
 
-          {/* Authentication */}
-          <Route
-            path="/login"
-            element={<Login />}
-          />
+            <Route
+              path="/login"
+              element={<Login />}
+            />
 
-          <Route
-            path="/register"
-            element={<Register />}
-          />
+            <Route
+              path="/register"
+              element={<Register />}
+            />
 
-          {/* User Dashboard */}
-          <Route
-            path="/dashboard"
-            element={<Dashboard />}
-          />
+            <Route
+              path="/dashboard"
+              element={<Dashboard />}
+            />
 
-          {/* Application pages */}
-          <Route
-            path="/portfolio"
-            element={<Portfolio />}
-          />
+            <Route
+              path="/portfolio"
+              element={<Portfolio />}
+            />
 
-          <Route
-            path="/trading"
-            element={<Trading />}
-          />
+            <Route
+              path="/trading"
+              element={<Trading />}
+            />
 
-          <Route
-            path="/market"
-            element={<Market />}
-          />
+            <Route
+              path="/market"
+              element={<Market />}
+            />
 
-          <Route
-            path="/wallet"
-            element={<Wallet />}
-          />
+            <Route
+              path="/wallet"
+              element={<Wallet />}
+            />
 
-          {/* Unknown route */}
-          <Route
-            path="*"
-            element={<Navigate to="/" replace />}
-          />
+            <Route
+              path="*"
+              element={
+                <Navigate
+                  to="/"
+                  replace
+                />
+              }
+            />
 
-        </Routes>
-      </HashRouter>
-    </ThemeProvider>
+          </Routes>
+        </HashRouter>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 
