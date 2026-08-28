@@ -13,6 +13,7 @@ import {
 
 import CssBaseline from '@mui/material/CssBaseline';
 
+import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -46,10 +47,10 @@ const App: React.FC = () => {
       <HashRouter>
         <Routes>
 
-          {/* Home */}
+          {/* Public Homepage */}
           <Route
             path="/"
-            element={<Dashboard />}
+            element={<Home />}
           />
 
           {/* Authentication */}
@@ -61,6 +62,12 @@ const App: React.FC = () => {
           <Route
             path="/register"
             element={<Register />}
+          />
+
+          {/* User Dashboard */}
+          <Route
+            path="/dashboard"
+            element={<Dashboard />}
           />
 
           {/* Application pages */}
