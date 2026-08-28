@@ -1,8 +1,4 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
@@ -24,36 +20,22 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
-import TrackChangesIcon from '@mui/icons-material/TrackChanges';
-import PieChartIcon from '@mui/icons-material/PieChart';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
-import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
-import PeopleIcon from '@mui/icons-material/People';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
-import BoltIcon from '@mui/icons-material/Bolt';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import PieChartIcon from '@mui/icons-material/PieChart';
+import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
+import SecurityIcon from '@mui/icons-material/Security';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import CreditCardIcon from '@mui/icons-material/CreditCard';
-import SettingsIcon from '@mui/icons-material/Settings';
-import SecurityIcon from '@mui/icons-material/Security';
-import LanguageIcon from '@mui/icons-material/Language';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
-import LogoutIcon from '@mui/icons-material/Logout';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 
 import { useNavigate } from 'react-router-dom';
-
 import apiClient from '../services/apiClient';
-
-interface AccountData {
-  availableBalance: number;
-}
 
 interface UserProfile {
   name: string;
@@ -62,142 +44,21 @@ interface UserProfile {
   accountId: string;
 }
 
-/* ============================================================
-   MENU BUTTON
-============================================================ */
-
-interface MenuButtonProps {
-  icon: React.ReactNode;
-  text: string;
-  badge?: string;
-  onClick: () => void;
+interface AccountData {
+  availableBalance: number;
 }
 
-const MenuButton: React.FC<MenuButtonProps> = ({
-  icon,
-  text,
-  badge,
-  onClick,
-}) => {
-  return (
-    <Button
-      fullWidth
-      onClick={onClick}
-      sx={{
-        color: '#ffffff',
-        justifyContent: 'flex-start',
-        textTransform: 'none',
-        borderRadius: 2,
-        py: 1.2,
-        px: 2,
-        mb: 0.5,
-        '&:hover': {
-          background:
-            'rgba(92,232,255,0.10)',
-        },
-      }}
-    >
-      <Box
-        sx={{
-          width: 38,
-          display: 'flex',
-          justifyContent: 'center',
-          mr: 1,
-          color: '#6edcff',
-        }}
-      >
-        {icon}
-      </Box>
-
-      <Typography
-        sx={{
-          flexGrow: 1,
-          textAlign: 'left',
-          fontSize: 14,
-          fontWeight: 700,
-        }}
-      >
-        {text}
-      </Typography>
-
-      {badge && (
-        <Chip
-          label={badge}
-          size="small"
-          sx={{
-            color: '#ffffff',
-            fontSize: 9,
-            fontWeight: 900,
-            background:
-              badge === 'Premium'
-                ? '#ffb900'
-                : badge === 'Pro'
-                ? '#c53cff'
-                : badge === 'AI'
-                ? '#08a9ed'
-                : badge === 'Fast'
-                ? '#ff8a00'
-                : '#18e76b',
-          }}
-        />
-      )}
-    </Button>
-  );
-};
-
-/* ============================================================
-   MENU SECTION
-============================================================ */
-
-interface MenuSectionProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-const MenuSection: React.FC<MenuSectionProps> = ({
-  title,
-  children,
-}) => {
-  return (
-    <Box sx={{ mt: 1 }}>
-      <Typography
-        sx={{
-          color: '#8198df',
-          fontSize: 10,
-          fontWeight: 900,
-          px: 2,
-          py: 1,
-          textTransform: 'uppercase',
-          letterSpacing: 1,
-        }}
-      >
-        {title}
-      </Typography>
-
-      <Box sx={{ px: 1 }}>
-        {children}
-      </Box>
-    </Box>
-  );
-};
-
-/* ============================================================
-   INFORMATION CARD
-============================================================ */
-
-interface InfoCardProps {
+interface QuickCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
-  badge?: string;
   onClick: () => void;
 }
 
-const InfoCard: React.FC<InfoCardProps> = ({
+const QuickCard: React.FC<QuickCardProps> = ({
   icon,
   title,
   description,
-  badge,
   onClick,
 }) => {
   return (
@@ -207,57 +68,33 @@ const InfoCard: React.FC<InfoCardProps> = ({
         height: '100%',
         cursor: 'pointer',
         borderRadius: 3,
-        color: '#ffffff',
+        color: '#fff',
         background:
-          'linear-gradient(145deg,#11246f,#08164c)',
-        border:
-          '1px solid rgba(100,150,255,0.20)',
-        transition:
-          'transform 0.2s ease, border-color 0.2s ease',
+          'linear-gradient(145deg,#101f63,#08143f)',
+        border: '1px solid rgba(100,150,255,0.20)',
+        transition: 'transform 0.2s ease',
         '&:hover': {
           transform: 'translateY(-3px)',
-          borderColor:
-            'rgba(92,232,255,0.45)',
+          borderColor: 'rgba(92,232,255,0.45)',
         },
       }}
     >
       <CardContent sx={{ p: 2.5 }}>
-        <Stack
-          direction="row"
-          justifyContent="space-between"
-          alignItems="flex-start"
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#5ce8ff',
+            background: 'rgba(92,232,255,0.10)',
+            mb: 2,
+          }}
         >
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#5ce8ff',
-              background:
-                'rgba(92,232,255,0.10)',
-              mb: 2,
-            }}
-          >
-            {icon}
-          </Box>
-
-          {badge && (
-            <Chip
-              label={badge}
-              size="small"
-              sx={{
-                color: '#ffffff',
-                background:
-                  'rgba(92,232,255,0.14)',
-                fontSize: 9,
-                fontWeight: 800,
-              }}
-            />
-          )}
-        </Stack>
+          {icon}
+        </Box>
 
         <Typography
           sx={{
@@ -270,7 +107,7 @@ const InfoCard: React.FC<InfoCardProps> = ({
 
         <Typography
           sx={{
-            color: '#8296e0',
+            color: '#8198df',
             fontSize: 12,
             lineHeight: 1.6,
             mt: 0.8,
@@ -300,45 +137,28 @@ const InfoCard: React.FC<InfoCardProps> = ({
   );
 };
 
-/* ============================================================
-   DASHBOARD
-============================================================ */
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const [menuOpen, setMenuOpen] =
-    useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const [profileOpen, setProfileOpen] =
-    useState(false);
+  const [account, setAccount] = useState<AccountData>({
+    availableBalance: 0,
+  });
 
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState('');
-
-  const [account, setAccount] =
-    useState<AccountData>({
-      availableBalance: 0,
-    });
-
-  const [profile, setProfile] =
-    useState<UserProfile>({
-      name: '',
-      email: '',
-      username: '',
-      accountId: '',
-    });
-
-  /* ==========================================================
-     PROFILE
-  ========================================================== */
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '',
+    email: '',
+    username: '',
+    accountId: '',
+  });
 
   const loadProfile = () => {
     try {
-      const possibleKeys = [
+      const keys = [
         'user',
         'currentUser',
         'authUser',
@@ -347,17 +167,15 @@ const Dashboard: React.FC = () => {
 
       let storedUser: any = null;
 
-      for (const key of possibleKeys) {
-        const value =
-          localStorage.getItem(key);
+      for (const key of keys) {
+        const value = localStorage.getItem(key);
 
         if (!value) {
           continue;
         }
 
         try {
-          const parsed =
-            JSON.parse(value);
+          const parsed = JSON.parse(value);
 
           if (
             parsed &&
@@ -380,33 +198,16 @@ const Dashboard: React.FC = () => {
 
       if (token) {
         try {
-          const parts =
-            token.split('.');
+          const parts = token.split('.');
 
           if (parts.length === 3) {
-            const normalized =
-              parts[1]
-                .replace(/-/g, '+')
-                .replace(/_/g, '/');
+            const normalized = parts[1]
+              .replace(/-/g, '+')
+              .replace(/_/g, '/');
 
-            const decoded =
-              decodeURIComponent(
-                Array.prototype.map
-                  .call(
-                    atob(normalized),
-                    (character: string) =>
-                      `%${(
-                        '00' +
-                        character
-                          .charCodeAt(0)
-                          .toString(16)
-                      ).slice(-2)}`
-                  )
-                  .join('')
-              );
+            const decoded = atob(normalized);
 
-            tokenUser =
-              JSON.parse(decoded);
+            tokenUser = JSON.parse(decoded);
           }
         } catch {
           tokenUser = null;
@@ -433,39 +234,34 @@ const Dashboard: React.FC = () => {
       const combinedName =
         `${firstName} ${lastName}`.trim();
 
-      const name = String(
-        user.name ||
-          user.fullName ||
-          user.full_name ||
-          combinedName ||
-          ''
-      ).trim();
-
-      const email = String(
-        user.email ||
-          user.emailAddress ||
-          ''
-      ).trim();
-
-      const username = String(
-        user.username ||
-          user.userName ||
-          ''
-      ).trim();
-
-      const accountId = String(
-        user.accountId ||
-          user.account_id ||
-          user.id ||
-          user._id ||
-          ''
-      ).trim();
-
       setProfile({
-        name,
-        email,
-        username,
-        accountId,
+        name: String(
+          user.name ||
+            user.fullName ||
+            user.full_name ||
+            combinedName ||
+            ''
+        ).trim(),
+
+        email: String(
+          user.email ||
+            user.emailAddress ||
+            ''
+        ).trim(),
+
+        username: String(
+          user.username ||
+            user.userName ||
+            ''
+        ).trim(),
+
+        accountId: String(
+          user.accountId ||
+            user.account_id ||
+            user.id ||
+            user._id ||
+            ''
+        ).trim(),
       });
     } catch (profileError) {
       console.error(
@@ -475,27 +271,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  /* ==========================================================
-     ACCOUNT BALANCE
-  ========================================================== */
-
   const loadAccount = async () => {
     try {
       setLoading(true);
       setError('');
 
-      const response =
-        await apiClient.get(
-          '/portfolio/performance'
-        );
+      const response = await apiClient.get(
+        '/portfolio/performance'
+      );
 
-      const data =
-        response.data || {};
-
-      const balance =
-        Number(
-          data.availableBalance
-        );
+      const data = response.data || {};
+      const balance = Number(
+        data.availableBalance
+      );
 
       setAccount({
         availableBalance:
@@ -510,18 +298,15 @@ const Dashboard: React.FC = () => {
       );
 
       if (
-        accountError?.response?.status ===
-        401
+        accountError?.response?.status === 401
       ) {
         setError(
           'Your login session has expired. Please login again.'
         );
       } else {
         setError(
-          accountError?.response?.data
-            ?.message ||
-            accountError?.response?.data
-              ?.error ||
+          accountError?.response?.data?.message ||
+            accountError?.response?.data?.error ||
             'Unable to load your account balance.'
         );
       }
@@ -530,32 +315,10 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  /* ==========================================================
-     INITIAL LOAD
-  ========================================================== */
-
   useEffect(() => {
     loadProfile();
     loadAccount();
   }, []);
-
-  /* ==========================================================
-     DISPLAY HELPERS
-  ========================================================== */
-
-  const money = (value: number) => {
-    if (!Number.isFinite(value)) {
-      return '$0.00';
-    }
-
-    return `$${value.toLocaleString(
-      'en-US',
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    )}`;
-  };
 
   const displayName = useMemo(() => {
     if (profile.name) {
@@ -567,21 +330,16 @@ const Dashboard: React.FC = () => {
     }
 
     return 'Account Holder';
-  }, [
-    profile.name,
-    profile.username,
-  ]);
+  }, [profile.name, profile.username]);
 
   const initials = useMemo(() => {
-    const value =
-      displayName.trim();
+    const value = displayName.trim();
 
     if (!value) {
       return 'A';
     }
 
-    const parts =
-      value.split(/\s+/);
+    const parts = value.split(/\s+/);
 
     if (parts.length >= 2) {
       return (
@@ -590,30 +348,21 @@ const Dashboard: React.FC = () => {
       ).toUpperCase();
     }
 
-    return value
-      .slice(0, 2)
-      .toUpperCase();
+    return value.slice(0, 2).toUpperCase();
   }, [displayName]);
 
-  /* ==========================================================
-     NAVIGATION
-  ========================================================== */
+  const money = (value: number) => {
+    if (!Number.isFinite(value)) {
+      return '$0.00';
+    }
 
-  const go = (path: string) => {
-    setMenuOpen(false);
-    navigate(path);
+    return `$${value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
-  const openProfile = () => {
-    setMenuOpen(false);
-    setProfileOpen(true);
-  };
-
-  /* ==========================================================
-     LOGOUT
-  ========================================================== */
-
-  const handleLogout = () => {
+  const logout = () => {
     const keys = [
       'token',
       'accessToken',
@@ -634,30 +383,40 @@ const Dashboard: React.FC = () => {
     navigate('/login');
   };
 
-  /* ==========================================================
-     RENDER
-  ========================================================== */
+  const goWallet = () => {
+    setMenuOpen(false);
+    navigate('/wallet');
+  };
+
+  const goPortfolio = () => {
+    setMenuOpen(false);
+    navigate('/portfolio');
+  };
+
+  const goMarket = () => {
+    setMenuOpen(false);
+    navigate('/market');
+  };
+
+  const goTrading = () => {
+    setMenuOpen(false);
+    navigate('/trading');
+  };
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        color: '#ffffff',
+        color: '#fff',
         background:
           'radial-gradient(circle at top right, rgba(25,84,199,0.30), transparent 30%), linear-gradient(180deg,#02071f 0%,#071453 55%,#091b68 100%)',
         pb: 6,
       }}
     >
-      {/* ======================================================
-          SIDE MENU
-      ====================================================== */}
-
       <Drawer
         anchor="left"
         open={menuOpen}
-        onClose={() =>
-          setMenuOpen(false)
-        }
+        onClose={() => setMenuOpen(false)}
         PaperProps={{
           sx: {
             background: 'transparent',
@@ -667,19 +426,17 @@ const Dashboard: React.FC = () => {
         <Box
           sx={{
             width: {
-              xs: '88vw',
-              sm: 390,
+              xs: '86vw',
+              sm: 360,
             },
-            maxWidth: 390,
+            maxWidth: 360,
             height: '100%',
             overflowY: 'auto',
-            color: '#ffffff',
+            color: '#fff',
             background:
               'linear-gradient(180deg,#050d35,#0b1d68,#102e86)',
           }}
         >
-          {/* MENU HEADER */}
-
           <Stack
             direction="row"
             alignItems="center"
@@ -694,7 +451,7 @@ const Dashboard: React.FC = () => {
             <Box>
               <Typography
                 sx={{
-                  fontSize: 20,
+                  fontSize: 19,
                   fontWeight: 900,
                 }}
               >
@@ -708,23 +465,17 @@ const Dashboard: React.FC = () => {
                   letterSpacing: 1,
                 }}
               >
-                PROFESSIONAL DIGITAL ASSET PLATFORM
+                ACCOUNT WORKSPACE
               </Typography>
             </Box>
 
             <IconButton
-              onClick={() =>
-                setMenuOpen(false)
-              }
-              sx={{
-                color: '#ffffff',
-              }}
+              onClick={() => setMenuOpen(false)}
+              sx={{ color: '#fff' }}
             >
               <CloseIcon />
             </IconButton>
           </Stack>
-
-          {/* PROFILE CARD */}
 
           <Box
             sx={{
@@ -734,7 +485,7 @@ const Dashboard: React.FC = () => {
               p: 2,
               borderRadius: 3,
               background:
-                'linear-gradient(135deg,rgba(40,78,190,0.55),rgba(11,27,82,0.75))',
+                'rgba(30,65,160,0.55)',
               border:
                 '1px solid rgba(105,160,255,0.22)',
             }}
@@ -750,7 +501,7 @@ const Dashboard: React.FC = () => {
                   height: 48,
                   fontWeight: 900,
                   background:
-                    'linear-gradient(135deg,#1bdcff,#2465ff)',
+                    'linear-gradient(135deg,#19d8ff,#285cff)',
                 }}
               >
                 {initials}
@@ -761,10 +512,8 @@ const Dashboard: React.FC = () => {
                   sx={{
                     fontWeight: 800,
                     overflow: 'hidden',
-                    textOverflow:
-                      'ellipsis',
-                    whiteSpace:
-                      'nowrap',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {displayName}
@@ -775,290 +524,138 @@ const Dashboard: React.FC = () => {
                     color: '#91a7e9',
                     fontSize: 11,
                     overflow: 'hidden',
-                    textOverflow:
-                      'ellipsis',
-                    whiteSpace:
-                      'nowrap',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
-                  {profile.email ||
-                    'Account profile'}
+                  {profile.email || 'Account'}
                 </Typography>
               </Box>
             </Stack>
 
             <Button
               fullWidth
-              startIcon={
-                <PersonOutlineIcon />
-              }
-              onClick={openProfile}
+              startIcon={<PersonOutlineIcon />}
+              onClick={() => {
+                setMenuOpen(false);
+                setProfileOpen(true);
+              }}
               sx={{
                 mt: 1.5,
-                color: '#ffffff',
-                textTransform:
-                  'none',
+                color: '#fff',
+                textTransform: 'none',
                 border:
                   '1px solid rgba(120,190,255,0.35)',
               }}
             >
-              View Account Profile
+              View Profile
             </Button>
           </Box>
 
-          {/* ==================================================
-              OVERVIEW
-          ================================================== */}
-
-          <MenuSection title="Overview">
-            <MenuButton
-              icon={
-                <DashboardIcon />
-              }
-              text="Dashboard"
-              onClick={() =>
-                go('/')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <ReceiptLongIcon />
-              }
-              text="Account Statement"
-              onClick={() =>
-                go('/statement')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              PORTFOLIO & INVESTMENTS
-          ================================================== */}
-
-          <MenuSection
-            title="Portfolio & Investments"
-          >
-            <MenuButton
-              icon={
-                <TrackChangesIcon />
-              }
-              text="Investment Plans"
-              onClick={() =>
-                go('/investment-plans')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <PieChartIcon />
-              }
-              text="My Portfolio"
-              onClick={() =>
-                go('/portfolio')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <ShowChartIcon />
-              }
-              text="Performance History"
-              onClick={() =>
-                go('/performance')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              TRADING & MARKETS
-          ================================================== */}
-
-          <MenuSection
-            title="Trading & Markets"
-          >
-            <MenuButton
-              icon={
-                <CandlestickChartIcon />
-              }
-              text="Live Markets"
-              badge="Live"
-              onClick={() =>
-                go('/market')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <PeopleIcon />
-              }
-              text="Copy Trading"
-              badge="Pro"
-              onClick={() =>
-                go('/copy-trading')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <SmartToyIcon />
-              }
-              text="AI Trading Bots"
-              badge="AI"
-              onClick={() =>
-                go('/ai-trading')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              MARKET INTELLIGENCE
-          ================================================== */}
-
-          <MenuSection
-            title="Market Intelligence"
-          >
-            <MenuButton
-              icon={<BoltIcon />}
-              text="Premium Signals"
-              badge="Premium"
-              onClick={() =>
-                go('/signals')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              WALLET & FUNDS
-          ================================================== */}
-
-          <MenuSection
-            title="Wallet & Funds"
-          >
-            <MenuButton
-              icon={
-                <AddCircleOutlineIcon />
-              }
-              text="Deposit Funds"
-              onClick={() =>
-                go('/wallet')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <RemoveCircleOutlineIcon />
-              }
-              text="Withdraw Funds"
-              onClick={() =>
-                go('/wallet')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <SwapHorizIcon />
-              }
-              text="Internal Transfer"
-              onClick={() =>
-                go('/wallet')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              FINANCING
-          ================================================== */}
-
-          <MenuSection title="Financing">
-            <MenuButton
-              icon={
-                <CreditCardIcon />
-              }
-              text="Fast Credit"
-              badge="Fast"
-              onClick={() =>
-                go('/wallet')
-              }
-            />
-          </MenuSection>
-
-          {/* ==================================================
-              ACCOUNT
-          ================================================== */}
-
-          <MenuSection title="Account">
-            <MenuButton
-              icon={
-                <PersonOutlineIcon />
-              }
-              text="Account Profile"
-              onClick={openProfile}
-            />
-
-            <MenuButton
-              icon={
-                <SettingsIcon />
-              }
-              text="Settings"
-              onClick={() =>
-                go('/settings')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <SecurityIcon />
-              }
-              text="Security"
-              onClick={() =>
-                go('/security')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <LanguageIcon />
-              }
-              text="Language"
-              onClick={() =>
-                go('/language')
-              }
-            />
-
-            <MenuButton
-              icon={
-                <HelpOutlineIcon />
-              }
-              text="Help & Support"
-              onClick={() =>
-                go('/support')
-              }
-            />
-          </MenuSection>
-
-          {/* LOGOUT */}
-
-          <Box
+          <Typography
             sx={{
               px: 2,
-              mt: 2,
-              mb: 3,
+              py: 1,
+              color: '#8198df',
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: 1,
             }}
           >
+            MAIN
+          </Typography>
+
+          <MenuItem
+            icon={<DashboardIcon />}
+            text="Dashboard"
+            onClick={() => {
+              setMenuOpen(false);
+              navigate('/');
+            }}
+          />
+
+          <MenuItem
+            icon={<AccountBalanceWalletIcon />}
+            text="Wallet & Funds"
+            onClick={goWallet}
+          />
+
+          <MenuItem
+            icon={<PieChartIcon />}
+            text="Portfolio"
+            onClick={goPortfolio}
+          />
+
+          <MenuItem
+            icon={<CandlestickChartIcon />}
+            text="Markets"
+            onClick={goMarket}
+          />
+
+          <MenuItem
+            icon={<CandlestickChartIcon />}
+            text="Trading"
+            onClick={goTrading}
+          />
+
+          <Divider
+            sx={{
+              my: 2,
+              borderColor:
+                'rgba(255,255,255,0.10)',
+            }}
+          />
+
+          <Typography
+            sx={{
+              px: 2,
+              py: 1,
+              color: '#8198df',
+              fontSize: 11,
+              fontWeight: 900,
+              letterSpacing: 1,
+            }}
+          >
+            ACCOUNT
+          </Typography>
+
+          <MenuItem
+            icon={<PersonOutlineIcon />}
+            text="Profile"
+            onClick={() => {
+              setMenuOpen(false);
+              setProfileOpen(true);
+            }}
+          />
+
+          <MenuItem
+            icon={<SecurityIcon />}
+            text="Security"
+            onClick={() => {
+              setMenuOpen(false);
+              setProfileOpen(true);
+            }}
+          />
+
+          <MenuItem
+            icon={<SettingsIcon />}
+            text="Settings"
+            onClick={() => {
+              setMenuOpen(false);
+              setProfileOpen(true);
+            }}
+          />
+
+          <Box sx={{ px: 2, mt: 2 }}>
             <Button
               fullWidth
-              startIcon={
-                <LogoutIcon />
-              }
-              onClick={handleLogout}
+              startIcon={<LogoutIcon />}
+              onClick={logout}
               sx={{
                 color: '#ff8297',
-                textTransform:
-                  'none',
                 border:
                   '1px solid rgba(255,100,130,0.25)',
-                borderRadius: 2,
+                textTransform: 'none',
                 py: 1.2,
               }}
             >
@@ -1068,10 +665,6 @@ const Dashboard: React.FC = () => {
         </Box>
       </Drawer>
 
-      {/* ======================================================
-          TOP BAR
-      ====================================================== */}
-
       <Box
         sx={{
           position: 'sticky',
@@ -1079,8 +672,7 @@ const Dashboard: React.FC = () => {
           zIndex: 10,
           background:
             'rgba(2,7,31,0.96)',
-          backdropFilter:
-            'blur(14px)',
+          backdropFilter: 'blur(14px)',
           borderBottom:
             '1px solid rgba(125,150,255,0.18)',
         }}
@@ -1090,22 +682,14 @@ const Dashboard: React.FC = () => {
             direction="row"
             alignItems="center"
             spacing={1.5}
-            sx={{
-              py: 1.5,
-            }}
+            sx={{ py: 1.5 }}
           >
             <IconButton
-              onClick={() =>
-                setMenuOpen(true)
-              }
+              onClick={() => setMenuOpen(true)}
               sx={{
-                color: '#ffffff',
+                color: '#fff',
                 background:
                   'rgba(60,90,220,0.25)',
-                '&:hover': {
-                  background:
-                    'rgba(60,90,220,0.45)',
-                },
               }}
             >
               <MenuIcon />
@@ -1131,16 +715,13 @@ const Dashboard: React.FC = () => {
                   letterSpacing: 1,
                 }}
               >
-                PROFESSIONAL DIGITAL ASSET PLATFORM
+                ACCOUNT WORKSPACE
               </Typography>
             </Box>
 
             <Button
-              onClick={() =>
-                setProfileOpen(true)
-              }
+              onClick={() => setProfileOpen(true)}
               sx={{
-                color: '#ffffff',
                 minWidth: 0,
                 p: 0.5,
               }}
@@ -1162,10 +743,6 @@ const Dashboard: React.FC = () => {
         </Container>
       </Box>
 
-      {/* ======================================================
-          MAIN CONTENT
-      ====================================================== */}
-
       <Container
         maxWidth="xl"
         sx={{
@@ -1175,86 +752,38 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
-        {/* HEADER */}
-
-        <Stack
-          direction={{
-            xs: 'column',
-            md: 'row',
-          }}
-          justifyContent="space-between"
-          alignItems={{
-            xs: 'flex-start',
-            md: 'center',
-          }}
-          spacing={2}
-          sx={{
-            mb: 3,
-          }}
-        >
-          <Box>
-            <Typography
-              sx={{
-                fontSize: {
-                  xs: 30,
-                  md: 42,
-                },
-                fontWeight: 900,
-                letterSpacing: -1,
-              }}
-            >
-              Dashboard
-            </Typography>
-
-            <Typography
-              sx={{
-                color: '#8ea4e8',
-                mt: 0.5,
-                fontSize: 14,
-              }}
-            >
-              Welcome back, {displayName}.
-            </Typography>
-          </Box>
-
-          <Button
-            variant="outlined"
-            startIcon={
-              <PersonOutlineIcon />
-            }
-            onClick={() =>
-              setProfileOpen(true)
-            }
+        <Box sx={{ mb: 3 }}>
+          <Typography
             sx={{
-              color: '#ffffff',
-              borderColor:
-                'rgba(110,190,255,0.45)',
-              textTransform:
-                'none',
-              fontWeight: 800,
-              borderRadius: 2,
+              fontSize: {
+                xs: 30,
+                md: 42,
+              },
+              fontWeight: 900,
+              letterSpacing: -1,
             }}
           >
-            Account Profile
-          </Button>
-        </Stack>
+            Welcome back, {displayName}
+          </Typography>
 
-        {/* ERROR */}
+          <Typography
+            sx={{
+              color: '#8ea4e8',
+              mt: 0.7,
+            }}
+          >
+            Your account workspace
+          </Typography>
+        </Box>
 
         {error && (
           <Alert
             severity="error"
-            sx={{
-              mb: 3,
-              borderRadius: 2,
-            }}
+            sx={{ mb: 3 }}
             action={
               <Button
                 color="inherit"
-                size="small"
-                onClick={() =>
-                  navigate('/login')
-                }
+                onClick={() => navigate('/login')}
               >
                 Login
               </Button>
@@ -1264,356 +793,169 @@ const Dashboard: React.FC = () => {
           </Alert>
         )}
 
-        {/* ====================================================
-            ACCOUNT BALANCE
-        ==================================================== */}
-
         <Card
           sx={{
             mb: 3,
             borderRadius: 4,
-            color: '#ffffff',
-            overflow: 'hidden',
+            color: '#fff',
             background:
-              'radial-gradient(circle at 90% 20%,rgba(92,232,255,0.22),transparent 28%), linear-gradient(135deg,#10216d 0%,#154ec7 60%,#087fda 100%)',
+              'linear-gradient(135deg,#10216d 0%,#154ec7 60%,#087fda 100%)',
             border:
               '1px solid rgba(130,190,255,0.28)',
             boxShadow:
               '0 20px 60px rgba(0,0,0,0.25)',
           }}
         >
-          <CardContent
-            sx={{
-              p: {
-                xs: 2.5,
-                md: 4,
-              },
-            }}
-          >
+          <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
+            <Typography
+              sx={{
+                color: '#b9caff',
+                fontSize: 12,
+                fontWeight: 800,
+                letterSpacing: 1.2,
+              }}
+            >
+              AVAILABLE BALANCE
+            </Typography>
+
+            {loading ? (
+              <CircularProgress
+                sx={{
+                  color: '#fff',
+                  mt: 2,
+                }}
+              />
+            ) : (
+              <Typography
+                sx={{
+                  fontSize: {
+                    xs: 40,
+                    sm: 50,
+                    md: 58,
+                  },
+                  fontWeight: 900,
+                  mt: 1,
+                }}
+              >
+                {money(
+                  account.availableBalance
+                )}
+              </Typography>
+            )}
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ mt: 2 }}
+              flexWrap="wrap"
+              useFlexGap
+            >
+              <Chip
+                icon={
+                  <VerifiedUserIcon
+                    sx={{
+                      color:
+                        '#58f39b !important',
+                    }}
+                  />
+                }
+                label="Secure Account"
+                size="small"
+                sx={{
+                  color: '#fff',
+                  background:
+                    'rgba(0,0,0,0.18)',
+                  fontWeight: 700,
+                }}
+              />
+
+              <Chip
+                label="Account Balance"
+                size="small"
+                sx={{
+                  color: '#fff',
+                  background:
+                    'rgba(0,190,255,0.18)',
+                  fontWeight: 700,
+                }}
+              />
+            </Stack>
+
+            <Typography
+              sx={{
+                color: '#c7d7ff',
+                mt: 2,
+                fontSize: 13,
+                lineHeight: 1.6,
+              }}
+            >
+              This amount is read from your
+              account data. No fake portfolio
+              value, profit or market chart is
+              displayed.
+            </Typography>
+
             <Stack
               direction={{
                 xs: 'column',
-                md: 'row',
+                sm: 'row',
               }}
-              justifyContent="space-between"
-              spacing={4}
+              spacing={1.5}
+              sx={{ mt: 3 }}
             >
-              <Box>
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  flexWrap="wrap"
-                  useFlexGap
-                  sx={{ mb: 2 }}
-                >
-                  <Chip
-                    icon={
-                      <VerifiedUserIcon
-                        sx={{
-                          color:
-                            '#58f39b !important',
-                        }}
-                      />
-                    }
-                    label="Secure Account"
-                    size="small"
-                    sx={{
-                      color: '#ffffff',
-                      background:
-                        'rgba(0,0,0,0.18)',
-                      fontWeight: 700,
-                    }}
-                  />
-
-                  <Chip
-                    label="Account Balance"
-                    size="small"
-                    sx={{
-                      color: '#ffffff',
-                      background:
-                        'rgba(0,190,255,0.20)',
-                      fontWeight: 700,
-                    }}
-                  />
-                </Stack>
-
-                <Typography
-                  sx={{
-                    color: '#b9caff',
-                    fontSize: 12,
-                    fontWeight: 800,
-                    letterSpacing: 1.2,
-                  }}
-                >
-                  AVAILABLE BALANCE
-                </Typography>
-
-                {loading ? (
-                  <CircularProgress
-                    sx={{
-                      color: '#ffffff',
-                      mt: 2,
-                    }}
-                  />
-                ) : (
-                  <Typography
-                    sx={{
-                      fontSize: {
-                        xs: 40,
-                        sm: 50,
-                        md: 58,
-                      },
-                      fontWeight: 900,
-                      lineHeight: 1.1,
-                      mt: 1,
-                    }}
-                  >
-                    {money(
-                      account.availableBalance
-                    )}
-                  </Typography>
-                )}
-
-                <Typography
-                  sx={{
-                    color: '#c7d7ff',
-                    mt: 1.5,
-                    maxWidth: 680,
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                  }}
-                >
-                  Your available balance is
-                  retrieved from your account
-                  data. No simulated portfolio
-                  values or artificial profits are
-                  displayed.
-                </Typography>
-
-                {/* ACTION BUTTONS */}
-
-                <Stack
-                  direction={{
-                    xs: 'column',
-                    sm: 'row',
-                  }}
-                  spacing={1.5}
-                  sx={{ mt: 3 }}
-                >
-                  <Button
-                    variant="contained"
-                    startIcon={
-                      <AddCircleOutlineIcon />
-                    }
-                    onClick={() =>
-                      go('/wallet')
-                    }
-                    sx={{
-                      color: '#041033',
-                      background:
-                        '#5ce8ff',
-                      textTransform:
-                        'none',
-                      fontWeight: 900,
-                      '&:hover': {
-                        background:
-                          '#8ef0ff',
-                      },
-                    }}
-                  >
-                    Deposit Funds
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    startIcon={
-                      <RemoveCircleOutlineIcon />
-                    }
-                    onClick={() =>
-                      go('/wallet')
-                    }
-                    sx={{
-                      color: '#ffffff',
-                      borderColor:
-                        'rgba(255,255,255,0.5)',
-                      textTransform:
-                        'none',
-                      fontWeight: 800,
-                    }}
-                  >
-                    Withdraw Funds
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    startIcon={
-                      <SwapHorizIcon />
-                    }
-                    onClick={() =>
-                      go('/wallet')
-                    }
-                    sx={{
-                      color: '#ffffff',
-                      borderColor:
-                        'rgba(255,255,255,0.5)',
-                      textTransform:
-                        'none',
-                      fontWeight: 800,
-                    }}
-                  >
-                    Transfer
-                  </Button>
-                </Stack>
-              </Box>
-
-              {/* SECURITY PANEL */}
-
-              <Box
+              <Button
+                variant="contained"
+                startIcon={
+                  <AddCircleOutlineIcon />
+                }
+                onClick={goWallet}
                 sx={{
-                  display: {
-                    xs: 'none',
-                    md: 'block',
-                  },
-                  minWidth: 300,
+                  color: '#041033',
+                  background: '#5ce8ff',
+                  textTransform: 'none',
+                  fontWeight: 900,
                 }}
               >
-                <Card
-                  sx={{
-                    borderRadius: 4,
-                    color: '#ffffff',
-                    background:
-                      'rgba(2,12,55,0.45)',
-                    border:
-                      '1px solid rgba(140,210,255,0.18)',
-                    backdropFilter:
-                      'blur(10px)',
-                  }}
-                >
-                  <CardContent>
-                    <Stack
-                      direction="row"
-                      spacing={1.5}
-                      alignItems="center"
-                      sx={{ mb: 2 }}
-                    >
-                      <Avatar
-                        sx={{
-                          background:
-                            'rgba(92,232,255,0.15)',
-                          color:
-                            '#5ce8ff',
-                        }}
-                      >
-                        <LockOutlinedIcon />
-                      </Avatar>
+                Deposit Funds
+              </Button>
 
-                      <Box>
-                        <Typography
-                          sx={{
-                            fontWeight: 900,
-                          }}
-                        >
-                          Account Security
-                        </Typography>
+              <Button
+                variant="outlined"
+                startIcon={
+                  <RemoveCircleOutlineIcon />
+                }
+                onClick={goWallet}
+                sx={{
+                  color: '#fff',
+                  borderColor:
+                    'rgba(255,255,255,0.5)',
+                  textTransform: 'none',
+                  fontWeight: 800,
+                }}
+              >
+                Withdraw
+              </Button>
 
-                        <Typography
-                          sx={{
-                            color:
-                              '#8fa9ed',
-                            fontSize: 11,
-                          }}
-                        >
-                          Protected workspace
-                        </Typography>
-                      </Box>
-                    </Stack>
-
-                    <Divider
-                      sx={{
-                        borderColor:
-                          'rgba(255,255,255,0.10)',
-                        mb: 2,
-                      }}
-                    />
-
-                    <Stack spacing={1.5}>
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                      >
-                        <VerifiedUserIcon
-                          sx={{
-                            color:
-                              '#4df28d',
-                            fontSize: 20,
-                          }}
-                        />
-
-                        <Typography
-                          sx={{
-                            fontSize: 13,
-                          }}
-                        >
-                          Authenticated account
-                        </Typography>
-                      </Stack>
-
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                      >
-                        <LockOutlinedIcon
-                          sx={{
-                            color:
-                              '#5ce8ff',
-                            fontSize: 20,
-                          }}
-                        />
-
-                        <Typography
-                          sx={{
-                            fontSize: 13,
-                          }}
-                        >
-                          Secure access
-                        </Typography>
-                      </Stack>
-
-                      <Stack
-                        direction="row"
-                        spacing={1}
-                        alignItems="center"
-                      >
-                        <AccountBalanceWalletIcon
-                          sx={{
-                            color:
-                              '#5ce8ff',
-                            fontSize: 20,
-                          }}
-                        />
-
-                        <Typography
-                          sx={{
-                            fontSize: 13,
-                          }}
-                        >
-                          Balance connected
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Box>
+              <Button
+                variant="outlined"
+                startIcon={
+                  <SwapHorizIcon />
+                }
+                onClick={goWallet}
+                sx={{
+                  color: '#fff',
+                  borderColor:
+                    'rgba(255,255,255,0.5)',
+                  textTransform: 'none',
+                  fontWeight: 800,
+                }}
+              >
+                Transfer
+              </Button>
             </Stack>
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            PORTFOLIO & INVESTMENTS
-        ==================================================== */}
-
         <Typography
           sx={{
             fontSize: 22,
@@ -1621,7 +963,7 @@ const Dashboard: React.FC = () => {
             mb: 2,
           }}
         >
-          Portfolio & Investments
+          Quick Access
         </Typography>
 
         <Box
@@ -1630,120 +972,54 @@ const Dashboard: React.FC = () => {
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2,1fr)',
-              lg: 'repeat(3,1fr)',
+              lg: 'repeat(4,1fr)',
             },
             gap: 2,
-            mb: 4,
+            mb: 3,
           }}
         >
-          <InfoCard
+          <QuickCard
             icon={
-              <TrackChangesIcon />
+              <AccountBalanceWalletIcon />
             }
-            title="Investment Plans"
-            description="Explore and manage the investment plans available on your account."
-            onClick={() =>
-              go('/investment-plans')
-            }
+            title="Wallet"
+            description="Manage your deposits, withdrawals and transfers."
+            onClick={goWallet}
           />
 
-          <InfoCard
-            icon={
-              <PieChartIcon />
-            }
-            title="My Portfolio"
-            description="Review your actual portfolio and holdings information."
-            onClick={() =>
-              go('/portfolio')
-            }
+          <QuickCard
+            icon={<PieChartIcon />}
+            title="Portfolio"
+            description="View your actual portfolio information."
+            onClick={goPortfolio}
           />
 
-          <InfoCard
-            icon={
-              <ShowChartIcon />
-            }
-            title="Performance History"
-            description="Review account performance information when available."
-            onClick={() =>
-              go('/performance')
-            }
-          />
-        </Box>
-
-        {/* ====================================================
-            TRADING & MARKETS
-        ==================================================== */}
-
-        <Typography
-          sx={{
-            fontSize: 22,
-            fontWeight: 900,
-            mb: 2,
-          }}
-        >
-          Trading & Markets
-        </Typography>
-
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2,1fr)',
-              lg: 'repeat(3,1fr)',
-            },
-            gap: 2,
-            mb: 4,
-          }}
-        >
-          <InfoCard
+          <QuickCard
             icon={
               <CandlestickChartIcon />
             }
-            title="Live Markets"
-            description="Open the market workspace. Market data will only be displayed when connected to a genuine data source."
-            badge="Data"
-            onClick={() =>
-              go('/market')
-            }
+            title="Markets"
+            description="Open the market section when genuine market data is connected."
+            onClick={goMarket}
           />
 
-          <InfoCard
-            icon={<PeopleIcon />}
-            title="Copy Trading"
-            description="Access the copy trading workspace when this service is enabled."
-            badge="Pro"
-            onClick={() =>
-              go('/copy-trading')
-            }
-          />
-
-          <InfoCard
-            icon={
-              <SmartToyIcon />
-            }
-            title="AI Trading Bots"
-            description="Access automated trading tools when the service is connected."
-            badge="AI"
-            onClick={() =>
-              go('/ai-trading')
-            }
+          <QuickCard
+            icon={<PersonOutlineIcon />}
+            title="Profile"
+            description="Review your account and profile information."
+            onClick={() => setProfileOpen(true)}
           />
         </Box>
 
-        {/* ====================================================
-            MARKET INTELLIGENCE
-        ==================================================== */}
-
         <Card
           sx={{
-            mb: 4,
+            mb: 3,
             borderRadius: 4,
-            color: '#ffffff',
+            color: '#fff',
             background:
-              'linear-gradient(135deg,#111c63,#192eaa,#1269ce)',
+              'linear-gradient(145deg,#101f63,#08143f)',
             border:
-              '1px solid rgba(130,190,255,0.22)',
+              '1px solid rgba(100,150,255,0.20)',
           }}
         >
           <CardContent sx={{ p: 3 }}>
@@ -1759,86 +1035,392 @@ const Dashboard: React.FC = () => {
               }}
               spacing={2}
             >
-              <Stack
-                direction="row"
-                spacing={2}
-                alignItems="center"
-              >
-                <Avatar
+              <Box>
+                <Typography
                   sx={{
-                    background:
-                      'rgba(255,255,255,0.10)',
-                    color: '#5ce8ff',
+                    fontSize: 22,
+                    fontWeight: 900,
                   }}
                 >
-                  <BoltIcon />
-                </Avatar>
+                  Portfolio
+                </Typography>
 
-                <Box>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    alignItems="center"
-                  >
-                    <Typography
-                      sx={{
-                        fontSize: 22,
-                        fontWeight: 900,
-                      }}
-                    >
-                      Premium Signals
-                    </Typography>
-
-                    <Chip
-                      label="PREMIUM"
-                      size="small"
-                      sx={{
-                        color: '#ffffff',
-                        background:
-                          '#ffb900',
-                        fontSize: 9,
-                        fontWeight: 900,
-                      }}
-                    />
-                  </Stack>
-
-                  <Typography
-                    sx={{
-                      color: '#c1d7ff',
-                      fontSize: 12,
-                      mt: 0.5,
-                    }}
-                  >
-                    Market intelligence tools
-                    can be connected here when
-                    the appropriate data service is
-                    available.
-                  </Typography>
-                </Box>
-              </Stack>
+                <Typography
+                  sx={{
+                    color: '#8296e0',
+                    fontSize: 13,
+                    mt: 0.5,
+                  }}
+                >
+                  Your portfolio section is
+                  available for account-based
+                  investment information.
+                </Typography>
+              </Box>
 
               <Button
-                variant="contained"
+                variant="outlined"
                 endIcon={
                   <ArrowForwardIcon />
                 }
-                onClick={() =>
-                  go('/signals')
-                }
+                onClick={goPortfolio}
                 sx={{
-                  textTransform:
-                    'none',
+                  color: '#fff',
+                  borderColor:
+                    'rgba(110,190,255,0.45)',
+                  textTransform: 'none',
                   fontWeight: 800,
                 }}
               >
-                Premium Signals
+                Open Portfolio
               </Button>
             </Stack>
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            WALLET & FUNDS
-        ==================================================== */}
+        <Card
+          sx={{
+            borderRadius: 4,
+            color: '#fff',
+            background:
+              'linear-gradient(145deg,#101f63,#08143f)',
+            border:
+              '1px solid rgba(100,150,255,0.20)',
+          }}
+        >
+          <CardContent sx={{ p: 3 }}>
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{ mb: 2 }}
+            >
+              <SecurityIcon
+                sx={{ color: '#5ce8ff' }}
+              />
 
-        <
+              <Typography
+                sx={{
+                  fontSize: 20,
+                  fontWeight: 900,
+                }}
+              >
+                Account Security
+              </Typography>
+            </Stack>
+
+            <Divider
+              sx={{
+                mb: 2,
+                borderColor:
+                  'rgba(255,255,255,0.10)',
+              }}
+            />
+
+            <Stack spacing={1.5}>
+              <SecurityItem
+                icon={<VerifiedUserIcon />}
+                title="Authenticated"
+                text="Your account session is protected."
+              />
+
+              <SecurityItem
+                icon={<LockOutlinedIcon />}
+                title="Secure Access"
+                text="Account information requires authentication."
+              />
+
+              <SecurityItem
+                icon={
+                  <AccountBalanceWalletIcon />
+                }
+                title="Account Data"
+                text="Financial information is displayed from available account data."
+              />
+            </Stack>
+          </CardContent>
+        </Card>
+      </Container>
+
+      <Drawer
+        anchor="right"
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      >
+        <Box
+          sx={{
+            width: {
+              xs: '88vw',
+              sm: 400,
+            },
+            maxWidth: 400,
+            height: '100%',
+            color: '#fff',
+            background:
+              'linear-gradient(180deg,#07113b,#0b1b5a,#102e86)',
+            p: 3,
+            overflowY: 'auto',
+          }}
+        >
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="center"
+            sx={{ mb: 3 }}
+          >
+            <Typography
+              sx={{
+                fontSize: 22,
+                fontWeight: 900,
+              }}
+            >
+              Account Profile
+            </Typography>
+
+            <IconButton
+              onClick={() =>
+                setProfileOpen(false)
+              }
+              sx={{ color: '#fff' }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Stack>
+
+          <Stack
+            alignItems="center"
+            spacing={1.5}
+            sx={{ mb: 3 }}
+          >
+            <Avatar
+              sx={{
+                width: 90,
+                height: 90,
+                fontSize: 30,
+                fontWeight: 900,
+                background:
+                  'linear-gradient(135deg,#19d8ff,#285cff)',
+              }}
+            >
+              {initials}
+            </Avatar>
+
+            <Typography
+              sx={{
+                fontSize: 24,
+                fontWeight: 900,
+                textAlign: 'center',
+              }}
+            >
+              {displayName}
+            </Typography>
+
+            <Typography
+              sx={{
+                color: '#91a7e9',
+                textAlign: 'center',
+              }}
+            >
+              {profile.email ||
+                'Email not available'}
+            </Typography>
+          </Stack>
+
+          <ProfileItem
+            title="Username"
+            value={
+              profile.username ||
+              'Not available'
+            }
+          />
+
+          <ProfileItem
+            title="Account ID"
+            value={
+              profile.accountId ||
+              'Not available'
+            }
+          />
+
+          <ProfileItem
+            title="Available Balance"
+            value={
+              loading
+                ? 'Loading...'
+                : money(
+                    account.availableBalance
+                  )
+            }
+          />
+
+          <Button
+            fullWidth
+            startIcon={<LogoutIcon />}
+            onClick={logout}
+            sx={{
+              mt: 2,
+              color: '#ff8297',
+              border:
+                '1px solid rgba(255,100,130,0.25)',
+              textTransform: 'none',
+              py: 1.2,
+            }}
+          >
+            Logout
+          </Button>
+        </Box>
+      </Drawer>
+    </Box>
+  );
+};
+
+interface MenuItemProps {
+  icon: React.ReactNode;
+  text: string;
+  onClick: () => void;
+}
+
+const MenuItem: React.FC<MenuItemProps> = ({
+  icon,
+  text,
+  onClick,
+}) => {
+  return (
+    <Button
+      fullWidth
+      onClick={onClick}
+      sx={{
+        justifyContent: 'flex-start',
+        color: '#fff',
+        textTransform: 'none',
+        borderRadius: 2,
+        px: 2,
+        py: 1.2,
+      }}
+    >
+      <Box
+        sx={{
+          width: 38,
+          display: 'flex',
+          justifyContent: 'center',
+          mr: 1,
+          color: '#5ce8ff',
+        }}
+      >
+        {icon}
+      </Box>
+
+      <Typography
+        sx={{
+          fontSize: 15,
+          fontWeight: 700,
+        }}
+      >
+        {text}
+      </Typography>
+    </Button>
+  );
+};
+
+interface SecurityItemProps {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}
+
+const SecurityItem: React.FC<
+  SecurityItemProps
+> = ({
+  icon,
+  title,
+  text,
+}) => {
+  return (
+    <Stack
+      direction="row"
+      spacing={1.5}
+      alignItems="center"
+    >
+      <Box
+        sx={{
+          color: '#5ce8ff',
+          display: 'flex',
+        }}
+      >
+        {icon}
+      </Box>
+
+      <Box>
+        <Typography
+          sx={{
+            fontSize: 13,
+            fontWeight: 800,
+          }}
+        >
+          {title}
+        </Typography>
+
+        <Typography
+          sx={{
+            color: '#8198df',
+            fontSize: 11,
+          }}
+        >
+          {text}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+};
+
+interface ProfileItemProps {
+  title: string;
+  value: string;
+}
+
+const ProfileItem: React.FC<
+  ProfileItemProps
+> = ({
+  title,
+  value,
+}) => {
+  return (
+    <Box
+      sx={{
+        p: 1.7,
+        mb: 1.5,
+        borderRadius: 2,
+        background:
+          'rgba(255,255,255,0.04)',
+        border:
+          '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      <Typography
+        sx={{
+          color: '#8198df',
+          fontSize: 10,
+          fontWeight: 800,
+          textTransform: 'uppercase',
+          letterSpacing: 0.8,
+        }}
+      >
+        {title}
+      </Typography>
+
+      <Typography
+        sx={{
+          color: '#fff',
+          fontSize: 14,
+          fontWeight: 700,
+          mt: 0.5,
+          wordBreak: 'break-word',
+        }}
+      >
+        {value}
+      </Typography>
+    </Box>
+  );
+};
+
+export default Dashboard;
