@@ -12,7 +12,6 @@ import {
   Typography,
 } from '@mui/material';
 
-import DashboardIcon from '@mui/icons-material/Dashboard';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -82,13 +81,19 @@ const Dashboard: React.FC = () => {
 
         setPerformance({
           totalValue:
-            Number(performanceResponse.data?.totalValue) || 0,
+            Number(
+              performanceResponse.data?.totalValue
+            ) || 0,
 
           totalGain:
-            Number(performanceResponse.data?.totalGain) || 0,
+            Number(
+              performanceResponse.data?.totalGain
+            ) || 0,
 
           gainPercentage:
-            Number(performanceResponse.data?.gainPercentage) || 0,
+            Number(
+              performanceResponse.data?.gainPercentage
+            ) || 0,
 
           availableBalance:
             Number(
@@ -102,20 +107,66 @@ const Dashboard: React.FC = () => {
         });
 
         setHoldings(
-          Array.isArray(holdingsResponse.data?.holdings)
+          Array.isArray(
+            holdingsResponse.data?.holdings
+          )
             ? holdingsResponse.data.holdings
             : []
         );
       } catch (error: any) {
-        console.error('DASHBOARD ERROR:', error);
+        console.error(
+          'DASHBOARD ERROR:',
+          error
+        );
 
-        if (error?.response?.status === 401) {
+        const status =
+          error?.response?.status;
+
+        const serverMessage =
+          error?.response?.data?.message ||
+          error?.response?.data?.error;
+
+        if (status === 401) {
           setErrorMessage(
-            'Your login session has expired. Please login again.'
+            `Authentication failed (401): ${
+              serverMessage ||
+              'Invalid or missing login token.'
+            }`
+          );
+        } else if (status === 403) {
+          setErrorMessage(
+            `Access denied (403): ${
+              serverMessage ||
+              'You are not authorized.'
+            }`
+          );
+        } else if (status === 404) {
+          setErrorMessage(
+            `API endpoint not found (404): ${
+              serverMessage ||
+              'Portfolio endpoint does not exist.'
+            }`
+          );
+        } else if (status === 500) {
+          setErrorMessage(
+            `Server error (500): ${
+              serverMessage ||
+              'The backend encountered an error.'
+            }`
+          );
+        } else if (status) {
+          setErrorMessage(
+            `Server error (${status}): ${
+              serverMessage ||
+              'The server returned an error.'
+            }`
           );
         } else {
           setErrorMessage(
-            'Unable to load your account data.'
+            `Connection error: ${
+              error?.message ||
+              'Could not connect to the API.'
+            }`
           );
         }
       } finally {
@@ -144,13 +195,21 @@ const Dashboard: React.FC = () => {
 
   const totalProfit =
     performance.totalGain >= 0
-      ? `+${formatMoney(performance.totalGain)}`
-      : formatMoney(performance.totalGain);
+      ? `+${formatMoney(
+          performance.totalGain
+        )}`
+      : formatMoney(
+          performance.totalGain
+        );
 
   const profitPercentage =
     performance.gainPercentage >= 0
-      ? `+${performance.gainPercentage.toFixed(2)}%`
-      : `${performance.gainPercentage.toFixed(2)}%`;
+      ? `+${performance.gainPercentage.toFixed(
+          2
+        )}%`
+      : `${performance.gainPercentage.toFixed(
+          2
+        )}%`;
 
   const marketAssets = [
     {
@@ -217,7 +276,8 @@ const Dashboard: React.FC = () => {
         position="sticky"
         elevation={0}
         sx={{
-          background: 'rgba(3, 10, 44, 0.95)',
+          background:
+            'rgba(3, 10, 44, 0.95)',
           borderBottom:
             '1px solid rgba(125,150,255,0.2)',
         }}
@@ -247,21 +307,27 @@ const Dashboard: React.FC = () => {
           </Box>
 
           <Button
-            onClick={() => navigate('/market')}
+            onClick={() =>
+              navigate('/market')
+            }
             sx={{ color: '#fff' }}
           >
             Markets
           </Button>
 
           <Button
-            onClick={() => navigate('/portfolio')}
+            onClick={() =>
+              navigate('/portfolio')
+            }
             sx={{ color: '#fff' }}
           >
             Portfolio
           </Button>
 
           <Button
-            onClick={() => navigate('/wallet')}
+            onClick={() =>
+              navigate('/wallet')
+            }
             sx={{ color: '#fff' }}
           >
             Wallet
@@ -297,7 +363,8 @@ const Dashboard: React.FC = () => {
               mt: 1,
             }}
           >
-            Welcome to your Global Digital Market account.
+            Welcome to your Global Digital Market
+            account.
           </Typography>
         </Box>
 
@@ -313,13 +380,29 @@ const Dashboard: React.FC = () => {
             }}
           >
             <CardContent>
-              <Typography>
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  color: '#ffd54f',
+                }}
+              >
+                Dashboard API Error
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 1,
+                  wordBreak: 'break-word',
+                }}
+              >
                 {errorMessage}
               </Typography>
 
               <Button
                 variant="contained"
-                onClick={() => navigate('/login')}
+                onClick={() =>
+                  navigate('/login')
+                }
                 sx={{ mt: 2 }}
               >
                 Login Again
@@ -583,7 +666,9 @@ const Dashboard: React.FC = () => {
                 </Box>
 
                 <Button
-                  onClick={() => navigate('/market')}
+                  onClick={() =>
+                    navigate('/market')
+                  }
                   sx={{
                     color: '#62dcff',
                   }}
@@ -593,90 +678,99 @@ const Dashboard: React.FC = () => {
               </Stack>
 
               <Stack spacing={1}>
-                {marketAssets.map((asset) => (
-                  <Box
-                    key={asset.symbol}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 2,
-                      background:
-                        'rgba(255,255,255,0.05)',
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      alignItems="center"
+                {marketAssets.map(
+                  (asset) => (
+                    <Box
+                      key={asset.symbol}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 2,
+                        background:
+                          'rgba(255,255,255,0.05)',
+                      }}
                     >
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background:
-                            'linear-gradient(135deg, #263eae, #16286d)',
-                          fontWeight: 800,
-                        }}
+                      <Stack
+                        direction="row"
+                        alignItems="center"
                       >
-                        {asset.icon}
-                      </Box>
-
-                      <Box
-                        sx={{
-                          flexGrow: 1,
-                          ml: 1.5,
-                        }}
-                      >
-                        <Typography
+                        <Box
                           sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius:
+                              '50%',
+                            display:
+                              'flex',
+                            alignItems:
+                              'center',
+                            justifyContent:
+                              'center',
+                            background:
+                              'linear-gradient(135deg, #263eae, #16286d)',
                             fontWeight: 800,
-                            fontSize: 13,
                           }}
                         >
-                          {asset.symbol}
-                        </Typography>
+                          {asset.icon}
+                        </Box>
 
-                        <Typography
+                        <Box
                           sx={{
-                            color: '#758bd6',
-                            fontSize: 10,
+                            flexGrow: 1,
+                            ml: 1.5,
                           }}
                         >
-                          {asset.name}
-                        </Typography>
-                      </Box>
+                          <Typography
+                            sx={{
+                              fontWeight: 800,
+                              fontSize: 13,
+                            }}
+                          >
+                            {asset.symbol}
+                          </Typography>
 
-                      <Box
-                        sx={{
-                          textAlign: 'right',
-                        }}
-                      >
-                        <Typography
-                          sx={{
-                            fontWeight: 800,
-                            fontSize: 13,
-                          }}
-                        >
-                          {asset.price}
-                        </Typography>
+                          <Typography
+                            sx={{
+                              color:
+                                '#758bd6',
+                              fontSize: 10,
+                            }}
+                          >
+                            {asset.name}
+                          </Typography>
+                        </Box>
 
-                        <Typography
+                        <Box
                           sx={{
-                            color: asset.positive
-                              ? '#42ef88'
-                              : '#ff6681',
-                            fontSize: 11,
-                            fontWeight: 700,
+                            textAlign:
+                              'right',
                           }}
                         >
-                          {asset.change}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                  </Box>
-                ))}
+                          <Typography
+                            sx={{
+                              fontWeight: 800,
+                              fontSize: 13,
+                            }}
+                          >
+                            {asset.price}
+                          </Typography>
+
+                          <Typography
+                            sx={{
+                              color:
+                                asset.positive
+                                  ? '#42ef88'
+                                  : '#ff6681',
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {asset.change}
+                          </Typography>
+                        </Box>
+                      </Stack>
+                    </Box>
+                  )
+                )}
               </Stack>
             </CardContent>
           </Card>
@@ -714,12 +808,15 @@ const Dashboard: React.FC = () => {
                 <Box
                   sx={{
                     display: 'flex',
-                    justifyContent: 'center',
+                    justifyContent:
+                      'center',
                     py: 4,
                   }}
                 >
                   <CircularProgress
-                    sx={{ color: '#fff' }}
+                    sx={{
+                      color: '#fff',
+                    }}
                   />
                 </Box>
               ) : holdings.length === 0 ? (
@@ -733,57 +830,63 @@ const Dashboard: React.FC = () => {
                 </Typography>
               ) : (
                 <Stack spacing={1}>
-                  {holdings.map((holding) => (
-                    <Box
-                      key={holding.id}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        background:
-                          'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        justifyContent:
-                          'space-between',
-                      }}
-                    >
-                      <Box>
+                  {holdings.map(
+                    (holding) => (
+                      <Box
+                        key={holding.id}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          background:
+                            'rgba(255,255,255,0.05)',
+                          display: 'flex',
+                          justifyContent:
+                            'space-between',
+                        }}
+                      >
+                        <Box>
+                          <Typography
+                            sx={{
+                              fontWeight: 800,
+                            }}
+                          >
+                            {holding.symbol}
+                          </Typography>
+
+                          <Typography
+                            sx={{
+                              color:
+                                '#8296e0',
+                              fontSize: 11,
+                            }}
+                          >
+                            Quantity:{' '}
+                            {holding.quantity}
+                          </Typography>
+                        </Box>
+
                         <Typography
                           sx={{
                             fontWeight: 800,
                           }}
                         >
-                          {holding.symbol}
-                        </Typography>
-
-                        <Typography
-                          sx={{
-                            color: '#8296e0',
-                            fontSize: 11,
-                          }}
-                        >
-                          Quantity: {holding.quantity}
+                          {formatMoney(
+                            Number(
+                              holding.market_value
+                            ) || 0
+                          )}
                         </Typography>
                       </Box>
-
-                      <Typography
-                        sx={{
-                          fontWeight: 800,
-                        }}
-                      >
-                        {formatMoney(
-                          Number(
-                            holding.market_value
-                          ) || 0
-                        )}
-                      </Typography>
-                    </Box>
-                  ))}
+                    )
+                  )}
                 </Stack>
               )}
 
               <Button
                 variant="outlined"
-                onClick={() => navigate('/portfolio')}
+                onClick={() =>
+                  navigate('/portfolio')
+                }
                 sx={{
                   mt: 3,
                   color: '#fff',
@@ -842,7 +945,9 @@ const Dashboard: React.FC = () => {
               <Button
                 variant="contained"
                 startIcon={<BoltIcon />}
-                onClick={() => navigate('/trading')}
+                onClick={() =>
+                  navigate('/trading')
+                }
                 sx={{
                   py: 1.3,
                   px: 3,
