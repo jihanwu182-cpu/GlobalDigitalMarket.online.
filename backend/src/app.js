@@ -6,46 +6,51 @@ const helmet = require('helmet');
 const path = require('path');
 
 const pool = require('./config/database');
+const { initializeDatabase } = require('./config/database');
 
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// =====================================
+// ============================================================
 // MIDDLEWARE
-// =====================================
+// ============================================================
 
 app.use(
   helmet({
-    contentSecurityPolicy: false
+    contentSecurityPolicy: false,
   })
 );
 
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || '*'
+    origin: process.env.CORS_ORIGIN || '*',
   })
 );
 
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+  })
+);
 
 app.use(
   express.urlencoded({
     limit: '10mb',
-    extended: true
+    extended: true,
   })
 );
 
-// =====================================
+// ============================================================
 // PROJECT ROOT
-// =====================================
+// ============================================================
 
 const projectRoot = path.resolve(__dirname, '../..');
 
-// =====================================
+// ============================================================
 // FRONTEND PAGES
-// =====================================
+// ============================================================
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(projectRoot, 'index.html'));
@@ -59,76 +64,66 @@ app.get('/index.html', (req, res) => {
   res.sendFile(path.join(projectRoot, 'index.html'));
 });
 
-// =====================================
+// ============================================================
 // SERVER HEALTH CHECK
-// =====================================
+// ============================================================
 
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     platform: 'GlobalDigitalMarket.online',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
-// =====================================
+// ============================================================
 // DATABASE HEALTH CHECK
-// =====================================
+// ============================================================
 
 app.get('/health/db', async (req, res) => {
   try {
-    // Test PostgreSQL connection
     const result = await pool.query(
       'SELECT NOW() AS database_time'
     );
 
-    // Check users table
     const usersTable = await pool.query(`
       SELECT EXISTS (
-        SELECT FROM information_schema.tables
+        SELECT
+        FROM information_schema.tables
         WHERE table_schema = 'public'
         AND table_name = 'users'
       ) AS users_table_exists
     `);
 
-    const usersTableExists =
-      usersTable.rows[0].users_table_exists;
-
     res.status(200).json({
       status: 'OK',
       database: 'connected',
-      usersTableExists: usersTableExists,
+      usersTableExists:
+        usersTable.rows[0].users_table_exists,
       databaseTime: result.rows[0].database_time,
-      message: usersTableExists
-        ? 'PostgreSQL connected and users table exists.'
-        : 'PostgreSQL connected, but users table does not exist yet.'
+      message:
+        usersTable.rows[0].users_table_exists
+          ? 'PostgreSQL connected and users table exists.'
+          : 'PostgreSQL connected but users table does not exist.',
     });
-
   } catch (error) {
-    console.error(
-      'DATABASE HEALTH CHECK FAILED:',
-      error
-    );
-
     logger.error(
-      'Database health check failed:',
+      'DATABASE HEALTH CHECK FAILED:',
       error
     );
 
     res.status(500).json({
       status: 'ERROR',
       database: 'not connected',
-      message:
-        error.message ||
-        'Unknown database connection error',
-      code: error.code || null
+      message: error.message,
+      code: error.code || null,
     });
   }
 });
 
-// =====================================
+// ============================================================
 // API ROUTES
-// =====================================
+// ============================================================
 
 app.use(
   `${process.env.API_PREFIX || '/api'}/auth`,
@@ -160,40 +155,59 @@ app.use(
   require('./routes/walletRoutes')
 );
 
-// =====================================
+// ============================================================
 // 404
-// =====================================
+// ============================================================
 
 app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
-    path: req.originalUrl
   });
 });
 
-// =====================================
+// ============================================================
 // ERROR HANDLER
-// =====================================
+// ============================================================
 
 app.use(errorHandler);
 
-// =====================================
+// ============================================================
 // SERVER
-// =====================================
+// ============================================================
 
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-if (require.main === module) {
-  app.listen(PORT, HOST, () => {
+const startServer = async () => {
+  try {
+    // Create required database tables
+    await initializeDatabase();
+
     logger.info(
-      `GlobalDigitalMarket.online server running on port ${PORT}`
+      'Database initialization completed successfully'
     );
 
-    console.log(
-      `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
+    app.listen(PORT, HOST, () => {
+      logger.info(
+        `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
+      );
+    });
+  } catch (error) {
+    logger.error(
+      'Server startup failed:',
+      error
     );
-  });
+
+    process.exit(1);
+  }
+};
+
+// ============================================================
+// START
+// ============================================================
+
+if (require.main === module) {
+  startServer();
 }
 
 module.exports = app;
