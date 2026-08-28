@@ -12,6 +12,66 @@ import {
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
+const API_URL =
+  'https://globalmarket-com.onrender.com/api';
+
+interface LoginUser {
+  id?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  status?: string;
+  emailVerified?: boolean;
+  createdAt?: string;
+}
+
+interface LoginData {
+  message?: unknown;
+  accessToken?: string;
+  refreshToken?: string;
+  user?: LoginUser;
+}
+
+const getSafeMessage = (
+  value: unknown,
+  fallback: string
+): string => {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  ) {
+    return String(value);
+  }
+
+  if (value instanceof Error) {
+    return value.message;
+  }
+
+  if (value && typeof value === 'object') {
+    const objectValue =
+      value as Record<string, unknown>;
+
+    if (
+      typeof objectValue.message === 'string'
+    ) {
+      return objectValue.message;
+    }
+
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return fallback;
+    }
+  }
+
+  return fallback;
+};
+
 const Login: React.FC = () => {
   const navigate = useNavigate();
 
@@ -19,20 +79,29 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] =
+    useState('');
+  const [errorMessage, setErrorMessage] =
+    useState('');
 
   const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    setMessage('');
+    setSuccessMessage('');
     setErrorMessage('');
 
-    if (!email.trim() || !password) {
+    if (!email.trim()) {
       setErrorMessage(
-        'Please enter your email and password.'
+        'Please enter your email address.'
+      );
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage(
+        'Please enter your password.'
       );
       return;
     }
@@ -42,8 +111,8 @@ const Login: React.FC = () => {
 
       console.log('LOGIN: starting request');
 
-      const response = await axios.post(
-        'https://globalmarket-com.onrender.com/api/auth/login',
+      const response = await axios.post<LoginData>(
+        `${API_URL}/auth/login`,
         {
           email: email.trim().toLowerCase(),
           password,
@@ -57,36 +126,66 @@ const Login: React.FC = () => {
       );
 
       console.log(
-        'LOGIN: response received',
+        'LOGIN: response received:',
         response.data
       );
 
       const data = response.data;
 
-      if (data?.accessToken) {
+      // --------------------------------------------------------
+      // Save access token
+      // --------------------------------------------------------
+
+      if (
+        typeof data.accessToken === 'string' &&
+        data.accessToken.length > 0
+      ) {
         localStorage.setItem(
           'authToken',
           data.accessToken
         );
       }
 
-      if (data?.refreshToken) {
+      // --------------------------------------------------------
+      // Save refresh token
+      // --------------------------------------------------------
+
+      if (
+        typeof data.refreshToken === 'string' &&
+        data.refreshToken.length > 0
+      ) {
         localStorage.setItem(
           'refreshToken',
           data.refreshToken
         );
       }
 
-      if (data?.user) {
+      // --------------------------------------------------------
+      // Save user
+      // --------------------------------------------------------
+
+      if (
+        data.user &&
+        typeof data.user === 'object'
+      ) {
         localStorage.setItem(
           'user',
           JSON.stringify(data.user)
         );
       }
 
-      setMessage(
-        data?.message ||
+      // --------------------------------------------------------
+      // SUCCESS MESSAGE
+      // --------------------------------------------------------
+
+      const safeSuccessMessage =
+        getSafeMessage(
+          data.message,
           'Login successful!'
+        );
+
+      setSuccessMessage(
+        safeSuccessMessage
       );
 
       setLoading(false);
@@ -99,28 +198,70 @@ const Login: React.FC = () => {
 
       setLoading(false);
 
+      // --------------------------------------------------------
+      // AXIOS ERROR
+      // --------------------------------------------------------
+
       if (axios.isAxiosError(error)) {
         console.error(
-          'STATUS:',
+          'LOGIN STATUS:',
           error.response?.status
         );
 
         console.error(
-          'DATA:',
+          'LOGIN RESPONSE:',
           error.response?.data
         );
 
-        const backendMessage =
-          error.response?.data?.message ||
-          error.response?.data?.error;
+        const responseData =
+          error.response?.data;
+
+        let message =
+          'Login failed. Please check your email and password.';
+
+        if (
+          responseData &&
+          typeof responseData === 'object'
+        ) {
+          const dataObject =
+            responseData as Record<
+              string,
+              unknown
+            >;
+
+          if (
+            dataObject.message !== undefined
+          ) {
+            message = getSafeMessage(
+              dataObject.message,
+              message
+            );
+          } else if (
+            dataObject.error !== undefined
+          ) {
+            message = getSafeMessage(
+              dataObject.error,
+              message
+            );
+          } else {
+            message = getSafeMessage(
+              responseData,
+              message
+            );
+          }
+        }
+
+        setErrorMessage(message);
+
+      } else if (error instanceof Error) {
 
         setErrorMessage(
-          backendMessage ||
+          error.message ||
             'Login failed. Please try again.'
         );
-      } else if (error instanceof Error) {
-        setErrorMessage(error.message);
+
       } else {
+
         setErrorMessage(
           'Login failed. Please try again.'
         );
@@ -170,12 +311,12 @@ const Login: React.FC = () => {
             </Alert>
           )}
 
-          {message && (
+          {successMessage && (
             <Alert
               severity="success"
               sx={{ mb: 2 }}
             >
-              {message}
+              {successMessage}
             </Alert>
           )}
 
@@ -191,6 +332,7 @@ const Login: React.FC = () => {
 
             <TextField
               fullWidth
+              required
               label="Email"
               type="email"
               value={email}
@@ -202,6 +344,7 @@ const Login: React.FC = () => {
 
             <TextField
               fullWidth
+              required
               label="Password"
               type="password"
               value={password}
@@ -237,7 +380,9 @@ const Login: React.FC = () => {
             <Button
               type="button"
               disabled={loading}
-              onClick={() => navigate('/register')}
+              onClick={() =>
+                navigate('/register')
+              }
             >
               Don't have an account? Register
             </Button>
@@ -245,12 +390,27 @@ const Login: React.FC = () => {
             <Button
               type="button"
               disabled={loading}
-              onClick={() => navigate('/')}
+              onClick={() =>
+                navigate('/')
+              }
             >
               Back to Home
             </Button>
 
+            {successMessage && (
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={() =>
+                  navigate('/dashboard')
+                }
+              >
+                Continue to Dashboard
+              </Button>
+            )}
+
           </Box>
+
         </CardContent>
       </Card>
     </Box>
