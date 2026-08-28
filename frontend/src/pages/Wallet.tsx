@@ -1,244 +1,708 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  CircularProgress,
+  Container,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Grid,
+  Stack,
   TextField,
   Typography,
-  Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  Divider,
 } from '@mui/material';
-import StatCard from '../components/StatCard';
+
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import PaymentsIcon from '@mui/icons-material/Payments';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SavingsIcon from '@mui/icons-material/Savings';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
 import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import RefreshIcon from '@mui/icons-material/Refresh';
+
+import apiClient from '../services/apiClient';
+import { useNavigate } from 'react-router-dom';
+
+// ============================================================
+// TYPES
+// ============================================================
+
+interface WalletData {
+  balance: number;
+  deposit: number;
+  profits: number;
+  availableBalance: number;
+  bonus: number;
+  referrerBonus: number;
+  buyingPower: number;
+  marginAvailable: number;
+  currency: string;
+}
+
+interface Transaction {
+  id: string | number;
+  type: string;
+  amount: number;
+  status: string;
+  method?: string;
+  createdAt?: string;
+  date?: string;
+}
+
+// ============================================================
+// WALLET
+// ============================================================
 
 const Wallet: React.FC = () => {
-  const [openDeposit, setOpenDeposit] = useState(false);
-  const [openWithdraw, setOpenWithdraw] = useState(false);
-  const [depositAmount, setDepositAmount] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const navigate = useNavigate();
 
-  const [transactions, setTransactions] = useState([
-    { id: 1, type: 'DEPOSIT', amount: 5000, status: 'COMPLETED', date: '2024-01-15', method: 'Bank Transfer' },
-    { id: 2, type: 'WITHDRAWAL', amount: 2000, status: 'COMPLETED', date: '2024-01-10', method: 'Bank Account' },
-    { id: 3, type: 'DEPOSIT', amount: 10000, status: 'PENDING', date: '2024-01-20', method: 'Credit Card' },
-  ]);
+  const [loading, setLoading] = useState(true);
 
-  const totalBalance = 50000;
-  const availableBalance = 50000;
-  const pendingBalance = 10000;
+  const [wallet, setWallet] = useState<WalletData>({
+    balance: 0,
+    deposit: 0,
+    profits: 0,
+    availableBalance: 0,
+    bonus: 0,
+    referrerBonus: 0,
+    buyingPower: 0,
+    marginAvailable: 0,
+    currency: 'USD',
+  });
 
-  const handleDeposit = () => {
-    if (depositAmount) {
-      setTransactions([
-        {
-          id: transactions.length + 1,
-          type: 'DEPOSIT',
-          amount: parseFloat(depositAmount),
-          status: 'PENDING',
-          date: new Date().toISOString().split('T')[0],
-          method: 'Bank Transfer',
-        },
-        ...transactions,
+  const [transactions, setTransactions] = useState<
+    Transaction[]
+  >([]);
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] =
+    useState('');
+
+  const [openDeposit, setOpenDeposit] =
+    useState(false);
+
+  const [openWithdraw, setOpenWithdraw] =
+    useState(false);
+
+  const [depositAmount, setDepositAmount] =
+    useState('');
+
+  const [withdrawAmount, setWithdrawAmount] =
+    useState('');
+
+  const [depositMethod, setDepositMethod] =
+    useState('Bank Transfer');
+
+  const [withdrawMethod, setWithdrawMethod] =
+    useState('Bank Account');
+
+  const [actionLoading, setActionLoading] =
+    useState(false);
+
+  // ==========================================================
+  // FORMAT MONEY
+  // ==========================================================
+
+  const formatMoney = (
+    value: number
+  ): string => {
+    return `$${Number(value || 0).toLocaleString(
+      'en-US',
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    )}`;
+  };
+
+  // ==========================================================
+  // LOAD WALLET
+  // ==========================================================
+
+  const loadWallet = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+
+      const [
+        performanceResponse,
+        transactionResponse,
+      ] = await Promise.all([
+        apiClient.get(
+          '/portfolio/performance'
+        ),
+
+        apiClient.get(
+          '/wallet/transactions'
+        ),
       ]);
+
+      const data =
+        performanceResponse.data || {};
+
+      setWallet({
+        balance:
+          Number(data.balance) ||
+          Number(data.totalValue) ||
+          0,
+
+        deposit:
+          Number(data.deposit) || 0,
+
+        profits:
+          Number(data.profits) || 0,
+
+        availableBalance:
+          Number(data.availableBalance) || 0,
+
+        bonus:
+          Number(data.bonus) || 0,
+
+        referrerBonus:
+          Number(data.referrerBonus) || 0,
+
+        buyingPower:
+          Number(data.buyingPower) || 0,
+
+        marginAvailable:
+          Number(data.marginAvailable) || 0,
+
+        currency:
+          data.currency || 'USD',
+      });
+
+      const serverTransactions =
+        transactionResponse.data
+          ?.transactions;
+
+      setTransactions(
+        Array.isArray(serverTransactions)
+          ? serverTransactions
+          : []
+      );
+
+    } catch (error: any) {
+      console.error(
+        'WALLET LOAD ERROR:',
+        error
+      );
+
+      const status =
+        error?.response?.status;
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to load wallet data.';
+
+      if (status === 401) {
+        setErrorMessage(
+          'Your login session has expired. Please login again.'
+        );
+      } else {
+        setErrorMessage(message);
+      }
+
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==========================================================
+  // INITIAL LOAD
+  // ==========================================================
+
+  useEffect(() => {
+    loadWallet();
+  }, []);
+
+  // ==========================================================
+  // DEPOSIT
+  // ==========================================================
+
+  const handleDeposit = async () => {
+    const amount =
+      Number(depositAmount);
+
+    if (!Number.isFinite(amount) || amount < 10) {
+      setErrorMessage(
+        'Minimum deposit amount is $10.00.'
+      );
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      const response =
+        await apiClient.post(
+          '/wallet/deposit',
+          {
+            amount,
+            method: depositMethod,
+          }
+        );
+
+      setSuccessMessage(
+        response.data?.message ||
+          'Deposit request submitted successfully.'
+      );
+
       setDepositAmount('');
       setOpenDeposit(false);
+
+      await loadWallet();
+
+    } catch (error: any) {
+      console.error(
+        'DEPOSIT ERROR:',
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          'Unable to submit deposit request.'
+      );
+
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const handleWithdraw = () => {
-    if (withdrawAmount && parseFloat(withdrawAmount) <= availableBalance) {
-      setTransactions([
-        {
-          id: transactions.length + 1,
-          type: 'WITHDRAWAL',
-          amount: parseFloat(withdrawAmount),
-          status: 'PENDING',
-          date: new Date().toISOString().split('T')[0],
-          method: 'Bank Account',
-        },
-        ...transactions,
-      ]);
+  // ==========================================================
+  // WITHDRAW
+  // ==========================================================
+
+  const handleWithdraw = async () => {
+    const amount =
+      Number(withdrawAmount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setErrorMessage(
+        'Please enter a valid withdrawal amount.'
+      );
+      return;
+    }
+
+    if (
+      amount >
+      wallet.availableBalance
+    ) {
+      setErrorMessage(
+        'Withdrawal amount exceeds your available balance.'
+      );
+      return;
+    }
+
+    try {
+      setActionLoading(true);
+      setErrorMessage('');
+      setSuccessMessage('');
+
+      const response =
+        await apiClient.post(
+          '/wallet/withdraw',
+          {
+            amount,
+            method: withdrawMethod,
+          }
+        );
+
+      setSuccessMessage(
+        response.data?.message ||
+          'Withdrawal request submitted successfully.'
+      );
+
       setWithdrawAmount('');
       setOpenWithdraw(false);
+
+      await loadWallet();
+
+    } catch (error: any) {
+      console.error(
+        'WITHDRAW ERROR:',
+        error
+      );
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          'Unable to submit withdrawal request.'
+      );
+
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Wallet & Transactions
-      </Typography>
+  // ==========================================================
+  // TRANSACTION STATUS
+  // ==========================================================
 
-      {/* Balance Summary */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Total Balance"
-            value={`$${totalBalance.toFixed(2)}`}
-            icon={<AccountBalanceWalletIcon sx={{ fontSize: 40 }} />}
-            subtext="Account balance"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Available Balance"
-            value={`$${availableBalance.toFixed(2)}`}
-            subtext="Ready to trade"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <StatCard
-            title="Pending"
-            value={`$${pendingBalance.toFixed(2)}`}
-            subtext="In progress"
-          />
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => setOpenDeposit(true)}
-                >
-                  Deposit
-                </Button>
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<SendIcon />}
-                  onClick={() => setOpenWithdraw(true)}
-                >
-                  Withdraw
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+  const getStatusColor = (
+    status: string
+  ):
+    | 'success'
+    | 'warning'
+    | 'error'
+    | 'default' => {
+    const value =
+      String(status || '').toUpperCase();
 
-      {/* Transactions Table */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Transaction History
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
-                <TableRow>
-                  <TableCell>Type</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell>Method</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Status</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell sx={{ fontWeight: 'bold' }}>
-                      {transaction.type === 'DEPOSIT' ? '➕ Deposit' : '➖ Withdrawal'}
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      sx={{
-                        color: transaction.type === 'DEPOSIT' ? 'green' : 'red',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {transaction.type === 'DEPOSIT' ? '+' : '-'}${transaction.amount.toFixed(2)}
-                    </TableCell>
-                    <TableCell>{transaction.method}</TableCell>
-                    <TableCell>{transaction.date}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={transaction.status}
-                        color={transaction.status === 'COMPLETED' ? 'success' : 'warning'}
-                        size="small"
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+    if (
+      value === 'COMPLETED' ||
+      value === 'APPROVED' ||
+      value === 'SUCCESS'
+    ) {
+      return 'success';
+    }
 
-      {/* Deposit Dialog */}
-      <Dialog open={openDeposit} onClose={() => setOpenDeposit(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Deposit Funds</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Amount (USD)"
-              type="number"
-              value={depositAmount}
-              onChange={(e) => setDepositAmount(e.target.value)}
-              inputProps={{ step: '0.01', min: '0' }}
+    if (
+      value === 'FAILED' ||
+      value === 'REJECTED'
+    ) {
+      return 'error';
+    }
+
+    if (
+      value === 'PENDING' ||
+      value === 'PROCESSING'
+    ) {
+      return 'warning';
+    }
+
+    return 'default';
+  };
+
+  // ==========================================================
+  // TRANSACTION DATE
+  // ==========================================================
+
+  const formatDate = (
+    transaction: Transaction
+  ) => {
+    const value =
+      transaction.createdAt ||
+      transaction.date;
+
+    if (!value) {
+      return '-';
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return String(value);
+    }
+
+    return date.toLocaleDateString(
+      'en-US',
+      {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      }
+    );
+  };
+
+  // ==========================================================
+  // STAT CARD
+  // ==========================================================
+
+  const StatCard = ({
+    title,
+    value,
+    subtitle,
+    icon,
+    iconColor = '#66dcff',
+  }: {
+    title: string;
+    value: string;
+    subtitle: string;
+    icon: React.ReactNode;
+    iconColor?: string;
+  }) => (
+    <Card
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        color: '#fff',
+        background:
+          'linear-gradient(145deg,#14287d,#0c1b58)',
+        border:
+          '1px solid rgba(100,150,255,0.2)',
+      }}
+    >
+      <CardContent>
+        <Box
+          sx={{
+            color: iconColor,
+            mb: 1,
+          }}
+        >
+          {icon}
+        </Box>
+
+        <Typography
+          sx={{
+            color: '#9eaff0',
+            fontSize: 12,
+            fontWeight: 700,
+          }}
+        >
+          {title}
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 24,
+            fontWeight: 800,
+            mt: 1,
+          }}
+        >
+          {loading ? (
+            <CircularProgress
+              size={24}
+              sx={{
+                color: '#fff',
+              }}
             />
-            <Typography variant="body2" color="textSecondary">
-              Minimum deposit: $10
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDeposit(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleDeposit}>
-            Deposit
-          </Button>
-        </DialogActions>
-      </Dialog>
+          ) : (
+            value
+          )}
+        </Typography>
 
-      {/* Withdraw Dialog */}
-      <Dialog open={openWithdraw} onClose={() => setOpenWithdraw(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Withdraw Funds</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Amount (USD)"
-              type="number"
-              value={withdrawAmount}
-              onChange={(e) => setWithdrawAmount(e.target.value)}
-              inputProps={{ step: '0.01', min: '0', max: availableBalance }}
-            />
-            <Typography variant="body2" color="textSecondary">
-              Available: ${availableBalance.toFixed(2)}
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenWithdraw(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleWithdraw}
-            disabled={!withdrawAmount || parseFloat(withdrawAmount) > availableBalance}
-          >
-            Withdraw
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+        <Typography
+          sx={{
+            color: '#7186cd',
+            fontSize: 11,
+            mt: 0.5,
+          }}
+        >
+          {subtitle}
+        </Typography>
+      </CardContent>
+    </Card>
   );
-};
 
-export default Wallet;
+  // ==========================================================
+  // RENDER
+  // ==========================================================
+
+  return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        background:
+          'linear-gradient(180deg,#030a2c 0%,#071453 50%,#091b68 100%)',
+        color: '#fff',
+        pb: 6,
+      }}
+    >
+      {/* ====================================================
+          HEADER
+      ==================================================== */}
+
+      <Box
+        sx={{
+          borderBottom:
+            '1px solid rgba(125,150,255,0.2)',
+          background:
+            'rgba(3,10,44,0.96)',
+        }}
+      >
+        <Container
+          maxWidth="xl"
+          sx={{ py: 2 }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            spacing={2}
+          >
+            <Box>
+              <Typography
+                sx={{
+                  fontSize: {
+                    xs: 20,
+                    sm: 24,
+                  },
+                  fontWeight: 800,
+                }}
+              >
+                Global Digital Market
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#8da7ff',
+                  fontSize: 11,
+                }}
+              >
+                WALLET & ACCOUNT
+              </Typography>
+            </Box>
+
+            <Stack
+              direction="row"
+              spacing={1}
+            >
+              <Button
+                onClick={loadWallet}
+                startIcon={
+                  <RefreshIcon />
+                }
+                sx={{
+                  color: '#fff',
+                  textTransform:
+                    'none',
+                }}
+              >
+                Refresh
+              </Button>
+
+              <Button
+                onClick={() =>
+                  navigate('/')
+                }
+                sx={{
+                  color: '#fff',
+                  textTransform:
+                    'none',
+                }}
+              >
+                Dashboard
+              </Button>
+            </Stack>
+          </Stack>
+        </Container>
+      </Box>
+
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: {
+            xs: 3,
+            md: 5,
+          },
+        }}
+      >
+        {/* ==================================================
+            TITLE
+        ================================================== */}
+
+        <Box sx={{ mb: 4 }}>
+          <Typography
+            sx={{
+              fontSize: {
+                xs: 30,
+                md: 40,
+              },
+              fontWeight: 800,
+            }}
+          >
+            Wallet
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#9eaff0',
+              mt: 1,
+            }}
+          >
+            Manage your funds, bonuses
+            and transaction activity.
+          </Typography>
+        </Box>
+
+        {/* ==================================================
+            MESSAGES
+        ================================================== */}
+
+        {errorMessage && (
+          <Alert
+            severity="error"
+            sx={{
+              mb: 2,
+            }}
+            onClose={() =>
+              setErrorMessage('')
+            }
+          >
+            {errorMessage}
+          </Alert>
+        )}
+
+        {successMessage && (
+          <Alert
+            severity="success"
+            sx={{
+              mb: 2,
+            }}
+            onClose={() =>
+              setSuccessMessage('')
+            }
+          >
+            {successMessage}
+          </Alert>
+        )}
+
+        {/* ==================================================
+            MAIN BALANCE
+        ================================================== */}
+
+        <Card
+          sx={{
+            mb: 3,
+            borderRadius: 4,
+            color: '#fff',
+            background:
+              'linear-gradient(135deg,#172a8a,#1459e8)',
+            border:
+              '1px solid rgba(143,170,255,0.28)',
+            boxShadow:
+              '0 20px 60px rgba(0,0,0,0.25)',
+          }}
+        >
+          <CardContent
+            sx={{
+              p: {
+                xs: 3,
+                md: 4,
+              },
+            }}
+          >
+            <Stack
+              direction={{
+                xs: 'column',
+                md: 'row',
+              }}
+              justifyContent="space-between"
+              spacing={3}
+            >
+              <Box>
+                <Typography
+                  sx={{
+                    color: '#b9c8ff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                 
