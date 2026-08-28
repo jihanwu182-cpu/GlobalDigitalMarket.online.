@@ -7,8 +7,11 @@ import {
   CardContent,
   TextField,
   Typography,
+  CircularProgress,
   Alert,
 } from '@mui/material';
+
+import apiClient from '../services/apiClient';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -19,43 +22,139 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleRegister = (
+  const handleRegister = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    setMessage('');
+    setErrorMessage('');
+    setSuccessMessage('');
 
-    if (
-      !firstName.trim() ||
-      !lastName.trim() ||
-      !email.trim() ||
-      !password ||
-      !confirmPassword
-    ) {
-      setMessage('Please fill in all fields.');
+    if (!firstName.trim()) {
+      setErrorMessage('Please enter your first name.');
+      return;
+    }
+
+    if (!lastName.trim()) {
+      setErrorMessage('Please enter your last name.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setErrorMessage('Please enter your email.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Please enter a password.');
       return;
     }
 
     if (password.length < 8) {
-      setMessage(
+      setErrorMessage(
         'Password must be at least 8 characters.'
       );
       return;
     }
 
     if (password !== confirmPassword) {
-      setMessage('Passwords do not match.');
+      setErrorMessage('Passwords do not match.');
       return;
     }
 
-    // TEST ONLY:
-    // We are NOT calling the backend yet.
-    setMessage(
-      'TEST SUCCESS: The Create Account button is working correctly.'
-    );
+    try {
+      setLoading(true);
+
+      console.log('REGISTER: sending request');
+
+      const response = await apiClient.post(
+        '/auth/register',
+        {
+          email: email.trim().toLowerCase(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        }
+      );
+
+      console.log(
+        'REGISTER: backend response',
+        response.data
+      );
+
+      const data = response.data;
+
+      // Save authentication information if supplied
+      if (data?.accessToken) {
+        localStorage.setItem(
+          'authToken',
+          data.accessToken
+        );
+      }
+
+      if (data?.refreshToken) {
+        localStorage.setItem(
+          'refreshToken',
+          data.refreshToken
+        );
+      }
+
+      if (data?.user) {
+        localStorage.setItem(
+          'user',
+          JSON.stringify(data.user)
+        );
+      }
+
+      setSuccessMessage(
+        data?.message ||
+          'Account created successfully!'
+      );
+
+      // Clear password fields
+      setPassword('');
+      setConfirmPassword('');
+
+    } catch (error: any) {
+      console.error(
+        'REGISTER ERROR:',
+        error
+      );
+
+      if (error?.response) {
+        console.error(
+          'STATUS:',
+          error.response.status
+        );
+
+        console.error(
+          'DATA:',
+          error.response.data
+        );
+      }
+
+      let message =
+        'Registration failed. Please try again.';
+
+      if (error?.response?.data?.message) {
+        message =
+          error.response.data.message;
+      } else if (error?.response?.data?.error) {
+        message =
+          error.response.data.error;
+      } else if (error?.message) {
+        message = error.message;
+      }
+
+      setErrorMessage(message);
+
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -67,7 +166,7 @@ const Register: React.FC = () => {
         justifyContent: 'center',
         background:
           'linear-gradient(135deg, #0f172a 0%, #16213e 50%, #1e3a5f 100%)',
-        p: 2,
+        padding: 2,
       }}
     >
       <Card
@@ -78,6 +177,7 @@ const Register: React.FC = () => {
         }}
       >
         <CardContent sx={{ p: 4 }}>
+
           <Typography
             variant="h4"
             component="h1"
@@ -90,9 +190,21 @@ const Register: React.FC = () => {
             Create Account
           </Typography>
 
-          {message && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {message}
+          {errorMessage && (
+            <Alert
+              severity="error"
+              sx={{ mb: 2 }}
+            >
+              {errorMessage}
+            </Alert>
+          )}
+
+          {successMessage && (
+            <Alert
+              severity="success"
+              sx={{ mb: 2 }}
+            >
+              {successMessage}
             </Alert>
           )}
 
@@ -105,77 +217,106 @@ const Register: React.FC = () => {
               gap: 2,
             }}
           >
+
             <TextField
+              fullWidth
               label="First Name"
               value={firstName}
               onChange={(e) =>
                 setFirstName(e.target.value)
               }
-              fullWidth
+              disabled={loading}
             />
 
             <TextField
+              fullWidth
               label="Last Name"
               value={lastName}
               onChange={(e) =>
                 setLastName(e.target.value)
               }
-              fullWidth
+              disabled={loading}
             />
 
             <TextField
+              fullWidth
               label="Email"
               type="email"
               value={email}
               onChange={(e) =>
                 setEmail(e.target.value)
               }
-              fullWidth
+              disabled={loading}
             />
 
             <TextField
+              fullWidth
               label="Password"
               type="password"
               value={password}
               onChange={(e) =>
                 setPassword(e.target.value)
               }
-              fullWidth
+              disabled={loading}
+              helperText="Minimum 8 characters"
             />
 
             <TextField
+              fullWidth
               label="Confirm Password"
               type="password"
               value={confirmPassword}
               onChange={(e) =>
                 setConfirmPassword(e.target.value)
               }
-              fullWidth
+              disabled={loading}
             />
 
             <Button
+              fullWidth
               type="submit"
               variant="contained"
-              fullWidth
-              sx={{ py: 1.5 }}
+              disabled={loading}
+              sx={{
+                py: 1.5,
+                mt: 1,
+              }}
             >
-              CREATE ACCOUNT
+              {loading ? (
+                <>
+                  <CircularProgress
+                    size={24}
+                    sx={{ mr: 1 }}
+                  />
+                  Creating Account...
+                </>
+              ) : (
+                'CREATE ACCOUNT'
+              )}
             </Button>
 
             <Button
               type="button"
-              onClick={() => navigate('/login')}
+              disabled={loading}
+              onClick={() =>
+                navigate('/login')
+              }
             >
               Already have an account? Login
             </Button>
 
             <Button
               type="button"
-              onClick={() => navigate('/')}
+              disabled={loading}
+              onClick={() =>
+                navigate('/')
+              }
             >
               Back to Home
             </Button>
+
           </Box>
+
         </CardContent>
       </Card>
     </Box>
