@@ -2,7 +2,7 @@ const pool = require('../config/database');
 const logger = require('../utils/logger');
 
 // ============================================================
-// GET ACTIVE ACCOUNT
+// HELPERS
 // ============================================================
 
 const getAccount = async (userId) => {
@@ -14,6 +14,7 @@ const getAccount = async (userId) => {
       account_number,
       account_type,
       account_name,
+      currency,
       balance,
       deposit,
       profits,
@@ -22,9 +23,7 @@ const getAccount = async (userId) => {
       referrer_bonus,
       buying_power,
       margin_available,
-      status,
-      created_at,
-      updated_at
+      status
     FROM accounts
     WHERE user_id = $1
       AND status = 'active'
@@ -36,10 +35,6 @@ const getAccount = async (userId) => {
 
   return result.rows[0] || null;
 };
-
-// ============================================================
-// CREATE TRANSACTION REFERENCE
-// ============================================================
 
 const createTransactionReference = (type) => {
   const prefix =
@@ -54,6 +49,11 @@ const createTransactionReference = (type) => {
   )}`;
 };
 
+const numberValue = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
 // ============================================================
 // GET WALLET BALANCE
 // ============================================================
@@ -61,10 +61,6 @@ const createTransactionReference = (type) => {
 const getBalance = async (req, res, next) => {
   try {
     const userId = req.user.id;
-
-    logger.info(
-      `Fetching wallet balance for user: ${userId}`
-    );
 
     const account = await getAccount(userId);
 
@@ -78,51 +74,33 @@ const getBalance = async (req, res, next) => {
         bonus: 0,
         referrerBonus: 0,
         buyingPower: 0,
+        marginAvailable: 0,
         currency: 'USD',
       });
     }
 
     return res.status(200).json({
-      balance: Number(account.balance || 0),
-
-      deposit: Number(
-        account.deposit || 0
+      balance: numberValue(account.balance),
+      deposit: numberValue(account.deposit),
+      profits: numberValue(account.profits),
+      availableBalance: numberValue(
+        account.available_balance
       ),
-
-      profits: Number(
-        account.profits || 0
+      bonus: numberValue(account.bonus),
+      referrerBonus: numberValue(
+        account.referrer_bonus
       ),
-
-      availableBalance: Number(
-        account.available_balance || 0
+      buyingPower: numberValue(
+        account.buying_power
       ),
-
-      bonus: Number(
-        account.bonus || 0
+      marginAvailable: numberValue(
+        account.margin_available
       ),
-
-      referrerBonus: Number(
-        account.referrer_bonus || 0
-      ),
-
-      buyingPower: Number(
-        account.buying_power || 0
-      ),
-
-      marginAvailable: Number(
-        account.margin_available || 0
-      ),
-
-      currency: 'USD',
-
-      accountNumber:
-        account.account_number,
-
-      accountType:
-        account.account_type,
-
-      status:
-        account.status,
+      currency: account.currency || 'USD',
+      accountNumber: account.account_number,
+      accountType: account.account_type,
+      accountName: account.account_name,
+      status: account.status,
     });
   } catch (error) {
     logger.error(
@@ -130,12 +108,25 @@ const getBalance = async (req, res, next) => {
       error
     );
 
-    next(error);
+    return next(error);
   }
 };
 
 // ============================================================
 // DEPOSIT FUNDS
+// ============================================================
+//
+// Deposit requires proof of payment.
+// The frontend should send:
+//
+// {
+//   amount,
+//   method,
+//   proofOfPaymentUrl
+// }
+//
+// The balance is NOT increased here.
+// An administrator must verify the deposit first.
 // ============================================================
 
 const depositFunds = async (req, res, next) => {
@@ -145,17 +136,14 @@ const depositFunds = async (req, res, next) => {
     const {
       amount,
       method,
+      proofOfPaymentUrl,
     } = req.body;
 
-    logger.info(
-      `Deposit request for user: ${userId}, amount: ${amount}, method: ${method}`
-    );
+    const numericAmount = Number(amount);
 
     // --------------------------------------------------------
     // VALIDATE AMOUNT
     // --------------------------------------------------------
-
-    const numericAmount = Number(amount);
 
     if (
       !Number.isFinite(numericAmount) ||
@@ -170,7 +158,7 @@ const depositFunds = async (req, res, next) => {
     if (numericAmount < 10) {
       return res.status(400).json({
         message:
-          'Minimum deposit amount is $10.00.',
+          'Minimum deposit amount is 10.00.',
       });
     }
 
@@ -182,18 +170,32 @@ const depositFunds = async (req, res, next) => {
     }
 
     // --------------------------------------------------------
-    // VALIDATE METHOD
+    // REQUIRE PAYMENT METHOD
     // --------------------------------------------------------
 
-    const paymentMethod =
-      typeof method === 'string' &&
-      method.trim()
-        ? method.trim()
-        : 'Not specified';
+    if (
+      typeof method !== 'string' ||
+      !method.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'Please select a deposit method.',
+      });
+    }
 
     // --------------------------------------------------------
-    // FIND ACCOUNT
+    // REQUIRE PROOF OF PAYMENT
     // --------------------------------------------------------
+
+    if (
+      typeof proofOfPaymentUrl !== 'string' ||
+      !proofOfPaymentUrl.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'Proof of payment is required for every deposit.',
+      });
+    }
 
     const account = await getAccount(userId);
 
@@ -204,14 +206,14 @@ const depositFunds = async (req, res, next) => {
       });
     }
 
-    // --------------------------------------------------------
-    // CREATE PENDING TRANSACTION
-    // --------------------------------------------------------
-
     const transactionReference =
       createTransactionReference(
         'DEPOSIT'
       );
+
+    // --------------------------------------------------------
+    // CREATE PENDING TRANSACTION
+    // --------------------------------------------------------
 
     const result = await pool.query(
       `
@@ -224,18 +226,20 @@ const depositFunds = async (req, res, next) => {
         payment_method,
         status,
         description,
-        metadata
+        metadata,
+        proof_of_payment_url
       )
       VALUES (
         $1,
         $2,
         'DEPOSIT',
         $3,
-        'USD',
         $4,
-        'PENDING',
         $5,
-        $6::jsonb
+        'PENDING',
+        $6,
+        $7::jsonb,
+        $8
       )
       RETURNING
         id,
@@ -246,53 +250,49 @@ const depositFunds = async (req, res, next) => {
         payment_method,
         status,
         description,
+        proof_of_payment_url,
         created_at
       `,
       [
         account.id,
         transactionReference,
         numericAmount.toFixed(2),
-        paymentMethod,
+        account.currency || 'USD',
+        method.trim(),
         'Deposit request submitted and awaiting payment verification.',
         JSON.stringify({
           userId,
           accountId: account.id,
         }),
+        proofOfPaymentUrl.trim(),
       ]
     );
 
-    const transaction =
-      result.rows[0];
+    const transaction = result.rows[0];
 
     return res.status(201).json({
       message:
-        'Deposit request created successfully. Payment verification is required before your balance is updated.',
+        'Deposit request submitted successfully. Your payment proof will be reviewed before the balance is credited.',
 
       transaction: {
         id: transaction.id,
-
         transactionReference:
           transaction.transaction_reference,
-
         transactionType:
           transaction.transaction_type,
-
-        amount: Number(
+        amount: numberValue(
           transaction.amount
         ),
-
         currency:
           transaction.currency,
-
         paymentMethod:
           transaction.payment_method,
-
         status:
           transaction.status,
-
         description:
           transaction.description,
-
+        proofOfPaymentUrl:
+          transaction.proof_of_payment_url,
         createdAt:
           transaction.created_at,
       },
@@ -303,12 +303,27 @@ const depositFunds = async (req, res, next) => {
       error
     );
 
-    next(error);
+    return next(error);
   }
 };
 
 // ============================================================
 // WITHDRAW FUNDS
+// ============================================================
+//
+// Withdrawal requires:
+//
+// 1. Valid amount
+// 2. Withdrawal method
+// 3. Identity verification
+// 4. Identity document
+// 5. Sufficient available balance
+//
+// The withdrawal remains PENDING until an administrator
+// reviews it.
+//
+// The administrator is responsible for approval/rejection
+// and generating the withdrawal code.
 // ============================================================
 
 const withdrawFunds = async (
@@ -316,23 +331,22 @@ const withdrawFunds = async (
   res,
   next
 ) => {
+  const client = await pool.connect();
+
   try {
     const userId = req.user.id;
 
     const {
       amount,
       method,
+      identityDocumentNumber,
     } = req.body;
 
-    logger.info(
-      `Withdrawal request for user: ${userId}, amount: ${amount}, method: ${method}`
-    );
+    const numericAmount = Number(amount);
 
     // --------------------------------------------------------
     // VALIDATE AMOUNT
     // --------------------------------------------------------
-
-    const numericAmount = Number(amount);
 
     if (
       !Number.isFinite(numericAmount) ||
@@ -347,7 +361,7 @@ const withdrawFunds = async (
     if (numericAmount < 10) {
       return res.status(400).json({
         message:
-          'Minimum withdrawal amount is $10.00.',
+          'Minimum withdrawal amount is 10.00.',
       });
     }
 
@@ -355,18 +369,35 @@ const withdrawFunds = async (
     // VALIDATE METHOD
     // --------------------------------------------------------
 
-    const withdrawalMethod =
-      typeof method === 'string' &&
-      method.trim()
-        ? method.trim()
-        : 'Not specified';
+    if (
+      typeof method !== 'string' ||
+      !method.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'Please select a withdrawal method.',
+      });
+    }
 
     // --------------------------------------------------------
-    // FIND ACCOUNT
+    // REQUIRE ID NUMBER
     // --------------------------------------------------------
 
-    const account =
-      await getAccount(userId);
+    if (
+      typeof identityDocumentNumber !== 'string' ||
+      !identityDocumentNumber.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'Your verified identity document number is required before making a withdrawal.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // GET ACCOUNT AND USER
+    // --------------------------------------------------------
+
+    const account = await getAccount(userId);
 
     if (!account) {
       return res.status(404).json({
@@ -375,19 +406,142 @@ const withdrawFunds = async (
       });
     }
 
+    const userResult = await client.query(
+      `
+      SELECT
+        id,
+        identity_verification_status
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const user = userResult.rows[0];
+
     // --------------------------------------------------------
-    // CHECK AVAILABLE BALANCE
+    // REQUIRE APPROVED IDENTITY VERIFICATION
     // --------------------------------------------------------
 
-    const availableBalance =
-      Number(
-        account.available_balance || 0
+    if (
+      String(
+        user.identity_verification_status || ''
+      ).toUpperCase() !== 'APPROVED'
+    ) {
+      return res.status(403).json({
+        message:
+          'Identity verification must be approved before you can request a withdrawal.',
+        verificationStatus:
+          user.identity_verification_status ||
+          'PENDING',
+      });
+    }
+
+    // --------------------------------------------------------
+    // CHECK ID AGAINST VERIFIED DOCUMENT
+    // --------------------------------------------------------
+
+    const documentResult =
+      await client.query(
+        `
+        SELECT
+          id,
+          document_type,
+          document_number,
+          status
+        FROM identity_documents
+        WHERE user_id = $1
+          AND status = 'APPROVED'
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [userId]
       );
+
+    if (
+      documentResult.rows.length === 0
+    ) {
+      return res.status(403).json({
+        message:
+          'No approved identity document was found. Please complete identity verification first.',
+      });
+    }
+
+    const verifiedDocument =
+      documentResult.rows[0];
+
+    if (
+      String(
+        verifiedDocument.document_number || ''
+      ).trim() !==
+      identityDocumentNumber.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'The identity document number does not match your approved verification record.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // START TRANSACTION
+    // --------------------------------------------------------
+
+    await client.query('BEGIN');
+
+    // Lock account row while checking balance.
+    const lockedAccountResult =
+      await client.query(
+        `
+        SELECT
+          id,
+          currency,
+          available_balance
+        FROM accounts
+        WHERE id = $1
+          AND user_id = $2
+          AND status = 'active'
+        FOR UPDATE
+        `,
+        [account.id, userId]
+      );
+
+    if (
+      lockedAccountResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Active trading account not found.',
+      });
+    }
+
+    const lockedAccount =
+      lockedAccountResult.rows[0];
+
+    const availableBalance =
+      numberValue(
+        lockedAccount.available_balance
+      );
+
+    // --------------------------------------------------------
+    // CHECK BALANCE
+    // --------------------------------------------------------
 
     if (
       numericAmount >
       availableBalance
     ) {
+      await client.query('ROLLBACK');
+
       return res.status(400).json({
         message:
           'Insufficient available balance.',
@@ -398,7 +552,36 @@ const withdrawFunds = async (
     }
 
     // --------------------------------------------------------
-    // CREATE PENDING WITHDRAWAL
+    // PREVENT DUPLICATE PENDING WITHDRAWALS
+    // --------------------------------------------------------
+
+    const pendingResult =
+      await client.query(
+        `
+        SELECT id
+        FROM transactions
+        WHERE account_id = $1
+          AND transaction_type = 'WITHDRAWAL'
+          AND status IN (
+            'PENDING',
+            'PROCESSING'
+          )
+        LIMIT 1
+        `,
+        [account.id]
+      );
+
+    if (pendingResult.rows.length > 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(409).json({
+        message:
+          'You already have a withdrawal request being processed.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // CREATE TRANSACTION
     // --------------------------------------------------------
 
     const transactionReference =
@@ -406,7 +589,7 @@ const withdrawFunds = async (
         'WITHDRAWAL'
       );
 
-    const result = await pool.query(
+    const result = await client.query(
       `
       INSERT INTO transactions (
         account_id,
@@ -424,11 +607,11 @@ const withdrawFunds = async (
         $2,
         'WITHDRAWAL',
         $3,
-        'USD',
         $4,
-        'PENDING',
         $5,
-        $6::jsonb
+        'PENDING',
+        $6,
+        $7::jsonb
       )
       RETURNING
         id,
@@ -445,21 +628,62 @@ const withdrawFunds = async (
         account.id,
         transactionReference,
         numericAmount.toFixed(2),
-        withdrawalMethod,
-        'Withdrawal request submitted and awaiting processing.',
+        lockedAccount.currency ||
+          'USD',
+        method.trim(),
+        'Withdrawal request submitted and awaiting administrator review.',
         JSON.stringify({
           userId,
           accountId: account.id,
+          identityDocumentId:
+            verifiedDocument.id,
+          identityDocumentType:
+            verifiedDocument.document_type,
         }),
       ]
     );
+
+    // --------------------------------------------------------
+    // RESERVE THE WITHDRAWAL AMOUNT
+    // --------------------------------------------------------
+    //
+    // The money is not paid out yet.
+    // We temporarily reduce available_balance so the user
+    // cannot submit another request using the same funds.
+    //
+    // The admin approval/rejection endpoint must later:
+    //
+    // APPROVED:
+    // - finalize the balance deduction
+    //
+    // REJECTED:
+    // - return the reserved amount to available_balance
+    //
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE accounts
+      SET
+        available_balance =
+          available_balance - $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      `,
+      [
+        numericAmount.toFixed(2),
+        account.id,
+      ]
+    );
+
+    await client.query('COMMIT');
 
     const transaction =
       result.rows[0];
 
     return res.status(201).json({
       message:
-        'Withdrawal request submitted successfully and is awaiting processing.',
+        'Withdrawal request submitted successfully. It is now awaiting administrator review.',
 
       transaction: {
         id: transaction.id,
@@ -470,9 +694,10 @@ const withdrawFunds = async (
         transactionType:
           transaction.transaction_type,
 
-        amount: Number(
-          transaction.amount
-        ),
+        amount:
+          numberValue(
+            transaction.amount
+          ),
 
         currency:
           transaction.currency,
@@ -489,14 +714,38 @@ const withdrawFunds = async (
         createdAt:
           transaction.created_at,
       },
+
+      verification: {
+        status:
+          user.identity_verification_status,
+        documentType:
+          verifiedDocument.document_type,
+      },
+
+      withdrawalCode:
+        null,
+
+      messageForUser:
+        'If approved, an administrator will generate a withdrawal code for this withdrawal request.',
     });
   } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Withdrawal rollback error:',
+        rollbackError
+      );
+    }
+
     logger.error(
       'Withdraw funds error:',
       error
     );
 
-    next(error);
+    return next(error);
+  } finally {
+    client.release();
   }
 };
 
@@ -511,10 +760,6 @@ const getTransactions = async (
 ) => {
   try {
     const userId = req.user.id;
-
-    logger.info(
-      `Fetching transactions for user: ${userId}`
-    );
 
     const account =
       await getAccount(userId);
@@ -536,6 +781,8 @@ const getTransactions = async (
         payment_method,
         status,
         description,
+        proof_of_payment_url,
+        admin_note,
         created_at,
         updated_at
       FROM transactions
@@ -557,9 +804,10 @@ const getTransactions = async (
           transactionType:
             transaction.transaction_type,
 
-          amount: Number(
-            transaction.amount || 0
-          ),
+          amount:
+            numberValue(
+              transaction.amount
+            ),
 
           currency:
             transaction.currency,
@@ -572,6 +820,14 @@ const getTransactions = async (
 
           description:
             transaction.description,
+
+          proofOfPaymentUrl:
+            transaction.proof_of_payment_url ||
+            null,
+
+          adminNote:
+            transaction.admin_note ||
+            null,
 
           createdAt:
             transaction.created_at,
@@ -590,7 +846,7 @@ const getTransactions = async (
       error
     );
 
-    next(error);
+    return next(error);
   }
 };
 
