@@ -100,7 +100,7 @@ const initializeDatabase = async () => {
     `);
 
     // ========================================================
-    // ADD MISSING USER COLUMNS TO EXISTING DATABASE
+    // ADD MISSING USER COLUMNS
     // ========================================================
 
     await pool.query(`
@@ -140,8 +140,8 @@ const initializeDatabase = async () => {
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN
-      NOT NULL DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS two_factor_enabled
+      BOOLEAN NOT NULL DEFAULT FALSE;
     `);
 
     await pool.query(`
@@ -174,7 +174,19 @@ const initializeDatabase = async () => {
         balance NUMERIC(20, 2)
           NOT NULL DEFAULT 0,
 
+        deposit NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        profits NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
         available_balance NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        bonus NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        referrer_bonus NUMERIC(20, 2)
           NOT NULL DEFAULT 0,
 
         buying_power NUMERIC(20, 2)
@@ -192,6 +204,34 @@ const initializeDatabase = async () => {
         updated_at TIMESTAMP
           NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
+    `);
+
+    // ========================================================
+    // ADD NEW ACCOUNT COLUMNS TO EXISTING DATABASES
+    // ========================================================
+
+    await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS deposit
+      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+    `);
+
+    await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS profits
+      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+    `);
+
+    await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS bonus
+      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+    `);
+
+    await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS referrer_bonus
+      NUMERIC(20, 2) NOT NULL DEFAULT 0;
     `);
 
     await pool.query(`
@@ -246,19 +286,23 @@ const initializeDatabase = async () => {
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_account
+      CREATE INDEX IF NOT EXISTS
+      idx_portfolio_holdings_account
       ON portfolio_holdings(account_id);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_symbol
+      CREATE INDEX IF NOT EXISTS
+      idx_portfolio_holdings_symbol
       ON portfolio_holdings(symbol);
     `);
 
-    logger.info('Portfolio holdings table is ready');
+    logger.info(
+      'Portfolio holdings table is ready'
+    );
 
     // ========================================================
-    // CREATE A DEFAULT TRADING ACCOUNT FOR EXISTING USERS
+    // CREATE DEFAULT ACCOUNT FOR EXISTING USERS
     // ========================================================
 
     await pool.query(`
@@ -268,16 +312,27 @@ const initializeDatabase = async () => {
         account_type,
         account_name,
         balance,
+        deposit,
+        profits,
         available_balance,
+        bonus,
+        referrer_bonus,
         buying_power,
         margin_available,
         status
       )
       SELECT
         u.id,
-        'GDM-' || u.id || '-' || FLOOR(EXTRACT(EPOCH FROM NOW()))::BIGINT,
+        'GDM-' ||
+        u.id ||
+        '-' ||
+        FLOOR(EXTRACT(EPOCH FROM NOW()))::BIGINT,
         'standard',
         'Global Digital Market Account',
+        0,
+        0,
+        0,
+        0,
         0,
         0,
         0,
@@ -320,4 +375,5 @@ const initializeDatabase = async () => {
 // ============================================================
 
 module.exports = pool;
-module.exports.initializeDatabase = initializeDatabase;
+module.exports.initializeDatabase =
+  initializeDatabase;
