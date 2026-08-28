@@ -50,6 +50,7 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
+import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -756,6 +757,11 @@ const Dashboard: React.FC = () => {
     navigate('/trading');
   };
 
+  const goSupport = () => {
+    setMenuOpen(false);
+    navigate('/support');
+  };
+
   const logout = () => {
     const keys = [
       'token',
@@ -1023,6 +1029,14 @@ const Dashboard: React.FC = () => {
               setMenuOpen(false);
               setProfileOpen(true);
             }}
+          />
+
+          {/* CONTACT SUPPORT */}
+
+          <MenuItem
+            icon={<SupportAgentIcon />}
+            text="Contact Support"
+            onClick={goSupport}
           />
 
           <Box
@@ -1596,8 +1610,6 @@ const Dashboard: React.FC = () => {
             mb: 3,
           }}
         >
-          {/* HOLDINGS */}
-
           <Card
             sx={{
               borderRadius: 4,
@@ -1849,8 +1861,6 @@ const Dashboard: React.FC = () => {
               )}
             </CardContent>
           </Card>
-
-          {/* ALLOCATION */}
 
           <Card
             sx={{
