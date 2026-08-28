@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import {
   Box,
   Button,
@@ -11,7 +12,8 @@ import {
   Alert,
 } from '@mui/material';
 
-import authService from '../services/authService';
+const API_URL =
+  'https://globalmarket-com.onrender.com/api/auth';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +36,7 @@ const Register: React.FC = () => {
     setErrorMessage('');
     setSuccessMessage('');
 
+    // Validate fields
     if (
       !firstName.trim() ||
       !lastName.trim() ||
@@ -46,7 +49,9 @@ const Register: React.FC = () => {
     }
 
     if (password.length < 8) {
-      setErrorMessage('Password must be at least 8 characters.');
+      setErrorMessage(
+        'Password must be at least 8 characters.'
+      );
       return;
     }
 
@@ -58,42 +63,112 @@ const Register: React.FC = () => {
     try {
       setLoading(true);
 
-      const response = await authService.register(
-        email.trim(),
-        password,
-        firstName.trim(),
-        lastName.trim()
+      const response = await axios.post(
+        `${API_URL}/register`,
+        {
+          email: email.trim().toLowerCase(),
+          password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
       );
 
-      console.log('REGISTRATION RESPONSE:', response);
+      console.log(
+        'REGISTRATION SUCCESS:',
+        response.data
+      );
 
       setSuccessMessage(
-        response.message || 'Account created successfully!'
+        response.data?.message ||
+          'Account created successfully!'
       );
-    } catch (error: any) {
-      console.error('REGISTRATION ERROR:', error);
 
-      if (error?.response) {
+      // Save login information if returned by backend
+      if (response.data?.accessToken) {
+        localStorage.setItem(
+          'accessToken',
+          response.data.accessToken
+        );
+      }
+
+      if (response.data?.refreshToken) {
+        localStorage.setItem(
+          'refreshToken',
+          response.data.refreshToken
+        );
+      }
+
+      if (response.data?.user) {
+        localStorage.setItem(
+          'user',
+          JSON.stringify(response.data.user)
+        );
+      }
+
+      // Give the success message a moment to display
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
+
+    } catch (error: unknown) {
+      console.error(
+        'REGISTRATION ERROR:',
+        error
+      );
+
+      if (axios.isAxiosError(error)) {
         console.error(
           'BACKEND STATUS:',
-          error.response.status
+          error.response?.status
         );
 
         console.error(
           'BACKEND RESPONSE:',
-          error.response.data
+          error.response?.data
+        );
+
+        const backendMessage =
+          error.response?.data?.message ||
+          error.response?.data?.error;
+
+        if (backendMessage) {
+          setErrorMessage(backendMessage);
+        } else if (error.response?.status === 409) {
+          setErrorMessage(
+            'An account with this email already exists.'
+          );
+        } else if (error.response?.status === 400) {
+          setErrorMessage(
+            'Please check the information you entered.'
+          );
+        } else if (error.response?.status === 404) {
+          setErrorMessage(
+            'Registration endpoint was not found. Please check the backend route.'
+          );
+        } else if (error.response?.status === 500) {
+          setErrorMessage(
+            'The server encountered an error. Please try again.'
+          );
+        } else if (error.code === 'ECONNABORTED') {
+          setErrorMessage(
+            'The server took too long to respond. Please try again.'
+          );
+        } else {
+          setErrorMessage(
+            'Registration failed. Please try again.'
+          );
+        }
+      } else {
+        setErrorMessage(
+          'Something went wrong. Please try again.'
         );
       }
-
-      const backendMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message;
-
-      setErrorMessage(
-        backendMessage ||
-          'Registration failed. Please try again.'
-      );
     } finally {
       setLoading(false);
     }
@@ -156,16 +231,22 @@ const Register: React.FC = () => {
               fullWidth
               label="First Name"
               value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
+              onChange={(event) =>
+                setFirstName(event.target.value)
+              }
               disabled={loading}
+              required
             />
 
             <TextField
               fullWidth
               label="Last Name"
               value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+              onChange={(event) =>
+                setLastName(event.target.value)
+              }
               disabled={loading}
+              required
             />
 
             <TextField
@@ -173,8 +254,11 @@ const Register: React.FC = () => {
               label="Email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) =>
+                setEmail(event.target.value)
+              }
               disabled={loading}
+              required
             />
 
             <TextField
@@ -182,8 +266,11 @@ const Register: React.FC = () => {
               label="Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) =>
+                setPassword(event.target.value)
+              }
               disabled={loading}
+              required
               helperText="Minimum 8 characters"
             />
 
@@ -192,10 +279,11 @@ const Register: React.FC = () => {
               label="Confirm Password"
               type="password"
               value={confirmPassword}
-              onChange={(e) =>
-                setConfirmPassword(e.target.value)
+              onChange={(event) =>
+                setConfirmPassword(event.target.value)
               }
               disabled={loading}
+              required
             />
 
             <Button
