@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -6,6 +6,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Divider,
   FormControl,
   InputLabel,
@@ -20,6 +21,7 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import {
   LineChart,
@@ -32,6 +34,7 @@ import {
 } from 'recharts';
 
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../services/apiClient';
 
 interface TradingPair {
   symbol: string;
@@ -40,11 +43,23 @@ interface TradingPair {
 }
 
 interface ChartPoint {
-  time: string;
+  datetime: string;
   price: number;
 }
 
+interface QuoteData {
+  symbol: string;
+  providerSymbol?: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  currency?: string;
+  exchange?: string | null;
+  timestamp?: string | number | null;
+}
+
 const TRADING_PAIRS: TradingPair[] = [
+  // FOREX
   {
     symbol: 'EUR/USD',
     name: 'Euro / US Dollar',
@@ -105,6 +120,8 @@ const TRADING_PAIRS: TradingPair[] = [
     name: 'US Dollar / Nigerian Naira',
     category: 'Forex',
   },
+
+  // CRYPTO
   {
     symbol: 'BTC/USD',
     name: 'Bitcoin / US Dollar',
@@ -140,6 +157,8 @@ const TRADING_PAIRS: TradingPair[] = [
     name: 'Dogecoin / US Dollar',
     category: 'Crypto',
   },
+
+  // STOCKS
   {
     symbol: 'AAPL',
     name: 'Apple Inc.',
@@ -170,6 +189,8 @@ const TRADING_PAIRS: TradingPair[] = [
     name: 'NVIDIA Corporation',
     category: 'Stocks',
   },
+
+  // COMMODITIES
   {
     symbol: 'GOLD/USD',
     name: 'Gold / US Dollar',
@@ -187,60 +208,14 @@ const TRADING_PAIRS: TradingPair[] = [
   },
 ];
 
-const BASE_PRICES: Record<string, number> = {
-  'EUR/USD': 1.17,
-  'GBP/USD': 1.35,
-  'USD/JPY': 147.2,
-  'USD/CHF': 0.79,
-  'AUD/USD': 0.65,
-  'USD/CAD': 1.38,
-  'NZD/USD': 0.59,
-  'EUR/GBP': 0.87,
-  'EUR/JPY': 172.3,
-  'GBP/JPY': 198.5,
-  'AUD/JPY': 95.8,
-  'USD/NGN': 1540,
-  'BTC/USD': 110500,
-  'ETH/USD': 4250,
-  'BNB/USD': 860,
-  'XRP/USD': 2.95,
-  'SOL/USD': 205,
-  'ADA/USD': 0.82,
-  'DOGE/USD': 0.24,
-  AAPL: 232,
-  GOOGL: 205,
-  MSFT: 506,
-  TSLA: 335,
-  AMZN: 235,
-  NVDA: 180,
-  'GOLD/USD': 3390,
-  'SILVER/USD': 38.5,
-  'OIL/USD': 64.5,
-};
-
-const createChartData = (symbol: string): ChartPoint[] => {
-  const basePrice = BASE_PRICES[symbol] || 100;
-
-  const points: ChartPoint[] = [];
-
-  let price = basePrice * 0.97;
-
-  for (let i = 0; i < 30; i += 1) {
-    const movement =
-      Math.sin(i * 0.75) * 0.006 +
-      Math.cos(i * 0.35) * 0.003 +
-      0.0015;
-
-    price = price * (1 + movement);
-
-    points.push({
-      time: `${i + 1}`,
-      price: Number(price.toFixed(4)),
-    });
-  }
-
-  return points;
-};
+const TIMEFRAMES = [
+  { label: '1m', value: '1m' },
+  { label: '5m', value: '5m' },
+  { label: '15m', value: '15m' },
+  { label: '1H', value: '1h' },
+  { label: '4H', value: '4h' },
+  { label: '1D', value: '1day' },
+];
 
 const Trading: React.FC = () => {
   const navigate = useNavigate();
@@ -248,7 +223,13 @@ const Trading: React.FC = () => {
   const [symbol, setSymbol] = useState('EUR/USD');
   const [amount, setAmount] = useState('');
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
-  const [timeframe, setTimeframe] = useState('1H');
+  const [timeframe, setTimeframe] = useState('1h');
+
+  const [quote, setQuote] = useState<QuoteData | null>(null);
+  const [chartData, setChartData] = useState<ChartPoint[]>([]);
+
+  const [loadingQuote, setLoadingQuote] = useState(true);
+  const [loadingChart, setLoadingChart] = useState(true);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -261,26 +242,153 @@ const Trading: React.FC = () => {
     );
   }, [symbol]);
 
-  const chartData = useMemo(() => {
-    return createChartData(symbol);
-  }, [symbol]);
+  const formatPrice = (price: number): string => {
+    if (!Number.isFinite(price)) {
+      return '—';
+    }
 
-  const currentPrice =
-    chartData.length > 0
-      ? chartData[chartData.length - 1].price
-      : BASE_PRICES[symbol] || 0;
+    if (price >= 1000) {
+      return price.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
 
-  const previousPrice =
-    chartData.length > 1
-      ? chartData[chartData.length - 2].price
-      : currentPrice;
+    if (price >= 10) {
+      return price.toFixed(2);
+    }
 
-  const priceChange = currentPrice - previousPrice;
+    return price.toFixed(4);
+  };
 
-  const priceChangePercent =
-    previousPrice !== 0
-      ? (priceChange / previousPrice) * 100
-      : 0;
+  const formatDateTime = (value: string): string => {
+    if (!value) {
+      return '';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const loadQuote = async () => {
+    try {
+      setLoadingQuote(true);
+
+      const response = await apiClient.get(
+        `/market/quotes/${encodeURIComponent(symbol)}`
+      );
+
+      const data = response.data;
+
+      if (!data || !Number.isFinite(Number(data.price))) {
+        throw new Error(
+          'The market provider did not return a valid price.'
+        );
+      }
+
+      setQuote({
+        symbol: data.symbol || symbol,
+        providerSymbol: data.providerSymbol,
+        price: Number(data.price),
+        change: Number(data.change) || 0,
+        changePercent:
+          Number(data.changePercent) || 0,
+        currency: data.currency || 'USD',
+        exchange: data.exchange || null,
+        timestamp: data.timestamp || null,
+      });
+
+      setErrorMessage('');
+    } catch (error: any) {
+      console.error('QUOTE ERROR:', error);
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to load live market price.';
+
+      setErrorMessage(message);
+    } finally {
+      setLoadingQuote(false);
+    }
+  };
+
+  const loadChart = async () => {
+    try {
+      setLoadingChart(true);
+
+      const response = await apiClient.get(
+        `/market/chart/${encodeURIComponent(symbol)}`,
+        {
+          params: {
+            interval: timeframe,
+            outputsize: 100,
+          },
+        }
+      );
+
+      const serverData = response.data?.chartData;
+
+      if (!Array.isArray(serverData)) {
+        throw new Error(
+          'The market provider did not return chart data.'
+        );
+      }
+
+      const formattedData: ChartPoint[] = serverData
+        .map((item: any) => ({
+          datetime: String(item.datetime || ''),
+          price: Number(item.close),
+        }))
+        .filter(
+          (item: ChartPoint) =>
+            item.datetime &&
+            Number.isFinite(item.price)
+        );
+
+      setChartData(formattedData);
+      setErrorMessage('');
+    } catch (error: any) {
+      console.error('CHART ERROR:', error);
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to load live chart data.';
+
+      setErrorMessage(message);
+      setChartData([]);
+    } finally {
+      setLoadingChart(false);
+    }
+  };
+
+  useEffect(() => {
+    loadQuote();
+    loadChart();
+  }, [symbol, timeframe]);
+
+  const handleRefresh = async () => {
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    await Promise.all([
+      loadQuote(),
+      loadChart(),
+    ]);
+  };
 
   const handleTrade = (
     event: React.FormEvent<HTMLFormElement>
@@ -302,6 +410,12 @@ const Trading: React.FC = () => {
       return;
     }
 
+    /*
+     * This does NOT execute a financial trade.
+     * The backend trade execution endpoint must be
+     * connected and validated before real orders
+     * can change a user's balance or positions.
+     */
     setSuccessMessage(
       `${side} order prepared for ${symbol} for $${numericAmount.toLocaleString(
         'en-US',
@@ -313,27 +427,21 @@ const Trading: React.FC = () => {
     );
   };
 
-  const formatPrice = (price: number) => {
-    if (price >= 1000) {
-      return price.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
-    }
+  const currentPrice =
+    quote?.price ??
+    (chartData.length > 0
+      ? chartData[chartData.length - 1].price
+      : 0);
 
-    if (price >= 10) {
-      return price.toFixed(2);
-    }
-
-    return price.toFixed(4);
-  };
+  const change = quote?.change ?? 0;
+  const changePercent = quote?.changePercent ?? 0;
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
         background:
-          'linear-gradient(180deg, #030a2c 0%, #071453 50%, #091b68 100%)',
+          'linear-gradient(180deg,#030a2c 0%,#071453 50%,#091b68 100%)',
         color: '#fff',
         pb: 6,
       }}
@@ -383,20 +491,39 @@ const Trading: React.FC = () => {
                   fontSize: 11,
                 }}
               >
-                TRADING WORKSPACE
+                LIVE TRADING WORKSPACE
               </Typography>
             </Box>
 
-            <Button
-              startIcon={<ArrowBackIcon />}
-              onClick={() => navigate('/')}
-              sx={{
-                color: '#fff',
-                textTransform: 'none',
-              }}
+            <Stack
+              direction="row"
+              spacing={1}
             >
-              Dashboard
-            </Button>
+              <Button
+                onClick={handleRefresh}
+                startIcon={<RefreshIcon />}
+                disabled={
+                  loadingQuote || loadingChart
+                }
+                sx={{
+                  color: '#fff',
+                  textTransform: 'none',
+                }}
+              >
+                Refresh
+              </Button>
+
+              <Button
+                startIcon={<ArrowBackIcon />}
+                onClick={() => navigate('/')}
+                sx={{
+                  color: '#fff',
+                  textTransform: 'none',
+                }}
+              >
+                Dashboard
+              </Button>
+            </Stack>
           </Stack>
         </Box>
       </Box>
@@ -438,7 +565,8 @@ const Trading: React.FC = () => {
               mt: 1,
             }}
           >
-            Trade forex, crypto, stocks and commodities.
+            Live market prices and charts for forex,
+            crypto, stocks and commodities.
           </Typography>
         </Box>
 
@@ -456,7 +584,7 @@ const Trading: React.FC = () => {
 
         {successMessage && (
           <Alert
-            severity="success"
+            severity="info"
             sx={{ mb: 2 }}
             onClose={() => setSuccessMessage('')}
           >
@@ -551,7 +679,7 @@ const Trading: React.FC = () => {
                       fontSize: 11,
                     }}
                   >
-                    CURRENT PRICE
+                    LIVE PRICE
                   </Typography>
 
                   <Typography
@@ -560,18 +688,25 @@ const Trading: React.FC = () => {
                       fontWeight: 800,
                     }}
                   >
-                    {formatPrice(currentPrice)}
+                    {loadingQuote ? (
+                      <CircularProgress
+                        size={25}
+                        sx={{ color: '#fff' }}
+                      />
+                    ) : (
+                      formatPrice(currentPrice)
+                    )}
                   </Typography>
                 </Box>
 
                 <Chip
-                  label={`${priceChangePercent >= 0 ? '+' : ''}${priceChangePercent.toFixed(
-                    2
-                  )}%`}
+                  label={`${
+                    changePercent >= 0 ? '+' : ''
+                  }${changePercent.toFixed(2)}%`}
                   sx={{
                     color: '#fff',
                     background:
-                      priceChangePercent >= 0
+                      changePercent >= 0
                         ? 'rgba(19,185,95,0.8)'
                         : 'rgba(217,54,87,0.8)',
                     fontWeight: 800,
@@ -653,39 +788,41 @@ const Trading: React.FC = () => {
                       fontSize: 12,
                     }}
                   >
-                    Price movement
+                    Live market price history
                   </Typography>
                 </Box>
 
                 <Stack
                   direction="row"
                   spacing={1}
+                  sx={{
+                    overflowX: 'auto',
+                    maxWidth: '100%',
+                  }}
                 >
-                  {['1m', '5m', '15m', '1H', '4H', '1D'].map(
-                    (item) => (
-                      <Button
-                        key={item}
-                        size="small"
-                        onClick={() =>
-                          setTimeframe(item)
-                        }
-                        variant={
-                          timeframe === item
-                            ? 'contained'
-                            : 'outlined'
-                        }
-                        sx={{
-                          minWidth: 48,
-                          color: '#fff',
-                          textTransform: 'none',
-                          borderColor:
-                            'rgba(120,160,255,0.35)',
-                        }}
-                      >
-                        {item}
-                      </Button>
-                    )
-                  )}
+                  {TIMEFRAMES.map((item) => (
+                    <Button
+                      key={item.value}
+                      size="small"
+                      onClick={() =>
+                        setTimeframe(item.value)
+                      }
+                      variant={
+                        timeframe === item.value
+                          ? 'contained'
+                          : 'outlined'
+                      }
+                      sx={{
+                        minWidth: 48,
+                        color: '#fff',
+                        textTransform: 'none',
+                        borderColor:
+                          'rgba(120,160,255,0.35)',
+                      }}
+                    >
+                      {item.label}
+                    </Button>
+                  ))}
                 </Stack>
               </Stack>
 
@@ -697,7 +834,7 @@ const Trading: React.FC = () => {
                 }}
               />
 
-              {/* CHART */}
+              {/* LIVE CHART */}
 
               <Box
                 sx={{
@@ -706,82 +843,155 @@ const Trading: React.FC = () => {
                     xs: 320,
                     md: 430,
                   },
+                  position: 'relative',
                 }}
               >
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                >
-                  <LineChart
-                    data={chartData}
-                    margin={{
-                      top: 10,
-                      right: 20,
-                      left: 10,
-                      bottom: 10,
-                    }}
+                {loadingChart ? (
+                  <Stack
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{ height: '100%' }}
+                    spacing={2}
                   >
-                    <CartesianGrid
-                      stroke="rgba(255,255,255,0.10)"
-                      strokeDasharray="3 3"
+                    <CircularProgress
+                      sx={{ color: '#5ce8ff' }}
                     />
 
-                    <XAxis
-                      dataKey="time"
-                      tick={{
-                        fill: '#8296e0',
-                        fontSize: 11,
+                    <Typography
+                      sx={{
+                        color: '#8296e0',
                       }}
-                      axisLine={{
-                        stroke:
-                          'rgba(255,255,255,0.15)',
+                    >
+                      Loading live market data...
+                    </Typography>
+                  </Stack>
+                ) : chartData.length === 0 ? (
+                  <Stack
+                    alignItems="center"
+                    justifyContent="center"
+                    sx={{ height: '100%' }}
+                    spacing={1}
+                  >
+                    <ShowChartIcon
+                      sx={{
+                        fontSize: 55,
+                        color: '#5ce8ff',
                       }}
-                      tickLine={false}
                     />
 
-                    <YAxis
-                      domain={['auto', 'auto']}
-                      tick={{
-                        fill: '#8296e0',
-                        fontSize: 11,
+                    <Typography
+                      sx={{
+                        fontWeight: 800,
+                        fontSize: 18,
                       }}
-                      axisLine={{
-                        stroke:
-                          'rgba(255,255,255,0.15)',
-                      }}
-                      tickLine={false}
-                    />
+                    >
+                      No chart data available
+                    </Typography>
 
-                    <Tooltip
-                      contentStyle={{
-                        background: '#071453',
-                        border:
-                          '1px solid rgba(120,160,255,0.4)',
-                        borderRadius: 8,
-                        color: '#fff',
+                    <Typography
+                      sx={{
+                        color: '#8296e0',
+                        fontSize: 13,
                       }}
-                      formatter={(value: number) => [
-                        formatPrice(value),
-                        'Price',
-                      ]}
-                      labelFormatter={(label) =>
-                        `Point ${label}`
-                      }
-                    />
+                    >
+                      Try another pair or timeframe.
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                  >
+                    <LineChart
+                      data={chartData}
+                      margin={{
+                        top: 10,
+                        right: 20,
+                        left: 5,
+                        bottom: 10,
+                      }}
+                    >
+                      <CartesianGrid
+                        stroke="rgba(255,255,255,0.10)"
+                        strokeDasharray="3 3"
+                      />
 
-                    <Line
-                      type="monotone"
-                      dataKey="price"
-                      stroke="#5ce8ff"
-                      strokeWidth={3}
-                      dot={false}
-                      activeDot={{
-                        r: 5,
-                      }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                      <XAxis
+                        dataKey="datetime"
+                        tick={{
+                          fill: '#8296e0',
+                          fontSize: 10,
+                        }}
+                        axisLine={{
+                          stroke:
+                            'rgba(255,255,255,0.15)',
+                        }}
+                        tickLine={false}
+                        tickFormatter={(
+                          value
+                        ) =>
+                          String(value).slice(
+                            11,
+                            16
+                          )
+                        }
+                      />
+
+                      <YAxis
+                        domain={['auto', 'auto']}
+                        tick={{
+                          fill: '#8296e0',
+                          fontSize: 10,
+                        }}
+                        axisLine={{
+                          stroke:
+                            'rgba(255,255,255,0.15)',
+                        }}
+                        tickLine={false}
+                        tickFormatter={(value) =>
+                          formatPrice(
+                            Number(value)
+                          )
+                        }
+                      />
+
+                      <Tooltip
+                        contentStyle={{
+                          background: '#071453',
+                          border:
+                            '1px solid rgba(120,160,255,0.4)',
+                          borderRadius: 8,
+                          color: '#fff',
+                        }}
+                        formatter={(value) => [
+                          formatPrice(
+                            Number(value)
+                          ),
+                          'Price',
+                        ]}
+                        labelFormatter={(label) =>
+                          formatDateTime(
+                            String(label)
+                          )
+                        }
+                      />
+
+                      <Line
+                        type="monotone"
+                        dataKey="price"
+                        stroke="#5ce8ff"
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{
+                          r: 5,
+                        }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </Box>
+
+              {/* CHART INFORMATION */}
 
               <Box
                 sx={{
@@ -832,15 +1042,13 @@ const Trading: React.FC = () => {
                       sx={{
                         fontWeight: 800,
                         color:
-                          priceChange >= 0
+                          change >= 0
                             ? '#4df28d'
                             : '#ff6681',
                       }}
                     >
-                      {priceChange >= 0
-                        ? '+'
-                        : ''}
-                      {priceChange.toFixed(4)}
+                      {change >= 0 ? '+' : ''}
+                      {change.toFixed(4)}
                     </Typography>
                   </Box>
 
@@ -859,7 +1067,30 @@ const Trading: React.FC = () => {
                         fontWeight: 800,
                       }}
                     >
-                      {timeframe}
+                      {TIMEFRAMES.find(
+                        (item) =>
+                          item.value ===
+                          timeframe
+                      )?.label || timeframe}
+                    </Typography>
+                  </Box>
+
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: '#8296e0',
+                        fontSize: 11,
+                      }}
+                    >
+                      DATA
+                    </Typography>
+
+                    <Typography
+                      sx={{
+                        fontWeight: 800,
+                      }}
+                    >
+                      LIVE
                     </Typography>
                   </Box>
                 </Stack>
@@ -1121,7 +1352,12 @@ const Trading: React.FC = () => {
                       fontWeight: 700,
                     }}
                   >
-                    Price: {formatPrice(currentPrice)}
+                    Live Price:{' '}
+                    {loadingQuote ? (
+                      'Loading...'
+                    ) : (
+                      formatPrice(currentPrice)
+                    )}
                   </Typography>
                 </Box>
 
@@ -1213,8 +1449,8 @@ const Trading: React.FC = () => {
                 mb: 2,
               }}
             >
-              Select an instrument to view its chart
-              and prepare an order.
+              Select a market to load its live price
+              and chart.
             </Typography>
 
             <Stack
