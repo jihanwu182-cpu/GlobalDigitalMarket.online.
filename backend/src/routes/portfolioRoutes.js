@@ -1,18 +1,57 @@
 const express = require('express');
-const { authMiddleware } = require('../middleware/auth');
+
+const {
+  authMiddleware,
+} = require('../middleware/auth');
+
 const portfolioController = require('../controllers/portfolioController');
 
 const router = express.Router();
 
+// ============================================================
+// AUTHENTICATION
+// ============================================================
+
 router.use(authMiddleware);
 
-// Get portfolio holdings
-router.get('/holdings', portfolioController.getHoldings);
+// ============================================================
+// PORTFOLIO HOLDINGS
+// ============================================================
 
-// Get portfolio performance
-router.get('/performance', portfolioController.getPerformance);
+router.get(
+  '/holdings',
+  portfolioController.getHoldings
+);
 
-// Get asset allocation
-router.get('/allocation', portfolioController.getAllocation);
+// ============================================================
+// PORTFOLIO PERFORMANCE
+// ============================================================
+
+router.get(
+  '/performance',
+  portfolioController.getPerformance
+);
+
+// ============================================================
+// ACCOUNT SUMMARY
+// ============================================================
+
+router.get(
+  '/account',
+  portfolioController.getAccountSummary
+);
+
+// ============================================================
+// ASSET ALLOCATION
+// ============================================================
+
+router.get(
+  '/allocation',
+  portfolioController.getAllocation
+);
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 module.exports = router;
