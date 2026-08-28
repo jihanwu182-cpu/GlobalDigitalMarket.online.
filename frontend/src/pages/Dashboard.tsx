@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AppBar,
   Box,
@@ -7,6 +6,7 @@ import {
   Card,
   CardContent,
   Chip,
+  CircularProgress,
   Container,
   Divider,
   Drawer,
@@ -44,8 +44,32 @@ import LoginIcon from '@mui/icons-material/Login';
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
 import { useNavigate } from 'react-router-dom';
+import apiClient from '../services/apiClient';
 
 const drawerWidth = 285;
+
+interface PerformanceResponse {
+  totalValue: number;
+  totalGain: number;
+  gainPercentage: number;
+  availableBalance: number;
+  buyingPower?: number;
+}
+
+interface Holding {
+  id: number;
+  symbol: string;
+  quantity: number;
+  average_cost: number;
+  current_price: number;
+  market_value: number;
+  gain_loss: number;
+  gain_loss_percent: number;
+}
+
+interface HoldingsResponse {
+  holdings: Holding[];
+}
 
 interface MarketAsset {
   symbol: string;
@@ -107,24 +131,130 @@ const marketAssets: MarketAsset[] = [
   },
 ];
 
+const money = (value: number) =>
+  `$${Number(value || 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
-
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const portfolioValue = '$28,000.00';
-  const availableBalance = '$50,000.00';
-  const totalProfit = '+$1,968.00';
-  const profitPercentage = '+7.55%';
+  const [performance, setPerformance] =
+    useState<PerformanceResponse>({
+      totalValue: 0,
+      totalGain: 0,
+      gainPercentage: 0,
+      availableBalance: 0,
+      buyingPower: 0,
+    });
+
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDashboard = async () => {
+      try {
+        setLoading(true);
+        setApiError('');
+
+        const [performanceResponse, holdingsResponse] =
+          await Promise.all([
+            apiClient.get<PerformanceResponse>(
+              '/portfolio/performance'
+            ),
+            apiClient.get<HoldingsResponse>(
+              '/portfolio/holdings'
+            ),
+          ]);
+
+        if (!mounted) return;
+
+        setPerformance({
+          totalValue:
+            Number(performanceResponse.data?.totalValue) || 0,
+          totalGain:
+            Number(performanceResponse.data?.totalGain) || 0,
+          gainPercentage:
+            Number(performanceResponse.data?.gainPercentage) || 0,
+          availableBalance:
+            Number(
+              performanceResponse.data?.availableBalance
+            ) || 0,
+          buyingPower:
+            Number(performanceResponse.data?.buyingPower) || 0,
+        });
+
+        setHoldings(
+          Array.isArray(holdingsResponse.data?.holdings)
+            ? holdingsResponse.data.holdings
+            : []
+        );
+      } catch (error: any) {
+        console.error('DASHBOARD API ERROR:', error);
+
+        if (!mounted) return;
+
+        setPerformance({
+          totalValue: 0,
+          totalGain: 0,
+          gainPercentage: 0,
+          availableBalance: 0,
+          buyingPower: 0,
+        });
+
+        setHoldings([]);
+
+        if (error?.response?.status === 401) {
+          setApiError(
+            'Your session has expired. Please login again.'
+          );
+        } else {
+          setApiError(
+            'Unable to load account data right now.'
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const portfolioValue = money(performance.totalValue);
+  const availableBalance = money(
+    performance.availableBalance
+  );
+
+  const totalProfit =
+    performance.totalGain >= 0
+      ? `+${money(performance.totalGain)}`
+      : money(performance.totalGain);
+
+  const profitPercentage =
+    performance.gainPercentage >= 0
+      ? `+${performance.gainPercentage.toFixed(2)}%`
+      : `${performance.gainPercentage.toFixed(2)}%`;
 
   const navigationItems = [
     {
       title: 'Dashboard',
       icon: <DashboardIcon />,
-      action: () => navigate('/'),
+      action: () => navigate('/dashboard'),
     },
     {
       title: 'My Portfolio',
@@ -181,7 +311,6 @@ const Dashboard: React.FC = () => {
             sx={{
               fontSize: 20,
               fontWeight: 800,
-              letterSpacing: '-0.5px',
             }}
           >
             Global Digital
@@ -209,7 +338,11 @@ const Dashboard: React.FC = () => {
         )}
       </Box>
 
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.12)' }} />
+      <Divider
+        sx={{
+          borderColor: 'rgba(255,255,255,0.12)',
+        }}
+      />
 
       <Box sx={{ px: 1.5, py: 2 }}>
         <Typography
@@ -243,11 +376,17 @@ const Dashboard: React.FC = () => {
                     'linear-gradient(90deg, rgba(73,55,255,0.9), rgba(36,94,255,0.65))',
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(255,255,255,0.08)',
+                  backgroundColor:
+                    'rgba(255,255,255,0.08)',
                 },
               }}
             >
-              <ListItemIcon sx={{ color: '#dce5ff', minWidth: 42 }}>
+              <ListItemIcon
+                sx={{
+                  color: '#dce5ff',
+                  minWidth: 42,
+                }}
+              >
                 {item.icon}
               </ListItemIcon>
 
@@ -282,18 +421,22 @@ const Dashboard: React.FC = () => {
               borderRadius: 2,
               color: '#fff',
               mb: 0.5,
-              '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.08)',
-              },
             }}
           >
-            <ListItemIcon sx={{ color: '#e4dcff', minWidth: 42 }}>
+            <ListItemIcon
+              sx={{
+                color: '#e4dcff',
+                minWidth: 42,
+              }}
+            >
               <SmartToyIcon />
             </ListItemIcon>
 
             <ListItemText
               primary="AI Trading Bots"
-              primaryTypographyProps={{ fontSize: 14 }}
+              primaryTypographyProps={{
+                fontSize: 14,
+              }}
             />
 
             <Chip
@@ -303,7 +446,6 @@ const Dashboard: React.FC = () => {
                 color: '#fff',
                 backgroundColor: '#149cff',
                 fontWeight: 700,
-                height: 24,
               }}
             />
           </ListItemButton>
@@ -312,18 +454,22 @@ const Dashboard: React.FC = () => {
             sx={{
               borderRadius: 2,
               color: '#fff',
-              '&:hover': {
-                backgroundColor: 'rgba(255,255,255,0.08)',
-              },
             }}
           >
-            <ListItemIcon sx={{ color: '#f6deff', minWidth: 42 }}>
+            <ListItemIcon
+              sx={{
+                color: '#f6deff',
+                minWidth: 42,
+              }}
+            >
               <AutoGraphIcon />
             </ListItemIcon>
 
             <ListItemText
               primary="Market Insights"
-              primaryTypographyProps={{ fontSize: 14 }}
+              primaryTypographyProps={{
+                fontSize: 14,
+              }}
             />
 
             <Chip
@@ -333,7 +479,6 @@ const Dashboard: React.FC = () => {
                 color: '#fff',
                 backgroundColor: '#9b4dff',
                 fontWeight: 700,
-                height: 24,
               }}
             />
           </ListItemButton>
@@ -362,13 +507,20 @@ const Dashboard: React.FC = () => {
               mb: 0.5,
             }}
           >
-            <ListItemIcon sx={{ color: '#dce5ff', minWidth: 42 }}>
+            <ListItemIcon
+              sx={{
+                color: '#dce5ff',
+                minWidth: 42,
+              }}
+            >
               <AccountBalanceWalletIcon />
             </ListItemIcon>
 
             <ListItemText
               primary="Deposit & Withdraw"
-              primaryTypographyProps={{ fontSize: 14 }}
+              primaryTypographyProps={{
+                fontSize: 14,
+              }}
             />
           </ListItemButton>
 
@@ -379,13 +531,20 @@ const Dashboard: React.FC = () => {
               mb: 0.5,
             }}
           >
-            <ListItemIcon sx={{ color: '#dce5ff', minWidth: 42 }}>
+            <ListItemIcon
+              sx={{
+                color: '#dce5ff',
+                minWidth: 42,
+              }}
+            >
               <SecurityIcon />
             </ListItemIcon>
 
             <ListItemText
               primary="Security Center"
-              primaryTypographyProps={{ fontSize: 14 }}
+              primaryTypographyProps={{
+                fontSize: 14,
+              }}
             />
           </ListItemButton>
 
@@ -395,19 +554,61 @@ const Dashboard: React.FC = () => {
               color: '#fff',
             }}
           >
-            <ListItemIcon sx={{ color: '#dce5ff', minWidth: 42 }}>
+            <ListItemIcon
+              sx={{
+                color: '#dce5ff',
+                minWidth: 42,
+              }}
+            >
               <SupportAgentIcon />
             </ListItemIcon>
 
             <ListItemText
               primary="Customer Support"
-              primaryTypographyProps={{ fontSize: 14 }}
+              primaryTypographyProps={{
+                fontSize: 14,
+              }}
             />
           </ListItemButton>
         </List>
       </Box>
     </Box>
   );
+
+  const statCards = [
+    {
+      title: 'Total Profit',
+      value: totalProfit,
+      subtitle: 'Portfolio gains',
+      icon: <TrendingUpIcon />,
+    },
+    {
+      title: 'Available Balance',
+      value: availableBalance,
+      subtitle: 'Available for trading',
+      icon: <ArrowDownwardIcon />,
+    },
+    {
+      title: 'Active Positions',
+      value: String(holdings.length),
+      subtitle: 'Open positions',
+      icon: <PieChartIcon />,
+    },
+    {
+      title: 'Market Exposure',
+      value:
+        performance.totalValue > 0
+          ? `${(
+              ((performance.totalValue -
+                performance.availableBalance) /
+                performance.totalValue) *
+              100
+            ).toFixed(1)}%`
+          : '0.0%',
+      subtitle: 'Current portfolio exposure',
+      icon: <AutoGraphIcon />,
+    },
+  ];
 
   return (
     <Box
@@ -416,9 +617,9 @@ const Dashboard: React.FC = () => {
         background:
           'linear-gradient(180deg, #030a2c 0%, #071453 45%, #091b68 100%)',
         color: '#fff',
+        pb: isMobile ? 10 : 0,
       }}
     >
-      {/* Desktop Sidebar */}
       {!isMobile && (
         <Drawer
           variant="permanent"
@@ -437,7 +638,6 @@ const Dashboard: React.FC = () => {
         </Drawer>
       )}
 
-      {/* Mobile Drawer */}
       {isMobile && (
         <Drawer
           anchor="left"
@@ -460,21 +660,24 @@ const Dashboard: React.FC = () => {
           minHeight: '100vh',
         }}
       >
-        {/* Top Navigation */}
         <AppBar
           position="sticky"
           elevation={0}
           sx={{
             background: 'rgba(3, 10, 44, 0.88)',
             backdropFilter: 'blur(14px)',
-            borderBottom: '1px solid rgba(125,150,255,0.18)',
+            borderBottom:
+              '1px solid rgba(125,150,255,0.18)',
           }}
         >
           <Toolbar sx={{ minHeight: 70 }}>
             {isMobile && (
               <IconButton
                 onClick={() => setDrawerOpen(true)}
-                sx={{ color: '#fff', mr: 1 }}
+                sx={{
+                  color: '#fff',
+                  mr: 1,
+                }}
               >
                 <MenuIcon />
               </IconButton>
@@ -483,7 +686,10 @@ const Dashboard: React.FC = () => {
             <Box sx={{ flexGrow: 1 }}>
               <Typography
                 sx={{
-                  fontSize: { xs: 18, sm: 22 },
+                  fontSize: {
+                    xs: 18,
+                    sm: 22,
+                  },
                   fontWeight: 800,
                 }}
               >
@@ -492,7 +698,10 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  display: { xs: 'none', sm: 'block' },
+                  display: {
+                    xs: 'none',
+                    sm: 'block',
+                  },
                   color: '#8da7ff',
                   fontSize: 11,
                   letterSpacing: 1.2,
@@ -502,14 +711,20 @@ const Dashboard: React.FC = () => {
               </Typography>
             </Box>
 
-            <IconButton sx={{ color: '#fff', mr: 1 }}>
+            <IconButton
+              sx={{
+                color: '#fff',
+                mr: 1,
+              }}
+            >
               <NotificationsNoneIcon />
             </IconButton>
 
             <IconButton
               sx={{
                 color: '#fff',
-                background: 'linear-gradient(135deg, #5038ff, #237cff)',
+                background:
+                  'linear-gradient(135deg, #5038ff, #237cff)',
                 width: 40,
                 height: 40,
               }}
@@ -519,12 +734,11 @@ const Dashboard: React.FC = () => {
           </Toolbar>
         </AppBar>
 
-        {/* Live Market Ticker */}
         <Box
           sx={{
-            borderBottom: '1px solid rgba(125,150,255,0.18)',
+            borderBottom:
+              '1px solid rgba(125,150,255,0.18)',
             background: 'rgba(8,20,73,0.8)',
-            overflow: 'hidden',
           }}
         >
           <Container maxWidth="xl">
@@ -534,74 +748,74 @@ const Dashboard: React.FC = () => {
               sx={{
                 py: 1.4,
                 overflowX: 'auto',
-                '&::-webkit-scrollbar': {
-                  display: 'none',
-                },
               }}
             >
-              <Stack direction="row" spacing={1} alignItems="center">
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+              >
                 <Box
                   sx={{
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
                     backgroundColor: '#26f57b',
-                    boxShadow: '0 0 12px #26f57b',
                   }}
                 />
 
-                <Typography sx={{ fontSize: 12, fontWeight: 800 }}>
+                <Typography
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
                   LIVE
                 </Typography>
               </Stack>
 
-              <Typography
-                sx={{ fontSize: 12, whiteSpace: 'nowrap', color: '#cbd6ff' }}
-              >
-                BTC:
-                <Box component="span" sx={{ color: '#45f58b', ml: 0.5 }}>
-                  $80,241
-                </Box>
-              </Typography>
-
-              <Typography
-                sx={{ fontSize: 12, whiteSpace: 'nowrap', color: '#cbd6ff' }}
-              >
-                ETH:
-                <Box component="span" sx={{ color: '#45f58b', ml: 0.5 }}>
-                  $2,513
-                </Box>
-              </Typography>
-
-              <Typography
-                sx={{ fontSize: 12, whiteSpace: 'nowrap', color: '#cbd6ff' }}
-              >
-                BNB:
-                <Box component="span" sx={{ color: '#45f58b', ml: 0.5 }}>
-                  $712
-                </Box>
-              </Typography>
-
-              <Typography
-                sx={{ fontSize: 12, whiteSpace: 'nowrap', color: '#cbd6ff' }}
-              >
-                GOLD:
-                <Box component="span" sx={{ color: '#45f58b', ml: 0.5 }}>
-                  $4,602
-                </Box>
-              </Typography>
+              {marketAssets.slice(0, 4).map((asset) => (
+                <Typography
+                  key={asset.symbol}
+                  sx={{
+                    fontSize: 12,
+                    whiteSpace: 'nowrap',
+                    color: '#cbd6ff',
+                  }}
+                >
+                  {asset.symbol}:
+                  <Box
+                    component="span"
+                    sx={{
+                      color: '#45f58b',
+                      ml: 0.5,
+                    }}
+                  >
+                    {asset.price}
+                  </Box>
+                </Typography>
+              ))}
             </Stack>
           </Container>
         </Box>
 
-        <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-          {/* Welcome */}
+        <Container
+          maxWidth="xl"
+          sx={{
+            py: {
+              xs: 3,
+              md: 5,
+            },
+          }}
+        >
           <Box sx={{ mb: 4 }}>
             <Typography
               sx={{
-                fontSize: { xs: 28, md: 38 },
+                fontSize: {
+                  xs: 28,
+                  md: 38,
+                },
                 fontWeight: 800,
-                letterSpacing: '-1px',
               }}
             >
               Welcome back
@@ -611,15 +825,36 @@ const Dashboard: React.FC = () => {
               sx={{
                 mt: 0.8,
                 color: '#9eaff0',
-                fontSize: { xs: 14, md: 16 },
+                fontSize: {
+                  xs: 14,
+                  md: 16,
+                },
               }}
             >
-              Monitor your portfolio, explore global markets and manage your
+              Monitor your real account, portfolio and
               investments from one secure workspace.
             </Typography>
           </Box>
 
-          {/* Portfolio Hero */}
+          {apiError && (
+            <Card
+              sx={{
+                mb: 3,
+                background:
+                  'rgba(255,193,7,0.12)',
+                border:
+                  '1px solid rgba(255,193,7,0.3)',
+                color: '#fff',
+              }}
+            >
+              <CardContent>
+                <Typography>
+                  {apiError}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+
           <Card
             sx={{
               mb: 3,
@@ -627,27 +862,25 @@ const Dashboard: React.FC = () => {
               color: '#fff',
               background:
                 'linear-gradient(135deg, #172a8a 0%, #2445c7 50%, #1459e8 100%)',
-              border: '1px solid rgba(143,170,255,0.28)',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-              overflow: 'hidden',
-              position: 'relative',
+              border:
+                '1px solid rgba(143,170,255,0.28)',
+              boxShadow:
+                '0 20px 60px rgba(0,0,0,0.3)',
             }}
           >
-            <Box
+            <CardContent
               sx={{
-                position: 'absolute',
-                width: 300,
-                height: 300,
-                borderRadius: '50%',
-                right: -100,
-                top: -140,
-                background: 'rgba(75,210,255,0.16)',
+                p: {
+                  xs: 3,
+                  md: 4,
+                },
               }}
-            />
-
-            <CardContent sx={{ p: { xs: 3, md: 4 } }}>
+            >
               <Stack
-                direction={{ xs: 'column', md: 'row' }}
+                direction={{
+                  xs: 'column',
+                  md: 'row',
+                }}
                 justifyContent="space-between"
                 spacing={3}
               >
@@ -663,15 +896,28 @@ const Dashboard: React.FC = () => {
                     TOTAL PORTFOLIO VALUE
                   </Typography>
 
-                  <Typography
-                    sx={{
-                      mt: 1,
-                      fontSize: { xs: 38, md: 52 },
-                      fontWeight: 800,
-                    }}
-                  >
-                    {portfolioValue}
-                  </Typography>
+                  {loading ? (
+                    <CircularProgress
+                      size={36}
+                      sx={{
+                        color: '#fff',
+                        mt: 2,
+                      }}
+                    />
+                  ) : (
+                    <Typography
+                      sx={{
+                        mt: 1,
+                        fontSize: {
+                          xs: 38,
+                          md: 52,
+                        },
+                        fontWeight: 800,
+                      }}
+                    >
+                      {portfolioValue}
+                    </Typography>
+                  )}
 
                   <Stack
                     direction="row"
@@ -680,18 +926,31 @@ const Dashboard: React.FC = () => {
                     sx={{ mt: 1 }}
                   >
                     <Chip
-                      icon={<ArrowUpwardIcon />}
-                      label={`${profitPercentage} today`}
+                      icon={
+                        performance.totalGain >= 0 ? (
+                          <ArrowUpwardIcon />
+                        ) : (
+                          <ArrowDownwardIcon />
+                        )
+                      }
+                      label={`${profitPercentage} total`}
                       size="small"
                       sx={{
                         color: '#fff',
-                        background: 'rgba(29,238,112,0.2)',
-                        border: '1px solid rgba(29,238,112,0.4)',
+                        background:
+                          'rgba(29,238,112,0.2)',
+                        border:
+                          '1px solid rgba(29,238,112,0.4)',
                         fontWeight: 700,
                       }}
                     />
 
-                    <Typography sx={{ color: '#b9c8ff', fontSize: 12 }}>
+                    <Typography
+                      sx={{
+                        color: '#b9c8ff',
+                        fontSize: 12,
+                      }}
+                    >
                       Portfolio performance
                     </Typography>
                   </Stack>
@@ -699,8 +958,12 @@ const Dashboard: React.FC = () => {
 
                 <Box
                   sx={{
-                    minWidth: { md: 250 },
-                    alignSelf: { md: 'center' },
+                    minWidth: {
+                      md: 250,
+                    },
+                    alignSelf: {
+                      md: 'center',
+                    },
                   }}
                 >
                   <Typography
@@ -744,10 +1007,6 @@ const Dashboard: React.FC = () => {
                         'linear-gradient(90deg, #14d8ff, #1d8cff)',
                       fontWeight: 800,
                       textTransform: 'none',
-                      '&:hover': {
-                        background:
-                          'linear-gradient(90deg, #14d8ff, #1d8cff)',
-                      },
                     }}
                   >
                     Quick Trade
@@ -757,7 +1016,6 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Statistics */}
           <Box
             sx={{
               display: 'grid',
@@ -770,36 +1028,7 @@ const Dashboard: React.FC = () => {
               mb: 3,
             }}
           >
-            {[
-              {
-                title: 'Total Profit',
-                value: totalProfit,
-                subtitle: 'Unrealized portfolio gains',
-                icon: <TrendingUpIcon />,
-                positive: true,
-              },
-              {
-                title: 'Total Deposits',
-                value: '$50,000.00',
-                subtitle: 'Cumulative account funding',
-                icon: <ArrowDownwardIcon />,
-                positive: true,
-              },
-              {
-                title: 'Active Positions',
-                value: '4',
-                subtitle: 'Open investment positions',
-                icon: <PieChartIcon />,
-                positive: true,
-              },
-              {
-                title: 'Market Exposure',
-                value: '62.4%',
-                subtitle: 'Current portfolio allocation',
-                icon: <AutoGraphIcon />,
-                positive: true,
-              },
-            ].map((stat) => (
+            {statCards.map((stat) => (
               <Card
                 key={stat.title}
                 sx={{
@@ -807,7 +1036,8 @@ const Dashboard: React.FC = () => {
                   color: '#fff',
                   background:
                     'linear-gradient(145deg, rgba(20,40,125,0.95), rgba(12,27,88,0.95))',
-                  border: '1px solid rgba(126,154,255,0.2)',
+                  border:
+                    '1px solid rgba(126,154,255,0.2)',
                 }}
               >
                 <CardContent sx={{ p: 2.5 }}>
@@ -857,7 +1087,8 @@ const Dashboard: React.FC = () => {
                         justifyContent: 'center',
                         borderRadius: 2,
                         color: '#5ce8ff',
-                        background: 'rgba(57,197,255,0.12)',
+                        background:
+                          'rgba(57,197,255,0.12)',
                       }}
                     >
                       {stat.icon}
@@ -868,7 +1099,6 @@ const Dashboard: React.FC = () => {
             ))}
           </Box>
 
-          {/* Main Content */}
           <Box
             sx={{
               display: 'grid',
@@ -879,17 +1109,24 @@ const Dashboard: React.FC = () => {
               gap: 3,
             }}
           >
-            {/* Market Overview */}
             <Card
               sx={{
                 borderRadius: 3,
                 color: '#fff',
                 background:
                   'linear-gradient(145deg, rgba(17,36,111,0.98), rgba(8,22,76,0.98))',
-                border: '1px solid rgba(126,154,255,0.2)',
+                border:
+                  '1px solid rgba(126,154,255,0.2)',
               }}
             >
-              <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+              <CardContent
+                sx={{
+                  p: {
+                    xs: 2,
+                    md: 3,
+                  },
+                }}
+              >
                 <Stack
                   direction="row"
                   justifyContent="space-between"
@@ -897,7 +1134,12 @@ const Dashboard: React.FC = () => {
                   sx={{ mb: 2.5 }}
                 >
                   <Box>
-                    <Typography sx={{ fontSize: 20, fontWeight: 800 }}>
+                    <Typography
+                      sx={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                      }}
+                    >
                       Market Overview
                     </Typography>
 
@@ -908,7 +1150,7 @@ const Dashboard: React.FC = () => {
                         mt: 0.5,
                       }}
                     >
-                      Monitor selected global assets in real time.
+                      Monitor selected global assets.
                     </Typography>
                   </Box>
 
@@ -931,8 +1173,8 @@ const Dashboard: React.FC = () => {
                       sx={{
                         p: 1.5,
                         borderRadius: 2,
-                        background: 'rgba(255,255,255,0.035)',
-                        border: '1px solid rgba(255,255,255,0.06)',
+                        background:
+                          'rgba(255,255,255,0.035)',
                       }}
                     >
                       <Stack
@@ -944,7 +1186,6 @@ const Dashboard: React.FC = () => {
                           sx={{
                             width: 38,
                             height: 38,
-                            flexShrink: 0,
                             borderRadius: '50%',
                             display: 'flex',
                             alignItems: 'center',
@@ -952,14 +1193,16 @@ const Dashboard: React.FC = () => {
                             background:
                               'linear-gradient(135deg, #263eae, #16286d)',
                             fontWeight: 800,
-                            color: '#fff',
-                            fontSize: 13,
                           }}
                         >
                           {asset.icon}
                         </Box>
 
-                        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            flexGrow: 1,
+                          }}
+                        >
                           <Typography
                             sx={{
                               fontSize: 13,
@@ -979,7 +1222,11 @@ const Dashboard: React.FC = () => {
                           </Typography>
                         </Box>
 
-                        <Box sx={{ textAlign: 'right' }}>
+                        <Box
+                          sx={{
+                            textAlign: 'right',
+                          }}
+                        >
                           <Typography
                             sx={{
                               fontSize: 13,
@@ -1008,19 +1255,30 @@ const Dashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Account & Actions */}
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+              }}
+            >
               <Card
                 sx={{
                   borderRadius: 3,
                   color: '#fff',
                   background:
                     'linear-gradient(145deg, rgba(17,36,111,0.98), rgba(8,22,76,0.98))',
-                  border: '1px solid rgba(126,154,255,0.2)',
+                  border:
+                    '1px solid rgba(126,154,255,0.2)',
                 }}
               >
                 <CardContent sx={{ p: 3 }}>
-                  <Typography sx={{ fontSize: 20, fontWeight: 800 }}>
+                  <Typography
+                    sx={{
+                      fontSize: 20,
+                      fontWeight: 800,
+                    }}
+                  >
                     Account Actions
                   </Typography>
 
@@ -1032,7 +1290,7 @@ const Dashboard: React.FC = () => {
                       mb: 2.5,
                     }}
                   >
-                    Manage your account and investments securely.
+                    Manage your account and investments.
                   </Typography>
 
                   <Stack spacing={1.2}>
@@ -1056,14 +1314,17 @@ const Dashboard: React.FC = () => {
                     <Button
                       fullWidth
                       variant="outlined"
-                      startIcon={<AccountBalanceWalletIcon />}
+                      startIcon={
+                        <AccountBalanceWalletIcon />
+                      }
                       onClick={() => navigate('/wallet')}
                       sx={{
                         py: 1.2,
                         borderRadius: 2,
                         textTransform: 'none',
                         color: '#fff',
-                        borderColor: 'rgba(126,154,255,0.35)',
+                        borderColor:
+                          'rgba(126,154,255,0.35)',
                       }}
                     >
                       Manage Wallet
@@ -1079,7 +1340,8 @@ const Dashboard: React.FC = () => {
                         borderRadius: 2,
                         textTransform: 'none',
                         color: '#fff',
-                        borderColor: 'rgba(126,154,255,0.35)',
+                        borderColor:
+                          'rgba(126,154,255,0.35)',
                       }}
                     >
                       View Portfolio
@@ -1088,18 +1350,22 @@ const Dashboard: React.FC = () => {
                 </CardContent>
               </Card>
 
-              {/* Security Card */}
               <Card
                 sx={{
                   borderRadius: 3,
                   color: '#fff',
                   background:
                     'linear-gradient(135deg, rgba(19,67,130,0.95), rgba(8,39,93,0.95))',
-                  border: '1px solid rgba(73,205,255,0.2)',
+                  border:
+                    '1px solid rgba(73,205,255,0.2)',
                 }}
               >
                 <CardContent sx={{ p: 3 }}>
-                  <Stack direction="row" spacing={2} alignItems="flex-start">
+                  <Stack
+                    direction="row"
+                    spacing={2}
+                    alignItems="flex-start"
+                  >
                     <Box
                       sx={{
                         width: 46,
@@ -1108,7 +1374,8 @@ const Dashboard: React.FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: 'rgba(60,220,255,0.13)',
+                        background:
+                          'rgba(60,220,255,0.13)',
                         color: '#56eaff',
                       }}
                     >
@@ -1128,8 +1395,8 @@ const Dashboard: React.FC = () => {
                           lineHeight: 1.6,
                         }}
                       >
-                        Keep your account protected with secure authentication
-                        and account monitoring.
+                        Your account uses secure authentication
+                        and protected API requests.
                       </Typography>
 
                       <Chip
@@ -1138,9 +1405,8 @@ const Dashboard: React.FC = () => {
                         sx={{
                           mt: 1.5,
                           color: '#52f394',
-                          background: 'rgba(43,240,126,0.1)',
-                          border: '1px solid rgba(43,240,126,0.25)',
-                          fontSize: 10,
+                          background:
+                            'rgba(43,240,126,0.1)',
                         }}
                       />
                     </Box>
@@ -1150,7 +1416,6 @@ const Dashboard: React.FC = () => {
             </Box>
           </Box>
 
-          {/* Quick Trade */}
           <Card
             sx={{
               mt: 3,
@@ -1158,18 +1423,33 @@ const Dashboard: React.FC = () => {
               color: '#fff',
               background:
                 'linear-gradient(110deg, #1725a0, #1948ce, #078fe5)',
-              border: '1px solid rgba(80,215,255,0.25)',
-              overflow: 'hidden',
             }}
           >
-            <CardContent sx={{ p: { xs: 2.5, md: 3.5 } }}>
+            <CardContent
+              sx={{
+                p: {
+                  xs: 2.5,
+                  md: 3.5,
+                },
+              }}
+            >
               <Stack
-                direction={{ xs: 'column', md: 'row' }}
-                alignItems={{ xs: 'flex-start', md: 'center' }}
+                direction={{
+                  xs: 'column',
+                  md: 'row',
+                }}
+                alignItems={{
+                  xs: 'flex-start',
+                  md: 'center',
+                }}
                 justifyContent="space-between"
                 spacing={2}
               >
-                <Stack direction="row" spacing={2} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                >
                   <Box
                     sx={{
                       width: 58,
@@ -1180,14 +1460,18 @@ const Dashboard: React.FC = () => {
                       justifyContent: 'center',
                       background:
                         'linear-gradient(135deg, #15e8ff, #1b6dff)',
-                      boxShadow: '0 0 30px rgba(28,203,255,0.3)',
                     }}
                   >
                     <RocketLaunchIcon />
                   </Box>
 
                   <Box>
-                    <Typography sx={{ fontSize: 20, fontWeight: 800 }}>
+                    <Typography
+                      sx={{
+                        fontSize: 20,
+                        fontWeight: 800,
+                      }}
+                    >
                       Quick Trade
                     </Typography>
 
@@ -1198,8 +1482,7 @@ const Dashboard: React.FC = () => {
                         mt: 0.5,
                       }}
                     >
-                      Access your trading workspace and explore available
-                      markets.
+                      Access your trading workspace.
                     </Typography>
                   </Box>
                 </Stack>
@@ -1216,9 +1499,6 @@ const Dashboard: React.FC = () => {
                     backgroundColor: '#fff',
                     textTransform: 'none',
                     fontWeight: 800,
-                    '&:hover': {
-                      backgroundColor: '#f2f5ff',
-                    },
                   }}
                 >
                   Open Trading
@@ -1227,55 +1507,35 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* Footer */}
           <Box
             sx={{
               mt: 5,
               pt: 3,
-              borderTop: '1px solid rgba(126,154,255,0.15)',
+              borderTop:
+                '1px solid rgba(126,154,255,0.15)',
             }}
           >
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              justifyContent="space-between"
-              spacing={2}
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: 14,
+              }}
             >
-              <Box>
-                <Typography
-                  sx={{
-                    fontWeight: 800,
-                    fontSize: 14,
-                  }}
-                >
-                  Global Digital Market
-                </Typography>
+              Global Digital Market
+            </Typography>
 
-                <Typography
-                  sx={{
-                    color: '#7186cd',
-                    fontSize: 11,
-                    mt: 0.5,
-                  }}
-                >
-                  Professional tools for managing your digital investment
-                  portfolio.
-                </Typography>
-              </Box>
-
-              <Typography
-                sx={{
-                  color: '#6277bc',
-                  fontSize: 11,
-                }}
-              >
-                Market data shown in this interface may be delayed or
-                illustrative.
-              </Typography>
-            </Stack>
+            <Typography
+              sx={{
+                color: '#7186cd',
+                fontSize: 11,
+                mt: 0.5,
+              }}
+            >
+              Your dashboard now uses your account data.
+            </Typography>
           </Box>
         </Container>
 
-        {/* Mobile Bottom Navigation */}
         {isMobile && (
           <Box
             sx={{
@@ -1293,15 +1553,15 @@ const Dashboard: React.FC = () => {
                 borderRadius: 3,
                 p: 1,
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                background: 'rgba(7,18,67,0.95)',
+                gridTemplateColumns:
+                  'repeat(4, 1fr)',
+                background:
+                  'rgba(7,18,67,0.95)',
                 backdropFilter: 'blur(16px)',
-                border: '1px solid rgba(126,154,255,0.25)',
-                boxShadow: '0 -10px 40px rgba(0,0,0,0.35)',
               }}
             >
               <Button
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/dashboard')}
                 sx={{
                   color: '#fff',
                   minWidth: 0,
@@ -1310,7 +1570,7 @@ const Dashboard: React.FC = () => {
                   fontSize: 10,
                 }}
               >
-                <DashboardIcon sx={{ fontSize: 22, mb: 0.3 }} />
+                <DashboardIcon />
                 Home
               </Button>
 
@@ -1324,7 +1584,7 @@ const Dashboard: React.FC = () => {
                   fontSize: 10,
                 }}
               >
-                <ShowChartIcon sx={{ fontSize: 22, mb: 0.3 }} />
+                <ShowChartIcon />
                 Markets
               </Button>
 
@@ -1338,31 +1598,8 @@ const Dashboard: React.FC = () => {
                   fontSize: 10,
                 }}
               >
-                <BoltIcon sx={{ fontSize: 22, mb: 0.3 }} />
+                <BoltIcon />
                 Trade
               </Button>
 
-              <Button
-                onClick={() => navigate('/wallet')}
-                sx={{
-                  color: '#fff',
-                  minWidth: 0,
-                  flexDirection: 'column',
-                  textTransform: 'none',
-                  fontSize: 10,
-                }}
-              >
-                <AccountBalanceWalletIcon
-                  sx={{ fontSize: 22, mb: 0.3 }}
-                />
-                Wallet
-              </Button>
-            </Box>
-          </Box>
-        )}
-      </Box>
-    </Box>
-  );
-};
-
-export default Dashboard;
+             
