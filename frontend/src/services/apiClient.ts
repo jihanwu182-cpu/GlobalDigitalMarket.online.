@@ -11,13 +11,18 @@ const apiClient = axios.create({
   },
 });
 
-// Add authentication token to requests
+// Add authentication token to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('authToken');
+    const token =
+      localStorage.getItem('authToken') ||
+      localStorage.getItem('accessToken') ||
+      localStorage.getItem('token');
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers = config.headers || {};
+      config.headers.Authorization =
+        `Bearer ${token}`;
     }
 
     return config;
@@ -51,11 +56,6 @@ apiClient.interceptors.response.use(
         error.message
       );
     }
-
-    // IMPORTANT:
-    // We are NOT automatically redirecting here.
-    // HashRouter uses /#/login, and automatic redirects
-    // were causing the white screen.
 
     return Promise.reject(error);
   }
