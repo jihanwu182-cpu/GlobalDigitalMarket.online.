@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_URL =
+  process.env.REACT_APP_API_URL ||
   'https://globalmarket-com.onrender.com/api';
 
 const apiClient = axios.create({
@@ -8,13 +9,9 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
 });
 
-// =====================================
-// ADD AUTH TOKEN
-// =====================================
-
+// Add authentication token to requests
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
@@ -23,12 +20,6 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    console.log(
-      'API REQUEST:',
-      config.method?.toUpperCase(),
-      `${API_URL}${config.url}`
-    );
-
     return config;
   },
   (error) => {
@@ -36,37 +27,35 @@ apiClient.interceptors.request.use(
   }
 );
 
-// =====================================
-// HANDLE RESPONSE
-// =====================================
-
+// Handle API responses/errors
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(
-      'API RESPONSE:',
-      response.status,
-      response.config.url
-    );
-
     return response;
   },
-
   (error) => {
-    console.error(
-      'API ERROR:',
-      error?.response?.status,
-      error?.response?.data || error?.message
-    );
+    console.error('API ERROR:', error);
 
-    if (error?.response?.status === 401) {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+    if (error.response) {
+      console.error(
+        'STATUS:',
+        error.response.status
+      );
 
-      if (window.location.hash !== '#/login') {
-        window.location.hash = '#/login';
-      }
+      console.error(
+        'DATA:',
+        error.response.data
+      );
+    } else {
+      console.error(
+        'NETWORK ERROR:',
+        error.message
+      );
     }
+
+    // IMPORTANT:
+    // We are NOT automatically redirecting here.
+    // HashRouter uses /#/login, and automatic redirects
+    // were causing the white screen.
 
     return Promise.reject(error);
   }
