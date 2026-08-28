@@ -1,8 +1,11 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
-require('dotenv').config();
+
+const pool = require('./config/database');
 
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
@@ -26,6 +29,7 @@ app.use(
 );
 
 app.use(express.json({ limit: '10mb' }));
+
 app.use(
   express.urlencoded({
     limit: '10mb',
@@ -37,35 +41,26 @@ app.use(
 // PROJECT ROOT
 // =====================================
 
-// app.js is inside:
-// backend/src/app.js
-//
-// Going two levels up gives:
-// project-root/
-
 const projectRoot = path.resolve(__dirname, '../..');
 
 // =====================================
 // FRONTEND PAGES
 // =====================================
 
-// Homepage
 app.get('/', (req, res) => {
   res.sendFile(path.join(projectRoot, 'index.html'));
 });
 
-// Signup page
 app.get('/signup.html', (req, res) => {
   res.sendFile(path.join(projectRoot, 'signup.html'));
 });
 
-// Also allow /index.html
 app.get('/index.html', (req, res) => {
   res.sendFile(path.join(projectRoot, 'index.html'));
 });
 
 // =====================================
-// HEALTH CHECK
+// SERVER HEALTH CHECK
 // =====================================
 
 app.get('/health', (req, res) => {
@@ -74,6 +69,48 @@ app.get('/health', (req, res) => {
     platform: 'GlobalDigitalMarket.online',
     timestamp: new Date().toISOString()
   });
+});
+
+// =====================================
+// DATABASE HEALTH CHECK
+// =====================================
+
+app.get('/health/db', async (req, res) => {
+  try {
+    // Test PostgreSQL connection
+    const result = await pool.query(
+      'SELECT NOW() AS database_time'
+    );
+
+    // Test whether users table exists
+    const usersTable = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'users'
+      ) AS users_table_exists
+    `);
+
+    res.status(200).json({
+      status: 'OK',
+      database: 'connected',
+      usersTableExists:
+        usersTable.rows[0].users_table_exists,
+      databaseTime: result.rows[0].database_time
+    });
+
+  } catch (error) {
+    console.error(
+      'DATABASE HEALTH CHECK FAILED:',
+      error
+    );
+
+    res.status(500).json({
+      status: 'ERROR',
+      database: 'not connected',
+      message: error.message
+    });
+  }
 });
 
 // =====================================
