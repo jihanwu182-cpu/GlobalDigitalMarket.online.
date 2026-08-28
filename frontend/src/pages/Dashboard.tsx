@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -15,7 +16,6 @@ import {
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PieChartIcon from '@mui/icons-material/PieChart';
-import BoltIcon from '@mui/icons-material/Bolt';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import SavingsIcon from '@mui/icons-material/Savings';
 import GroupAddIcon from '@mui/icons-material/GroupAdd';
@@ -73,27 +73,23 @@ const Dashboard: React.FC = () => {
       totalValue: 0,
       totalGain: 0,
       gainPercentage: 0,
-
       deposit: 0,
       profits: 0,
       availableBalance: 0,
       bonus: 0,
       referrerBonus: 0,
-
       buyingPower: 0,
       marginAvailable: 0,
       totalHoldingsValue: 0,
     });
 
-  const [holdings, setHoldings] =
-    useState<Holding[]>([]);
+  const [holdings, setHoldings] = useState<Holding[]>([]);
 
-  const [errorMessage, setErrorMessage] =
-    useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // ==========================================================
-  // LOAD REAL ACCOUNT DATA
-  // ==========================================================
+  // ============================================================
+  // LOAD DASHBOARD DATA
+  // ============================================================
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -114,8 +110,7 @@ const Dashboard: React.FC = () => {
           ),
         ]);
 
-        const data =
-          performanceResponse.data;
+        const data = performanceResponse.data;
 
         setPerformance({
           totalValue:
@@ -134,30 +129,22 @@ const Dashboard: React.FC = () => {
             Number(data?.profits) || 0,
 
           availableBalance:
-            Number(
-              data?.availableBalance
-            ) || 0,
+            Number(data?.availableBalance) || 0,
 
           bonus:
             Number(data?.bonus) || 0,
 
           referrerBonus:
-            Number(
-              data?.referrerBonus
-            ) || 0,
+            Number(data?.referrerBonus) || 0,
 
           buyingPower:
             Number(data?.buyingPower) || 0,
 
           marginAvailable:
-            Number(
-              data?.marginAvailable
-            ) || 0,
+            Number(data?.marginAvailable) || 0,
 
           totalHoldingsValue:
-            Number(
-              data?.totalHoldingsValue
-            ) || 0,
+            Number(data?.totalHoldingsValue) || 0,
         });
 
         setHoldings(
@@ -180,7 +167,7 @@ const Dashboard: React.FC = () => {
           error?.response?.data?.message ||
           error?.response?.data?.error ||
           error?.message ||
-          'Unable to connect to the server.';
+          'Unable to load your account data.';
 
         if (status === 401) {
           setErrorMessage(
@@ -199,9 +186,9 @@ const Dashboard: React.FC = () => {
     loadDashboard();
   }, []);
 
-  // ==========================================================
+  // ============================================================
   // FORMAT MONEY
-  // ==========================================================
+  // ============================================================
 
   const formatMoney = (
     value: number
@@ -214,14 +201,9 @@ const Dashboard: React.FC = () => {
     })}`;
   };
 
-  // ==========================================================
+  // ============================================================
   // FORMATTED VALUES
-  // ==========================================================
-
-  const portfolioValue =
-    formatMoney(
-      performance.totalValue
-    );
+  // ============================================================
 
   const totalProfit =
     performance.totalGain >= 0
@@ -241,9 +223,9 @@ const Dashboard: React.FC = () => {
           2
         )}%`;
 
-  // ==========================================================
-  // MARKET DATA
-  // ==========================================================
+  // ============================================================
+  // MARKET OVERVIEW
+  // ============================================================
 
   const marketAssets = [
     {
@@ -296,23 +278,23 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  // ==========================================================
+  // ============================================================
   // RENDER
-  // ==========================================================
+  // ============================================================
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
         background:
-          'linear-gradient(180deg, #030a2c 0%, #071453 50%, #091b68 100%)',
+          'linear-gradient(180deg,#030a2c 0%,#071453 50%,#091b68 100%)',
         color: '#fff',
-        pb: 5,
+        pb: 6,
       }}
     >
-      {/* ====================================================
-          TOP BAR
-      ==================================================== */}
+      {/* ======================================================
+          TOP NAVIGATION
+      ====================================================== */}
 
       <AppBar
         position="sticky"
@@ -352,7 +334,10 @@ const Dashboard: React.FC = () => {
             onClick={() =>
               navigate('/market')
             }
-            sx={{ color: '#fff' }}
+            sx={{
+              color: '#fff',
+              textTransform: 'none',
+            }}
           >
             Markets
           </Button>
@@ -361,7 +346,10 @@ const Dashboard: React.FC = () => {
             onClick={() =>
               navigate('/portfolio')
             }
-            sx={{ color: '#fff' }}
+            sx={{
+              color: '#fff',
+              textTransform: 'none',
+            }}
           >
             Portfolio
           </Button>
@@ -370,16 +358,19 @@ const Dashboard: React.FC = () => {
             onClick={() =>
               navigate('/wallet')
             }
-            sx={{ color: '#fff' }}
+            sx={{
+              color: '#fff',
+              textTransform: 'none',
+            }}
           >
             Wallet
           </Button>
         </Toolbar>
       </AppBar>
 
-      {/* ====================================================
-          MAIN
-      ==================================================== */}
+      {/* ======================================================
+          MAIN CONTENT
+      ====================================================== */}
 
       <Container
         maxWidth="xl"
@@ -390,9 +381,9 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
-        {/* ==================================================
+        {/* ====================================================
             TITLE
-        ================================================== */}
+        ==================================================== */}
 
         <Box sx={{ mb: 4 }}>
           <Typography
@@ -418,53 +409,39 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* ==================================================
+        {/* ====================================================
             ERROR
-        ================================================== */}
+        ==================================================== */}
 
         {errorMessage && (
-          <Card
+          <Alert
+            severity="error"
             sx={{
               mb: 3,
-              background:
-                'rgba(255,193,7,0.12)',
-              border:
-                '1px solid rgba(255,193,7,0.3)',
-              color: '#fff',
             }}
+            onClose={() =>
+              setErrorMessage('')
+            }
           >
-            <CardContent>
-              <Typography
-                sx={{
-                  color: '#ffd54f',
-                  fontSize: 18,
-                  fontWeight: 800,
-                  mb: 1,
-                }}
-              >
-                Dashboard Error
-              </Typography>
+            {errorMessage}
 
-              <Typography>
-                {errorMessage}
-              </Typography>
-
+            <Box sx={{ mt: 1 }}>
               <Button
+                size="small"
                 variant="contained"
                 onClick={() =>
                   navigate('/login')
                 }
-                sx={{ mt: 2 }}
               >
                 Login Again
               </Button>
-            </CardContent>
-          </Card>
+            </Box>
+          </Alert>
         )}
 
-        {/* ==================================================
-            PORTFOLIO HERO
-        ================================================== */}
+        {/* ====================================================
+            TOTAL ACCOUNT VALUE
+        ==================================================== */}
 
         <Card
           sx={{
@@ -472,7 +449,7 @@ const Dashboard: React.FC = () => {
             borderRadius: 4,
             color: '#fff',
             background:
-              'linear-gradient(135deg, #172a8a, #1459e8)',
+              'linear-gradient(135deg,#172a8a,#1459e8)',
             border:
               '1px solid rgba(143,170,255,0.28)',
             boxShadow:
@@ -525,7 +502,9 @@ const Dashboard: React.FC = () => {
                       mt: 1,
                     }}
                   >
-                    {portfolioValue}
+                    {formatMoney(
+                      performance.totalValue
+                    )}
                   </Typography>
                 )}
 
@@ -539,6 +518,8 @@ const Dashboard: React.FC = () => {
                   {profitPercentage}
                 </Typography>
               </Box>
+
+              {/* WALLET ACCESS */}
 
               <Box
                 sx={{
@@ -557,7 +538,7 @@ const Dashboard: React.FC = () => {
                     fontWeight: 700,
                   }}
                 >
-                  BUYING POWER
+                  AVAILABLE BALANCE
                 </Typography>
 
                 <Typography
@@ -568,15 +549,14 @@ const Dashboard: React.FC = () => {
                   }}
                 >
                   {formatMoney(
-                    performance.buyingPower
+                    performance.availableBalance
                   )}
                 </Typography>
 
                 <Button
                   variant="contained"
-                  startIcon={<BoltIcon />}
                   onClick={() =>
-                    navigate('/trading')
+                    navigate('/wallet')
                   }
                   sx={{
                     mt: 2,
@@ -587,16 +567,16 @@ const Dashboard: React.FC = () => {
                     textTransform: 'none',
                   }}
                 >
-                  Start Trading
+                  Open Wallet
                 </Button>
               </Box>
             </Stack>
           </CardContent>
         </Card>
 
-        {/* ==================================================
-            FINANCIAL SUMMARY
-        ================================================== */}
+        {/* ====================================================
+            ACCOUNT SUMMARY
+        ==================================================== */}
 
         <Typography
           sx={{
@@ -900,9 +880,9 @@ const Dashboard: React.FC = () => {
           </Card>
         </Box>
 
-        {/* ==================================================
+        {/* ====================================================
             SECONDARY STATS
-        ================================================== */}
+        ==================================================== */}
 
         <Box
           sx={{
@@ -915,6 +895,8 @@ const Dashboard: React.FC = () => {
             mb: 4,
           }}
         >
+          {/* TOTAL GAIN */}
+
           <Card
             sx={{
               background:
@@ -948,6 +930,8 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* ACTIVE POSITIONS */}
+
           <Card
             sx={{
               background:
@@ -980,6 +964,8 @@ const Dashboard: React.FC = () => {
               </Typography>
             </CardContent>
           </Card>
+
+          {/* TOTAL HOLDINGS */}
 
           <Card
             sx={{
@@ -1018,9 +1004,9 @@ const Dashboard: React.FC = () => {
           </Card>
         </Box>
 
-        {/* ==================================================
+        {/* ====================================================
             MARKET + PORTFOLIO
-        ================================================== */}
+        ==================================================== */}
 
         <Box
           sx={{
@@ -1075,6 +1061,7 @@ const Dashboard: React.FC = () => {
                   }
                   sx={{
                     color: '#62dcff',
+                    textTransform: 'none',
                   }}
                 >
                   View Markets
@@ -1177,7 +1164,9 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* PORTFOLIO */}
+          {/* ==================================================
+              PORTFOLIO
+          ================================================== */}
 
           <Card
             sx={{
@@ -1188,15 +1177,33 @@ const Dashboard: React.FC = () => {
             }}
           >
             <CardContent>
-              <Typography
-                sx={{
-                  fontSize: 22,
-                  fontWeight: 800,
-                  mb: 1,
-                }}
+              <Stack
+                direction="row"
+                justifyContent="space-between"
+                alignItems="center"
+                sx={{ mb: 1 }}
               >
-                My Portfolio
-              </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 22,
+                    fontWeight: 800,
+                  }}
+                >
+                  My Portfolio
+                </Typography>
+
+                <Button
+                  onClick={() =>
+                    navigate('/portfolio')
+                  }
+                  sx={{
+                    color: '#62dcff',
+                    textTransform: 'none',
+                  }}
+                >
+                  View
+                </Button>
+              </Stack>
 
               <Typography
                 sx={{
@@ -1246,6 +1253,7 @@ const Dashboard: React.FC = () => {
                           display: 'flex',
                           justifyContent:
                             'space-between',
+                          alignItems: 'center',
                         }}
                       >
                         <Box>
@@ -1284,89 +1292,9 @@ const Dashboard: React.FC = () => {
                   )}
                 </Stack>
               )}
-
-              <Button
-                variant="outlined"
-                onClick={() =>
-                  navigate('/portfolio')
-                }
-                sx={{
-                  mt: 3,
-                  color: '#fff',
-                  borderColor: '#5ce8ff',
-                }}
-              >
-                View Portfolio
-              </Button>
             </CardContent>
           </Card>
         </Box>
-
-        {/* ==================================================
-            QUICK TRADE
-        ================================================== */}
-
-        <Card
-          sx={{
-            mt: 3,
-            borderRadius: 3,
-            color: '#fff',
-            background:
-              'linear-gradient(110deg,#1725a0,#1948ce,#078fe5)',
-          }}
-        >
-          <CardContent sx={{ p: 3 }}>
-            <Stack
-              direction={{
-                xs: 'column',
-                md: 'row',
-              }}
-              justifyContent="space-between"
-              alignItems={{
-                xs: 'flex-start',
-                md: 'center',
-              }}
-              spacing={2}
-            >
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                  }}
-                >
-                  Ready to Trade?
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color: '#c1d7ff',
-                    fontSize: 12,
-                    mt: 0.5,
-                  }}
-                >
-                  Open your trading workspace.
-                </Typography>
-              </Box>
-
-              <Button
-                variant="contained"
-                startIcon={<BoltIcon />}
-                onClick={() =>
-                  navigate('/trading')
-                }
-                sx={{
-                  py: 1.3,
-                  px: 3,
-                  textTransform: 'none',
-                  fontWeight: 800,
-                }}
-              >
-                Start Trading
-              </Button>
-            </Stack>
-          </CardContent>
-        </Card>
       </Container>
     </Box>
   );
