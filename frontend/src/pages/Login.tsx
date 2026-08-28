@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   Box,
   Button,
@@ -8,12 +6,12 @@ import {
   CardContent,
   TextField,
   Typography,
-  CircularProgress,
   Alert,
+  CircularProgress,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
-const API_URL =
-  'https://globalmarket-com.onrender.com/api/auth';
+import authService from '../services/authService';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -22,114 +20,70 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = async (
+  const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    setErrorMessage('');
+    setMessage('');
+    setError('');
 
     if (!email.trim() || !password) {
-      setErrorMessage(
-        'Please enter your email and password.'
-      );
+      setError('Please enter your email and password.');
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await axios.post(
-        `${API_URL}/login`,
-        {
-          email: email.trim().toLowerCase(),
-          password,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        }
+      console.log('LOGIN STARTED');
+
+      const response = await authService.login(
+        email.trim(),
+        password
       );
 
-      console.log(
-        'LOGIN SUCCESS:',
-        response.data
+      console.log('LOGIN RESPONSE:', response);
+
+      setMessage(
+        response.message || 'Login successful!'
       );
 
-      // Save authentication information
-      if (response.data?.accessToken) {
-        localStorage.setItem(
-          'authToken',
-          response.data.accessToken
-        );
-      }
+      /*
+       * IMPORTANT:
+       * We are NOT navigating to the dashboard yet.
+       *
+       * This is a test to make sure the login itself
+       * works before we involve Dashboard.tsx.
+       */
 
-      if (response.data?.refreshToken) {
-        localStorage.setItem(
-          'refreshToken',
-          response.data.refreshToken
-        );
-      }
+    } catch (error: any) {
+      console.error('LOGIN ERROR:', error);
 
-      if (response.data?.user) {
-        localStorage.setItem(
-          'user',
-          JSON.stringify(response.data.user)
-        );
-      }
-
-      // Go to dashboard
-      navigate('/dashboard');
-
-    } catch (error: unknown) {
-      console.error(
-        'LOGIN ERROR:',
-        error
-      );
-
-      if (axios.isAxiosError(error)) {
+      if (error?.response) {
         console.error(
           'BACKEND STATUS:',
-          error.response?.status
+          error.response.status
         );
 
         console.error(
           'BACKEND RESPONSE:',
-          error.response?.data
-        );
-
-        const message =
-          error.response?.data?.message ||
-          error.response?.data?.error;
-
-        if (message) {
-          setErrorMessage(message);
-        } else if (
-          error.response?.status === 401
-        ) {
-          setErrorMessage(
-            'Invalid email or password.'
-          );
-        } else if (
-          error.response?.status === 500
-        ) {
-          setErrorMessage(
-            'The server encountered an error. Please try again.'
-          );
-        } else {
-          setErrorMessage(
-            'Login failed. Please try again.'
-          );
-        }
-      } else {
-        setErrorMessage(
-          'Something went wrong. Please try again.'
+          error.response.data
         );
       }
+
+      const backendMessage =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message;
+
+      setError(
+        backendMessage ||
+          'Login failed. Please check your email and password.'
+      );
     } finally {
       setLoading(false);
     }
@@ -168,18 +122,27 @@ const Login: React.FC = () => {
             Login
           </Typography>
 
-          {errorMessage && (
+          {error && (
             <Alert
               severity="error"
               sx={{ mb: 2 }}
             >
-              {errorMessage}
+              {error}
+            </Alert>
+          )}
+
+          {message && (
+            <Alert
+              severity="success"
+              sx={{ mb: 2 }}
+            >
+              {message}
             </Alert>
           )}
 
           <Box
             component="form"
-            onSubmit={handleSubmit}
+            onSubmit={handleLogin}
             sx={{
               display: 'flex',
               flexDirection: 'column',
@@ -196,7 +159,6 @@ const Login: React.FC = () => {
                 setEmail(event.target.value)
               }
               disabled={loading}
-              required
             />
 
             <TextField
@@ -208,7 +170,6 @@ const Login: React.FC = () => {
                 setPassword(event.target.value)
               }
               disabled={loading}
-              required
             />
 
             <Button
@@ -237,9 +198,7 @@ const Login: React.FC = () => {
             <Button
               type="button"
               disabled={loading}
-              onClick={() =>
-                navigate('/register')
-              }
+              onClick={() => navigate('/register')}
             >
               Don't have an account? Register
             </Button>
@@ -251,6 +210,16 @@ const Login: React.FC = () => {
             >
               Back to Home
             </Button>
+
+            {message && (
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={() => navigate('/dashboard')}
+              >
+                Continue to Dashboard
+              </Button>
+            )}
 
           </Box>
 
