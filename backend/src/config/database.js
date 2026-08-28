@@ -1,22 +1,50 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
+// =====================================
+// DATABASE CONNECTION
+// =====================================
+
+// Render PostgreSQL provides DATABASE_URL.
+// This is the preferred connection method.
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  logger.error(
+    'DATABASE_URL is not set. PostgreSQL connection cannot be established.'
+  );
+}
+
 const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
+  connectionString: databaseUrl,
+
+  // Render PostgreSQL requires SSL.
+  ssl: databaseUrl
+    ? {
+        rejectUnauthorized: false
+      }
+    : false,
+
+  // Keep connections healthy on Render.
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  max: 10
 });
 
-pool.on('error', (err) => {
-  logger.error('Unexpected error on idle client', err);
-  process.exitCode = 1;
-});
+// =====================================
+// DATABASE EVENTS
+// =====================================
 
 pool.on('connect', () => {
   logger.info('Connected to PostgreSQL database');
 });
+
+pool.on('error', (err) => {
+  logger.error('Unexpected PostgreSQL pool error:', err);
+});
+
+// =====================================
+// EXPORT
+// =====================================
 
 module.exports = pool;
