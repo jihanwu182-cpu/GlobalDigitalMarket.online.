@@ -10,8 +10,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-
-import authService from '../services/authService';
+import axios from 'axios';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -21,7 +20,7 @@ const Login: React.FC = () => {
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
@@ -29,63 +28,103 @@ const Login: React.FC = () => {
     event.preventDefault();
 
     setMessage('');
-    setError('');
+    setErrorMessage('');
 
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+      setErrorMessage(
+        'Please enter your email and password.'
+      );
       return;
     }
 
     try {
       setLoading(true);
 
-      console.log('LOGIN STARTED');
+      console.log('LOGIN: starting request');
 
-      const response = await authService.login(
-        email.trim(),
-        password
+      const response = await axios.post(
+        'https://globalmarket-com.onrender.com/api/auth/login',
+        {
+          email: email.trim().toLowerCase(),
+          password,
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        }
       );
 
-      console.log('LOGIN RESPONSE:', response);
-
-      setMessage(
-        response.message || 'Login successful!'
+      console.log(
+        'LOGIN: response received',
+        response.data
       );
 
-      /*
-       * IMPORTANT:
-       * We are NOT navigating to the dashboard yet.
-       *
-       * This is a test to make sure the login itself
-       * works before we involve Dashboard.tsx.
-       */
+      const data = response.data;
 
-    } catch (error: any) {
-      console.error('LOGIN ERROR:', error);
-
-      if (error?.response) {
-        console.error(
-          'BACKEND STATUS:',
-          error.response.status
-        );
-
-        console.error(
-          'BACKEND RESPONSE:',
-          error.response.data
+      if (data?.accessToken) {
+        localStorage.setItem(
+          'authToken',
+          data.accessToken
         );
       }
 
-      const backendMessage =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message;
+      if (data?.refreshToken) {
+        localStorage.setItem(
+          'refreshToken',
+          data.refreshToken
+        );
+      }
 
-      setError(
-        backendMessage ||
-          'Login failed. Please check your email and password.'
+      if (data?.user) {
+        localStorage.setItem(
+          'user',
+          JSON.stringify(data.user)
+        );
+      }
+
+      setMessage(
+        data?.message ||
+          'Login successful!'
       );
-    } finally {
+
       setLoading(false);
+
+    } catch (error: unknown) {
+      console.error(
+        'LOGIN ERROR:',
+        error
+      );
+
+      setLoading(false);
+
+      if (axios.isAxiosError(error)) {
+        console.error(
+          'STATUS:',
+          error.response?.status
+        );
+
+        console.error(
+          'DATA:',
+          error.response?.data
+        );
+
+        const backendMessage =
+          error.response?.data?.message ||
+          error.response?.data?.error;
+
+        setErrorMessage(
+          backendMessage ||
+            'Login failed. Please try again.'
+        );
+      } else if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          'Login failed. Please try again.'
+        );
+      }
     }
   };
 
@@ -122,12 +161,12 @@ const Login: React.FC = () => {
             Login
           </Typography>
 
-          {error && (
+          {errorMessage && (
             <Alert
               severity="error"
               sx={{ mb: 2 }}
             >
-              {error}
+              {errorMessage}
             </Alert>
           )}
 
@@ -211,18 +250,7 @@ const Login: React.FC = () => {
               Back to Home
             </Button>
 
-            {message && (
-              <Button
-                type="button"
-                variant="outlined"
-                onClick={() => navigate('/dashboard')}
-              >
-                Continue to Dashboard
-              </Button>
-            )}
-
           </Box>
-
         </CardContent>
       </Card>
     </Box>
