@@ -25,7 +25,8 @@ const pool = new Pool({
     : process.env.DB_PASSWORD,
 
   ssl:
-    process.env.DB_SSL === 'true' || process.env.DATABASE_URL
+    process.env.DB_SSL === 'true' ||
+    process.env.DATABASE_URL
       ? {
           rejectUnauthorized: false,
         }
@@ -53,7 +54,9 @@ pool.on('error', (error) => {
 
 const initializeDatabase = async () => {
   try {
-    logger.info('Initializing PostgreSQL database...');
+    logger.info(
+      'Initializing PostgreSQL database...'
+    );
 
     // ========================================================
     // USERS TABLE
@@ -85,22 +88,28 @@ const initializeDatabase = async () => {
 
         country VARCHAR(100),
 
-        role VARCHAR(50) NOT NULL DEFAULT 'user',
+        role VARCHAR(50)
+          NOT NULL DEFAULT 'user',
 
-        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        status VARCHAR(50)
+          NOT NULL DEFAULT 'active',
 
-        email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+        email_verified BOOLEAN
+          NOT NULL DEFAULT FALSE,
 
-        two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        two_factor_enabled BOOLEAN
+          NOT NULL DEFAULT FALSE,
 
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     // ========================================================
-    // ADD MISSING USER COLUMNS
+    // USER COLUMNS
     // ========================================================
 
     await pool.query(`
@@ -149,7 +158,9 @@ const initializeDatabase = async () => {
       ON users(email);
     `);
 
-    logger.info('Users table is ready');
+    logger.info(
+      'Users table is ready'
+    );
 
     // ========================================================
     // ACCOUNTS TABLE
@@ -163,13 +174,15 @@ const initializeDatabase = async () => {
           REFERENCES users(id)
           ON DELETE CASCADE,
 
-        account_number VARCHAR(100) UNIQUE NOT NULL,
+        account_number VARCHAR(100)
+          UNIQUE NOT NULL,
 
         account_type VARCHAR(50)
           NOT NULL DEFAULT 'standard',
 
         account_name VARCHAR(150)
-          NOT NULL DEFAULT 'Global Digital Market Account',
+          NOT NULL DEFAULT
+          'Global Digital Market Account',
 
         balance NUMERIC(20, 2)
           NOT NULL DEFAULT 0,
@@ -207,7 +220,7 @@ const initializeDatabase = async () => {
     `);
 
     // ========================================================
-    // ADD NEW ACCOUNT COLUMNS TO EXISTING DATABASES
+    // ACCOUNT COLUMNS
     // ========================================================
 
     await pool.query(`
@@ -244,7 +257,9 @@ const initializeDatabase = async () => {
       ON accounts(status);
     `);
 
-    logger.info('Accounts table is ready');
+    logger.info(
+      'Accounts table is ready'
+    );
 
     // ========================================================
     // PORTFOLIO HOLDINGS TABLE
@@ -302,6 +317,105 @@ const initializeDatabase = async () => {
     );
 
     // ========================================================
+    // TRANSACTIONS TABLE
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transactions (
+        id SERIAL PRIMARY KEY,
+
+        account_id INTEGER NOT NULL
+          REFERENCES accounts(id)
+          ON DELETE CASCADE,
+
+        transaction_reference VARCHAR(120)
+          UNIQUE NOT NULL,
+
+        transaction_type VARCHAR(30)
+          NOT NULL,
+
+        amount NUMERIC(20, 2)
+          NOT NULL,
+
+        currency VARCHAR(10)
+          NOT NULL DEFAULT 'USD',
+
+        payment_method VARCHAR(80),
+
+        status VARCHAR(30)
+          NOT NULL DEFAULT 'PENDING',
+
+        description TEXT,
+
+        metadata JSONB
+          NOT NULL DEFAULT '{}'::jsonb,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT transactions_type_check
+        CHECK (
+          transaction_type IN (
+            'DEPOSIT',
+            'WITHDRAWAL',
+            'BONUS',
+            'PROFIT',
+            'REFERRER_BONUS'
+          )
+        ),
+
+        CONSTRAINT transactions_status_check
+        CHECK (
+          status IN (
+            'PENDING',
+            'PROCESSING',
+            'COMPLETED',
+            'FAILED',
+            'CANCELLED'
+          )
+        ),
+
+        CONSTRAINT transactions_amount_check
+        CHECK (amount > 0)
+      );
+    `);
+
+    // ========================================================
+    // TRANSACTION INDEXES
+    // ========================================================
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_transactions_account_id
+      ON transactions(account_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_transactions_type
+      ON transactions(transaction_type);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_transactions_status
+      ON transactions(status);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_transactions_created_at
+      ON transactions(created_at DESC);
+    `);
+
+    logger.info(
+      'Transactions table is ready'
+    );
+
+    // ========================================================
     // CREATE DEFAULT ACCOUNT FOR EXISTING USERS
     // ========================================================
 
@@ -323,12 +437,18 @@ const initializeDatabase = async () => {
       )
       SELECT
         u.id,
+
         'GDM-' ||
         u.id ||
         '-' ||
-        FLOOR(EXTRACT(EPOCH FROM NOW()))::BIGINT,
+        FLOOR(
+          EXTRACT(EPOCH FROM NOW())
+        )::BIGINT,
+
         'standard',
+
         'Global Digital Market Account',
+
         0,
         0,
         0,
@@ -337,8 +457,11 @@ const initializeDatabase = async () => {
         0,
         0,
         0,
+
         'active'
+
       FROM users u
+
       WHERE NOT EXISTS (
         SELECT 1
         FROM accounts a
@@ -375,5 +498,6 @@ const initializeDatabase = async () => {
 // ============================================================
 
 module.exports = pool;
+
 module.exports.initializeDatabase =
   initializeDatabase;
