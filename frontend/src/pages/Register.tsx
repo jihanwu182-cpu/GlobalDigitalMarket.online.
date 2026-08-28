@@ -9,18 +9,66 @@ import {
   Typography,
   CircularProgress,
   Alert,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 
 import apiClient from '../services/apiClient';
+
+const countries = [
+  'Nigeria',
+  'South Africa',
+  'Ghana',
+  'Kenya',
+  'United Kingdom',
+  'United States',
+  'Canada',
+  'Australia',
+  'Germany',
+  'France',
+  'United Arab Emirates',
+  'Saudi Arabia',
+  'India',
+  'China',
+  'Japan',
+  'Switzerland',
+  'Other',
+];
+
+const currencies = [
+  { code: 'USD', name: 'US Dollar' },
+  { code: 'EUR', name: 'Euro' },
+  { code: 'GBP', name: 'British Pound' },
+  { code: 'ZAR', name: 'South African Rand' },
+  { code: 'NGN', name: 'Nigerian Naira' },
+  { code: 'KES', name: 'Kenyan Shilling' },
+  { code: 'GHS', name: 'Ghanaian Cedi' },
+  { code: 'CAD', name: 'Canadian Dollar' },
+  { code: 'AUD', name: 'Australian Dollar' },
+  { code: 'CHF', name: 'Swiss Franc' },
+  { code: 'JPY', name: 'Japanese Yen' },
+  { code: 'CNY', name: 'Chinese Yuan' },
+  { code: 'AED', name: 'UAE Dirham' },
+  { code: 'SAR', name: 'Saudi Riyal' },
+  { code: 'INR', name: 'Indian Rupee' },
+];
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
 
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('');
+  const [preferredCurrency, setPreferredCurrency] =
+    useState('USD');
+  const [referrerCode, setReferrerCode] = useState('');
+
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] =
+    useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,6 +82,10 @@ const Register: React.FC = () => {
     setErrorMessage('');
     setSuccessMessage('');
 
+    // --------------------------------------------------------
+    // VALIDATION
+    // --------------------------------------------------------
+
     if (!firstName.trim()) {
       setErrorMessage('Please enter your first name.');
       return;
@@ -44,8 +96,48 @@ const Register: React.FC = () => {
       return;
     }
 
+    if (!username.trim()) {
+      setErrorMessage('Please enter a username.');
+      return;
+    }
+
+    if (username.trim().length < 3) {
+      setErrorMessage(
+        'Username must contain at least 3 characters.'
+      );
+      return;
+    }
+
     if (!email.trim()) {
-      setErrorMessage('Please enter your email.');
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+
+    if (!email.includes('@')) {
+      setErrorMessage(
+        'Please enter a valid email address.'
+      );
+      return;
+    }
+
+    if (!phone.trim()) {
+      setErrorMessage(
+        'Phone number is required.'
+      );
+      return;
+    }
+
+    if (!country) {
+      setErrorMessage(
+        'Please select your country.'
+      );
+      return;
+    }
+
+    if (!preferredCurrency) {
+      setErrorMessage(
+        'Please select your preferred currency.'
+      );
       return;
     }
 
@@ -62,14 +154,18 @@ const Register: React.FC = () => {
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setErrorMessage(
+        'Passwords do not match.'
+      );
       return;
     }
 
+    // --------------------------------------------------------
+    // REGISTER
+    // --------------------------------------------------------
+
     try {
       setLoading(true);
-
-      console.log('REGISTER: sending request');
 
       const response = await apiClient.post(
         '/auth/register',
@@ -78,20 +174,33 @@ const Register: React.FC = () => {
           password,
           firstName: firstName.trim(),
           lastName: lastName.trim(),
+          username: username.trim(),
+          phone: phone.trim(),
+          country: country.trim(),
+          preferredCurrency,
+          referrerCode: referrerCode.trim() || undefined,
         }
-      );
-
-      console.log(
-        'REGISTER: backend response',
-        response.data
       );
 
       const data = response.data;
 
-      // Save authentication information if supplied
+      console.log(
+        'Registration successful:',
+        data
+      );
+
+      // ------------------------------------------------------
+      // SAVE AUTHENTICATION
+      // ------------------------------------------------------
+
       if (data?.accessToken) {
         localStorage.setItem(
           'authToken',
+          data.accessToken
+        );
+
+        localStorage.setItem(
+          'token',
           data.accessToken
         );
       }
@@ -110,14 +219,32 @@ const Register: React.FC = () => {
         );
       }
 
+      if (data?.account) {
+        localStorage.setItem(
+          'account',
+          JSON.stringify(data.account)
+        );
+      }
+
+      // ------------------------------------------------------
+      // SUCCESS
+      // ------------------------------------------------------
+
       setSuccessMessage(
         data?.message ||
-          'Account created successfully!'
+          'Your account has been created successfully.'
       );
 
-      // Clear password fields
       setPassword('');
       setConfirmPassword('');
+
+      /*
+       * Give the user a moment to see the success message,
+       * then take them to the dashboard.
+       */
+      setTimeout(() => {
+        navigate('/');
+      }, 1500);
 
     } catch (error: any) {
       console.error(
@@ -125,25 +252,17 @@ const Register: React.FC = () => {
         error
       );
 
-      if (error?.response) {
-        console.error(
-          'STATUS:',
-          error.response.status
-        );
-
-        console.error(
-          'DATA:',
-          error.response.data
-        );
-      }
-
       let message =
         'Registration failed. Please try again.';
 
-      if (error?.response?.data?.message) {
+      if (
+        error?.response?.data?.message
+      ) {
         message =
           error.response.data.message;
-      } else if (error?.response?.data?.error) {
+      } else if (
+        error?.response?.data?.error
+      ) {
         message =
           error.response.data.error;
       } else if (error?.message) {
@@ -165,35 +284,70 @@ const Register: React.FC = () => {
         alignItems: 'center',
         justifyContent: 'center',
         background:
-          'linear-gradient(135deg, #0f172a 0%, #16213e 50%, #1e3a5f 100%)',
-        padding: 2,
+          'radial-gradient(circle at top right, rgba(25,84,199,0.35), transparent 30%), linear-gradient(135deg,#02071f 0%,#071453 50%,#102b82 100%)',
+        p: 2,
       }}
     >
       <Card
         sx={{
           width: '100%',
-          maxWidth: 450,
-          boxShadow: 5,
+          maxWidth: 560,
+          borderRadius: 4,
+          color: '#fff',
+          background:
+            'linear-gradient(145deg,#0b1b5a,#07113b)',
+          border:
+            '1px solid rgba(110,190,255,0.25)',
+          boxShadow:
+            '0 25px 70px rgba(0,0,0,0.35)',
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        <CardContent
+          sx={{
+            p: {
+              xs: 3,
+              sm: 5,
+            },
+          }}
+        >
+          {/* --------------------------------------------------
+              HEADER
+          -------------------------------------------------- */}
 
           <Typography
             variant="h4"
             component="h1"
             sx={{
               textAlign: 'center',
-              fontWeight: 700,
-              mb: 3,
+              fontWeight: 900,
+              mb: 1,
             }}
           >
-            Create Account
+            Create Your Account
           </Typography>
+
+          <Typography
+            sx={{
+              textAlign: 'center',
+              color: '#8fa8ed',
+              fontSize: 13,
+              mb: 4,
+            }}
+          >
+            Join Global Digital Market
+          </Typography>
+
+          {/* --------------------------------------------------
+              ALERTS
+          -------------------------------------------------- */}
 
           {errorMessage && (
             <Alert
               severity="error"
-              sx={{ mb: 2 }}
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+              }}
             >
               {errorMessage}
             </Alert>
@@ -202,11 +356,18 @@ const Register: React.FC = () => {
           {successMessage && (
             <Alert
               severity="success"
-              sx={{ mb: 2 }}
+              sx={{
+                mb: 2,
+                borderRadius: 2,
+              }}
             >
               {successMessage}
             </Alert>
           )}
+
+          {/* --------------------------------------------------
+              FORM
+          -------------------------------------------------- */}
 
           <Box
             component="form"
@@ -217,40 +378,207 @@ const Register: React.FC = () => {
               gap: 2,
             }}
           >
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 900,
+                color: '#5ce8ff',
+                mt: 1,
+              }}
+            >
+              PERSONAL INFORMATION
+            </Typography>
+
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: '1fr 1fr',
+                },
+                gap: 2,
+              }}
+            >
+              <TextField
+                fullWidth
+                required
+                label="First Name"
+                value={firstName}
+                onChange={(e) =>
+                  setFirstName(e.target.value)
+                }
+                disabled={loading}
+                InputLabelProps={{
+                  sx: { color: '#91a7e9' },
+                }}
+              />
+
+              <TextField
+                fullWidth
+                required
+                label="Last Name"
+                value={lastName}
+                onChange={(e) =>
+                  setLastName(e.target.value)
+                }
+                disabled={loading}
+                InputLabelProps={{
+                  sx: { color: '#91a7e9' },
+                }}
+              />
+            </Box>
 
             <TextField
               fullWidth
-              label="First Name"
-              value={firstName}
+              required
+              label="Username"
+              value={username}
               onChange={(e) =>
-                setFirstName(e.target.value)
+                setUsername(e.target.value)
               }
               disabled={loading}
+              helperText="Minimum 3 characters"
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
             />
 
             <TextField
               fullWidth
-              label="Last Name"
-              value={lastName}
-              onChange={(e) =>
-                setLastName(e.target.value)
-              }
-              disabled={loading}
-            />
-
-            <TextField
-              fullWidth
-              label="Email"
+              required
+              label="Email Address"
               type="email"
               value={email}
               onChange={(e) =>
                 setEmail(e.target.value)
               }
               disabled={loading}
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
             />
 
             <TextField
               fullWidth
+              required
+              label="Phone Number"
+              type="tel"
+              value={phone}
+              onChange={(e) =>
+                setPhone(e.target.value)
+              }
+              disabled={loading}
+              placeholder="+234 800 000 0000"
+              helperText="Required for account security"
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
+            />
+
+            <Divider
+              sx={{
+                borderColor:
+                  'rgba(255,255,255,0.10)',
+                my: 1,
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 900,
+                color: '#5ce8ff',
+              }}
+            >
+              ACCOUNT PREFERENCES
+            </Typography>
+
+            <TextField
+              select
+              fullWidth
+              required
+              label="Country"
+              value={country}
+              onChange={(e) =>
+                setCountry(e.target.value)
+              }
+              disabled={loading}
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
+            >
+              {countries.map((item) => (
+                <MenuItem
+                  key={item}
+                  value={item}
+                >
+                  {item}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              select
+              fullWidth
+              required
+              label="Preferred Currency"
+              value={preferredCurrency}
+              onChange={(e) =>
+                setPreferredCurrency(
+                  e.target.value
+                )
+              }
+              disabled={loading}
+              helperText="Your account will use this currency"
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
+            >
+              {currencies.map((currency) => (
+                <MenuItem
+                  key={currency.code}
+                  value={currency.code}
+                >
+                  {currency.code} — {currency.name}
+                </MenuItem>
+              ))}
+            </TextField>
+
+            <TextField
+              fullWidth
+              label="Referrer Code (Optional)"
+              value={referrerCode}
+              onChange={(e) =>
+                setReferrerCode(e.target.value)
+              }
+              disabled={loading}
+              helperText="Leave blank if you were not referred by someone."
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
+            />
+
+            <Divider
+              sx={{
+                borderColor:
+                  'rgba(255,255,255,0.10)',
+                my: 1,
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: 13,
+                fontWeight: 900,
+                color: '#5ce8ff',
+              }}
+            >
+              SECURITY
+            </Typography>
+
+            <TextField
+              fullWidth
+              required
               label="Password"
               type="password"
               value={password}
@@ -259,18 +587,31 @@ const Register: React.FC = () => {
               }
               disabled={loading}
               helperText="Minimum 8 characters"
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
             />
 
             <TextField
               fullWidth
+              required
               label="Confirm Password"
               type="password"
               value={confirmPassword}
               onChange={(e) =>
-                setConfirmPassword(e.target.value)
+                setConfirmPassword(
+                  e.target.value
+                )
               }
               disabled={loading}
+              InputLabelProps={{
+                sx: { color: '#91a7e9' },
+              }}
             />
+
+            {/* ------------------------------------------------
+                SUBMIT
+            ------------------------------------------------ */}
 
             <Button
               fullWidth
@@ -278,15 +619,28 @@ const Register: React.FC = () => {
               variant="contained"
               disabled={loading}
               sx={{
-                py: 1.5,
+                py: 1.6,
                 mt: 1,
+                borderRadius: 2,
+                fontWeight: 900,
+                fontSize: 15,
+                textTransform: 'none',
+                background:
+                  'linear-gradient(90deg,#12ccef,#2865ff)',
+                '&:hover': {
+                  background:
+                    'linear-gradient(90deg,#27dcff,#3975ff)',
+                },
               }}
             >
               {loading ? (
                 <>
                   <CircularProgress
-                    size={24}
-                    sx={{ mr: 1 }}
+                    size={23}
+                    sx={{
+                      mr: 1,
+                      color: '#fff',
+                    }}
                   />
                   Creating Account...
                 </>
@@ -301,6 +655,11 @@ const Register: React.FC = () => {
               onClick={() =>
                 navigate('/login')
               }
+              sx={{
+                color: '#5ce8ff',
+                textTransform: 'none',
+                fontWeight: 700,
+              }}
             >
               Already have an account? Login
             </Button>
@@ -311,12 +670,14 @@ const Register: React.FC = () => {
               onClick={() =>
                 navigate('/')
               }
+              sx={{
+                color: '#8fa8ed',
+                textTransform: 'none',
+              }}
             >
               Back to Home
             </Button>
-
           </Box>
-
         </CardContent>
       </Card>
     </Box>
