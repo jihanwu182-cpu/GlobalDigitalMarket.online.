@@ -20,9 +20,7 @@ apiClient.interceptors.request.use(
       localStorage.getItem('token');
 
     if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization =
-        `Bearer ${token}`;
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
@@ -32,7 +30,7 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Handle API responses/errors
+// Handle API responses and errors
 apiClient.interceptors.response.use(
   (response) => {
     return response;
@@ -57,6 +55,8 @@ apiClient.interceptors.response.use(
       );
     }
 
+    // Do not automatically redirect.
+    // HashRouter handles navigation in the frontend.
     return Promise.reject(error);
   }
 );
