@@ -13,7 +13,7 @@ const {
 
 
 // ============================================================
-// HELPERS
+// SUPPORTED CURRENCIES
 // ============================================================
 
 const SUPPORTED_CURRENCIES = [
@@ -34,6 +34,11 @@ const SUPPORTED_CURRENCIES = [
   'INR',
 ];
 
+
+// ============================================================
+// HELPERS
+// ============================================================
+
 const normalizeText = (value) => {
   if (value === undefined || value === null) {
     return '';
@@ -41,6 +46,7 @@ const normalizeText = (value) => {
 
   return String(value).trim();
 };
+
 
 const generateReferralCode = (userId) => {
   const randomPart = Math.random()
@@ -50,6 +56,7 @@ const generateReferralCode = (userId) => {
 
   return `GDM${userId}${randomPart}`;
 };
+
 
 const generateAccountNumber = (userId) => {
   const timestamp = Date.now()
@@ -90,18 +97,22 @@ const register = async (req, res, next) => {
       !firstName ||
       !lastName ||
       !username ||
+      !phone ||
       !country ||
       !preferredCurrency
     ) {
       return res.status(400).json({
         message:
-          'Please provide email, password, first name, last name, username, country and preferred currency.',
+          'Please provide email, password, first name, last name, username, phone number, country and preferred currency.',
       });
     }
 
-    const normalizedEmail = normalizeText(
-      email
-    ).toLowerCase();
+    // --------------------------------------------------------
+    // NORMALIZE
+    // --------------------------------------------------------
+
+    const normalizedEmail =
+      normalizeText(email).toLowerCase();
 
     const normalizedFirstName =
       normalizeText(firstName);
@@ -112,15 +123,14 @@ const register = async (req, res, next) => {
     const normalizedUsername =
       normalizeText(username);
 
+    const normalizedPhone =
+      normalizeText(phone);
+
     const normalizedCountry =
       normalizeText(country);
 
     const normalizedCurrency =
-      normalizeText(preferredCurrency)
-        .toUpperCase();
-
-    const normalizedPhone =
-      normalizeText(phone);
+      normalizeText(preferredCurrency).toUpperCase();
 
     const normalizedReferrerCode =
       normalizeText(referrerCode);
@@ -131,7 +141,8 @@ const register = async (req, res, next) => {
 
     if (!normalizedEmail.includes('@')) {
       return res.status(400).json({
-        message: 'Please provide a valid email address.',
+        message:
+          'Please provide a valid email address.',
       });
     }
 
@@ -142,10 +153,38 @@ const register = async (req, res, next) => {
       });
     }
 
+    if (normalizedFirstName.length < 2) {
+      return res.status(400).json({
+        message:
+          'Please provide a valid first name.',
+      });
+    }
+
+    if (normalizedLastName.length < 2) {
+      return res.status(400).json({
+        message:
+          'Please provide a valid last name.',
+      });
+    }
+
     if (normalizedUsername.length < 3) {
       return res.status(400).json({
         message:
           'Username must contain at least 3 characters.',
+      });
+    }
+
+    if (normalizedPhone.length < 7) {
+      return res.status(400).json({
+        message:
+          'Please provide a valid phone number.',
+      });
+    }
+
+    if (!normalizedCountry) {
+      return res.status(400).json({
+        message:
+          'Please select your country.',
       });
     }
 
@@ -167,7 +206,7 @@ const register = async (req, res, next) => {
     );
 
     // --------------------------------------------------------
-    // START DATABASE TRANSACTION
+    // START TRANSACTION
     // --------------------------------------------------------
 
     await client.query('BEGIN');
@@ -221,7 +260,31 @@ const register = async (req, res, next) => {
     }
 
     // --------------------------------------------------------
-    // VALIDATE REFERRER CODE
+    // CHECK PHONE
+    // --------------------------------------------------------
+
+    const existingPhone =
+      await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE phone = $1
+        LIMIT 1
+        `,
+        [normalizedPhone]
+      );
+
+    if (existingPhone.rows.length > 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(409).json({
+        message:
+          'This phone number is already associated with an account.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // VALIDATE OPTIONAL REFERRER CODE
     // --------------------------------------------------------
 
     let validReferrerCode = null;
@@ -319,7 +382,7 @@ const register = async (req, res, next) => {
           normalizedFirstName,
           normalizedLastName,
           normalizedUsername,
-          normalizedPhone || null,
+          normalizedPhone,
           normalizedCountry,
           normalizedCurrency,
           validReferrerCode,
@@ -352,9 +415,7 @@ const register = async (req, res, next) => {
           [referralCode]
         );
 
-      if (
-        referralCheck.rows.length === 0
-      ) {
+      if (referralCheck.rows.length === 0) {
         break;
       }
 
@@ -433,13 +494,7 @@ const register = async (req, res, next) => {
           account_name,
           currency,
           balance,
-          deposit,
-          profits,
           available_balance,
-          bonus,
-          referrer_bonus,
-          buying_power,
-          margin_available,
           status,
           created_at
         `,
@@ -460,33 +515,51 @@ const register = async (req, res, next) => {
     await client.query('COMMIT');
 
     // --------------------------------------------------------
-    // FRONTEND USER OBJECT
+    // USER RESPONSE OBJECT
     // --------------------------------------------------------
 
     const user = {
       id: databaseUser.id,
-      email: databaseUser.email,
+
+      email:
+        databaseUser.email,
+
       firstName:
         databaseUser.first_name,
+
       lastName:
         databaseUser.last_name,
+
       username:
         databaseUser.username,
+
       phone:
         databaseUser.phone,
+
       country:
         databaseUser.country,
+
       preferredCurrency:
         databaseUser.preferred_currency,
-      referralCode,
+
+      referralCode:
+        referralCode,
+
       referrerCode:
         databaseUser.referrer_code,
-      role: databaseUser.role,
-      status: databaseUser.status,
+
+      role:
+        databaseUser.role,
+
+      status:
+        databaseUser.status,
+
       emailVerified:
         databaseUser.email_verified,
+
       identityVerificationStatus:
         databaseUser.identity_verification_status,
+
       createdAt:
         databaseUser.created_at,
     };
@@ -519,29 +592,42 @@ const register = async (req, res, next) => {
     return res.status(201).json({
       message:
         'Account created successfully.',
+
       user,
+
       account: {
-        id: account.id,
+        id:
+          account.id,
+
         accountNumber:
           account.account_number,
+
         accountType:
           account.account_type,
+
         accountName:
           account.account_name,
+
         currency:
           account.currency,
+
         balance:
-          Number(account.balance),
+          Number(account.balance || 0),
+
         availableBalance:
           Number(
-            account.available_balance
+            account.available_balance || 0
           ),
+
         status:
           account.status,
+
         createdAt:
           account.created_at,
       },
+
       accessToken,
+
       refreshToken,
     });
 
@@ -593,10 +679,6 @@ const login = async (req, res, next) => {
       `Login attempt for email: ${normalizedEmail}`
     );
 
-    // --------------------------------------------------------
-    // FIND USER
-    // --------------------------------------------------------
-
     const result =
       await pool.query(
         `
@@ -646,10 +728,6 @@ const login = async (req, res, next) => {
     const databaseUser =
       result.rows[0];
 
-    // --------------------------------------------------------
-    // PASSWORD
-    // --------------------------------------------------------
-
     const passwordMatches =
       await comparePassword(
         password,
@@ -690,33 +768,51 @@ const login = async (req, res, next) => {
     // --------------------------------------------------------
 
     const user = {
-      id: databaseUser.id,
-      email: databaseUser.email,
+      id:
+        databaseUser.id,
+
+      email:
+        databaseUser.email,
+
       firstName:
         databaseUser.first_name,
+
       lastName:
         databaseUser.last_name,
+
       username:
         databaseUser.username || '',
+
       phone:
         databaseUser.phone || '',
+
       country:
         databaseUser.country || '',
+
       preferredCurrency:
         databaseUser.preferred_currency ||
         databaseUser.account_currency ||
         'USD',
+
       referralCode:
         databaseUser.referral_code || '',
+
       referrerCode:
         databaseUser.referrer_code || '',
-      role: databaseUser.role,
-      status: databaseUser.status,
+
+      role:
+        databaseUser.role,
+
+      status:
+        databaseUser.status,
+
       emailVerified:
         databaseUser.email_verified,
+
       identityVerificationStatus:
         databaseUser.identity_verification_status ||
         'PENDING',
+
       createdAt:
         databaseUser.created_at,
     };
@@ -746,7 +842,7 @@ const login = async (req, res, next) => {
             availableBalance:
               Number(
                 databaseUser.available_balance ||
-                  0
+                0
               ),
           }
         : null;
@@ -775,9 +871,13 @@ const login = async (req, res, next) => {
     return res.status(200).json({
       message:
         'Login successful.',
+
       user,
+
       account,
+
       accessToken,
+
       refreshToken,
     });
 
@@ -832,15 +932,6 @@ const refreshToken = async (
           'Refresh token is required.',
       });
     }
-
-    /*
-     * Refresh-token verification is intentionally
-     * left disabled until the JWT utility exposes
-     * a proper verification function.
-     *
-     * We do not issue a new token without validating
-     * the supplied refresh token.
-     */
 
     return res.status(501).json({
       message:
