@@ -1,4 +1,5 @@
 import React from 'react';
+
 import {
   HashRouter,
   Routes,
@@ -21,6 +22,7 @@ import Portfolio from './pages/Portfolio';
 import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
+import ContactSupport from './pages/ContactSupport';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -187,6 +189,7 @@ const theme = createTheme({
       default: '#f5f5f5',
     },
   },
+
   typography: {
     fontFamily:
       'Roboto, Arial, sans-serif',
@@ -202,10 +205,14 @@ const App: React.FC = () => {
         <HashRouter>
           <Routes>
 
+            {/* HOME */}
+
             <Route
               path="/"
               element={<Home />}
             />
+
+            {/* AUTHENTICATION */}
 
             <Route
               path="/login"
@@ -217,30 +224,49 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
+            {/* MAIN DASHBOARD */}
+
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
+
+            {/* PORTFOLIO */}
 
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
 
+            {/* TRADING */}
+
             <Route
               path="/trading"
               element={<Trading />}
             />
+
+            {/* MARKETS */}
 
             <Route
               path="/market"
               element={<Market />}
             />
 
+            {/* WALLET */}
+
             <Route
               path="/wallet"
               element={<Wallet />}
             />
+
+            {/* CONTACT SUPPORT */}
+
+            <Route
+              path="/support"
+              element={<ContactSupport />}
+            />
+
+            {/* UNKNOWN ROUTES */}
 
             <Route
               path="*"
