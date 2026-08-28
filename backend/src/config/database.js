@@ -25,8 +25,8 @@ const pool = new Pool({
     : process.env.DB_PASSWORD,
 
   ssl:
-    process.env.DB_SSL === 'true' ||
-    process.env.DATABASE_URL
+    process.env.DATABASE_URL ||
+    process.env.DB_SSL === 'true'
       ? {
           rejectUnauthorized: false,
         }
@@ -42,11 +42,9 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (error) => {
-  logger.error(
-    'Unexpected PostgreSQL pool error:',
-    error
-  );
+  logger.error('Unexpected PostgreSQL pool error:', error);
 });
+
 
 // ============================================================
 // DATABASE INITIALIZATION
@@ -54,12 +52,10 @@ pool.on('error', (error) => {
 
 const initializeDatabase = async () => {
   try {
-    logger.info(
-      'Initializing PostgreSQL database...'
-    );
+    logger.info('Initializing PostgreSQL database...');
 
     // ========================================================
-    // USERS TABLE
+    // USERS
     // ========================================================
 
     await pool.query(`
@@ -127,7 +123,7 @@ const initializeDatabase = async () => {
     `);
 
     // ========================================================
-    // USER COLUMNS
+    // USERS - SAFE MIGRATIONS
     // ========================================================
 
     await pool.query(`
@@ -172,8 +168,8 @@ const initializeDatabase = async () => {
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS preferred_currency
-      VARCHAR(10) NOT NULL DEFAULT 'USD';
+      ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10)
+      DEFAULT 'USD';
     `);
 
     await pool.query(`
@@ -188,36 +184,33 @@ const initializeDatabase = async () => {
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS identity_document_type
-      VARCHAR(30);
+      ADD COLUMN IF NOT EXISTS identity_document_type VARCHAR(30);
     `);
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS identity_document_number
-      VARCHAR(150);
+      ADD COLUMN IF NOT EXISTS identity_document_number VARCHAR(150);
     `);
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS identity_document_url
-      TEXT;
+      ADD COLUMN IF NOT EXISTS identity_document_url TEXT;
     `);
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS identity_verification_status
-      VARCHAR(30) NOT NULL DEFAULT 'PENDING';
+      ADD COLUMN IF NOT EXISTS identity_verification_status VARCHAR(30)
+      DEFAULT 'PENDING';
     `);
 
     await pool.query(`
       ALTER TABLE users
-      ADD COLUMN IF NOT EXISTS two_factor_enabled
-      BOOLEAN NOT NULL DEFAULT FALSE;
+      ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN
+      DEFAULT FALSE;
     `);
 
     // ========================================================
-    // USER INDEXES
+    // USERS INDEXES
     // ========================================================
 
     await pool.query(`
@@ -240,23 +233,11 @@ const initializeDatabase = async () => {
       ON users(preferred_currency);
     `);
 
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_users_referrer_code
-      ON users(referrer_code);
-    `);
+    logger.info('Users table is ready');
 
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_users_identity_status
-      ON users(identity_verification_status);
-    `);
-
-    logger.info(
-      'Users table is ready'
-    );
 
     // ========================================================
-    // ACCOUNTS TABLE
+    // ACCOUNTS
     // ========================================================
 
     await pool.query(`
@@ -315,38 +296,34 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // ========================================================
-    // ACCOUNT COLUMNS
-    // ========================================================
-
     await pool.query(`
       ALTER TABLE accounts
-      ADD COLUMN IF NOT EXISTS currency
-      VARCHAR(10) NOT NULL DEFAULT 'USD';
+      ADD COLUMN IF NOT EXISTS currency VARCHAR(10)
+      DEFAULT 'USD';
     `);
 
     await pool.query(`
       ALTER TABLE accounts
-      ADD COLUMN IF NOT EXISTS deposit
-      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS deposit NUMERIC(20, 2)
+      DEFAULT 0;
     `);
 
     await pool.query(`
       ALTER TABLE accounts
-      ADD COLUMN IF NOT EXISTS profits
-      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS profits NUMERIC(20, 2)
+      DEFAULT 0;
     `);
 
     await pool.query(`
       ALTER TABLE accounts
-      ADD COLUMN IF NOT EXISTS bonus
-      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS bonus NUMERIC(20, 2)
+      DEFAULT 0;
     `);
 
     await pool.query(`
       ALTER TABLE accounts
-      ADD COLUMN IF NOT EXISTS referrer_bonus
-      NUMERIC(20, 2) NOT NULL DEFAULT 0;
+      ADD COLUMN IF NOT EXISTS referrer_bonus NUMERIC(20, 2)
+      DEFAULT 0;
     `);
 
     await pool.query(`
@@ -354,14 +331,8 @@ const initializeDatabase = async () => {
       ON accounts(user_id);
     `);
 
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_accounts_status
-      ON accounts(status);
-    `);
+    logger.info('Accounts table is ready');
 
-    logger.info(
-      'Accounts table is ready'
-    );
 
     // ========================================================
     // PORTFOLIO HOLDINGS
@@ -403,23 +374,15 @@ const initializeDatabase = async () => {
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_portfolio_holdings_account
+      CREATE INDEX IF NOT EXISTS idx_portfolio_account
       ON portfolio_holdings(account_id);
     `);
 
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_portfolio_holdings_symbol
-      ON portfolio_holdings(symbol);
-    `);
+    logger.info('Portfolio holdings table is ready');
 
-    logger.info(
-      'Portfolio holdings table is ready'
-    );
 
     // ========================================================
-    // TRANSACTIONS TABLE
+    // TRANSACTIONS
     // ========================================================
 
     await pool.query(`
@@ -451,6 +414,14 @@ const initializeDatabase = async () => {
 
         metadata JSONB
           NOT NULL DEFAULT '{}'::jsonb,
+
+        proof_of_payment_url TEXT,
+
+        verified_by INTEGER,
+
+        verified_at TIMESTAMP,
+
+        admin_note TEXT,
 
         created_at TIMESTAMP
           NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -485,65 +456,23 @@ const initializeDatabase = async () => {
       );
     `);
 
-    // ========================================================
-    // TRANSACTION COLUMNS
-    // ========================================================
-
     await pool.query(`
-      ALTER TABLE transactions
-      ADD COLUMN IF NOT EXISTS
-      proof_of_payment_url TEXT;
-    `);
-
-    await pool.query(`
-      ALTER TABLE transactions
-      ADD COLUMN IF NOT EXISTS
-      verified_by INTEGER;
-    `);
-
-    await pool.query(`
-      ALTER TABLE transactions
-      ADD COLUMN IF NOT EXISTS
-      verified_at TIMESTAMP;
-    `);
-
-    await pool.query(`
-      ALTER TABLE transactions
-      ADD COLUMN IF NOT EXISTS
-      admin_note TEXT;
-    `);
-
-    // ========================================================
-    // TRANSACTION INDEXES
-    // ========================================================
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_transactions_account_id
+      CREATE INDEX IF NOT EXISTS idx_transactions_account
       ON transactions(account_id);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_transactions_type
-      ON transactions(transaction_type);
-    `);
-
-    await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_transactions_status
+      CREATE INDEX IF NOT EXISTS idx_transactions_status
       ON transactions(status);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_transactions_created_at
+      CREATE INDEX IF NOT EXISTS idx_transactions_created
       ON transactions(created_at DESC);
     `);
 
-    logger.info(
-      'Transactions table is ready'
-    );
+    logger.info('Transactions table is ready');
+
 
     // ========================================================
     // WITHDRAWAL CODES
@@ -573,38 +502,25 @@ const initializeDatabase = async () => {
         generated_by INTEGER,
 
         created_at TIMESTAMP
-          NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-        CONSTRAINT withdrawal_code_status_check
-        CHECK (
-          status IN (
-            'ACTIVE',
-            'USED',
-            'EXPIRED',
-            'REVOKED'
-          )
-        )
+          NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_withdrawal_codes_transaction
+      CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_transaction
       ON withdrawal_codes(transaction_id);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_withdrawal_codes_user
+      CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_user
       ON withdrawal_codes(user_id);
     `);
 
-    logger.info(
-      'Withdrawal codes table is ready'
-    );
+    logger.info('Withdrawal codes table is ready');
+
 
     // ========================================================
-    // IDENTITY VERIFICATION DOCUMENTS
+    // IDENTITY DOCUMENTS
     // ========================================================
 
     await pool.query(`
@@ -635,102 +551,96 @@ const initializeDatabase = async () => {
           NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
         updated_at TIMESTAMP
-          NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-        CONSTRAINT identity_document_status_check
-        CHECK (
-          status IN (
-            'PENDING',
-            'APPROVED',
-            'REJECTED'
-          )
-        )
+          NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_identity_documents_user
+      CREATE INDEX IF NOT EXISTS idx_identity_documents_user
       ON identity_documents(user_id);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS
-      idx_identity_documents_status
+      CREATE INDEX IF NOT EXISTS idx_identity_documents_status
       ON identity_documents(status);
     `);
 
-    logger.info(
-      'Identity documents table is ready'
-    );
+    logger.info('Identity documents table is ready');
+
 
     // ========================================================
-    // CREATE DEFAULT ACCOUNT FOR EXISTING USERS
+    // CREATE ACCOUNT FOR USERS WHO DO NOT HAVE ONE
     // ========================================================
 
-    await pool.query(`
-      INSERT INTO accounts (
-        user_id,
-        account_number,
-        account_type,
-        account_name,
-        currency,
-        balance,
-        deposit,
-        profits,
-        available_balance,
-        bonus,
-        referrer_bonus,
-        buying_power,
-        margin_available,
-        status
-      )
+    const usersWithoutAccounts = await pool.query(`
       SELECT
         u.id,
-
-        'GDM-' ||
-        u.id ||
-        '-' ||
-        FLOOR(
-          EXTRACT(EPOCH FROM NOW())
-        )::BIGINT,
-
-        'standard',
-
-        'Global Digital Market Account',
-
         COALESCE(
           NULLIF(u.preferred_currency, ''),
           'USD'
-        ),
-
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-
-        'active'
-
+        ) AS currency
       FROM users u
-
-      WHERE NOT EXISTS (
-        SELECT 1
-        FROM accounts a
-        WHERE a.user_id = u.id
-      );
+      LEFT JOIN accounts a
+        ON a.user_id = u.id
+      WHERE a.id IS NULL;
     `);
 
-    logger.info(
-      'Default trading accounts checked/created'
-    );
+    for (const user of usersWithoutAccounts.rows) {
+      const accountNumber =
+        `GDM-${user.id}-${Date.now()}`;
+
+      await pool.query(
+        `
+        INSERT INTO accounts (
+          user_id,
+          account_number,
+          account_type,
+          account_name,
+          currency,
+          balance,
+          deposit,
+          profits,
+          available_balance,
+          bonus,
+          referrer_bonus,
+          buying_power,
+          margin_available,
+          status
+        )
+        VALUES (
+          $1,
+          $2,
+          'standard',
+          'Global Digital Market Account',
+          $3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          'active'
+        );
+        `,
+        [
+          user.id,
+          accountNumber,
+          user.currency,
+        ]
+      );
+    }
+
+    if (usersWithoutAccounts.rows.length > 0) {
+      logger.info(
+        `Created ${usersWithoutAccounts.rows.length} default account(s)`
+      );
+    }
+
 
     // ========================================================
-    // FINISHED
+    // COMPLETE
     // ========================================================
 
     logger.info(
@@ -748,6 +658,7 @@ const initializeDatabase = async () => {
     throw error;
   }
 };
+
 
 // ============================================================
 // EXPORTS
