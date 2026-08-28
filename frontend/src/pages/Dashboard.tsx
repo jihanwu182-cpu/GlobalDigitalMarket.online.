@@ -1,32 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
-  AppBar,
   Box,
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Container,
+  Divider,
+  Drawer,
+  IconButton,
   Stack,
-  Toolbar,
   Typography,
 } from '@mui/material';
 
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import TrackChangesIcon from '@mui/icons-material/TrackChanges';
 import PieChartIcon from '@mui/icons-material/PieChart';
-import AutoGraphIcon from '@mui/icons-material/AutoGraph';
-import SavingsIcon from '@mui/icons-material/Savings';
-import GroupAddIcon from '@mui/icons-material/GroupAdd';
-import PaymentsIcon from '@mui/icons-material/Payments';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
+import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
+import PeopleIcon from '@mui/icons-material/People';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import BoltIcon from '@mui/icons-material/Bolt';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
+import SettingsIcon from '@mui/icons-material/Settings';
+import LanguageIcon from '@mui/icons-material/Language';
+import SecurityIcon from '@mui/icons-material/Security';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
-
-// ============================================================
-// TYPES
-// ============================================================
 
 interface PerformanceResponse {
   totalValue: number;
@@ -44,28 +56,10 @@ interface PerformanceResponse {
   totalHoldingsValue?: number;
 }
 
-interface Holding {
-  id: number;
-  symbol: string;
-  quantity: number;
-  average_cost: number;
-  current_price: number;
-  market_value: number;
-  gain_loss: number;
-  gain_loss_percent: number;
-}
-
-interface HoldingsResponse {
-  holdings: Holding[];
-}
-
-// ============================================================
-// DASHBOARD
-// ============================================================
-
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const [performance, setPerformance] =
@@ -83,112 +77,93 @@ const Dashboard: React.FC = () => {
       totalHoldingsValue: 0,
     });
 
-  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [errorMessage, setErrorMessage] =
+    useState('');
 
-  const [errorMessage, setErrorMessage] = useState('');
+  // ==========================================================
+  // LOAD REAL ACCOUNT DATA
+  // ==========================================================
 
-  // ============================================================
-  // LOAD DASHBOARD DATA
-  // ============================================================
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      setErrorMessage('');
+
+      const response =
+        await apiClient.get<PerformanceResponse>(
+          '/portfolio/performance'
+        );
+
+      const data = response.data;
+
+      setPerformance({
+        totalValue:
+          Number(data?.totalValue) || 0,
+
+        totalGain:
+          Number(data?.totalGain) || 0,
+
+        gainPercentage:
+          Number(data?.gainPercentage) || 0,
+
+        deposit:
+          Number(data?.deposit) || 0,
+
+        profits:
+          Number(data?.profits) || 0,
+
+        availableBalance:
+          Number(data?.availableBalance) || 0,
+
+        bonus:
+          Number(data?.bonus) || 0,
+
+        referrerBonus:
+          Number(data?.referrerBonus) || 0,
+
+        buyingPower:
+          Number(data?.buyingPower) || 0,
+
+        marginAvailable:
+          Number(data?.marginAvailable) || 0,
+
+        totalHoldingsValue:
+          Number(data?.totalHoldingsValue) || 0,
+      });
+    } catch (error: any) {
+      console.error(
+        'DASHBOARD ERROR:',
+        error
+      );
+
+      const status =
+        error?.response?.status;
+
+      const message =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        'Unable to load account data.';
+
+      if (status === 401) {
+        setErrorMessage(
+          'Your login session has expired.'
+        );
+      } else {
+        setErrorMessage(message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        setLoading(true);
-        setErrorMessage('');
-
-        const [
-          performanceResponse,
-          holdingsResponse,
-        ] = await Promise.all([
-          apiClient.get<PerformanceResponse>(
-            '/portfolio/performance'
-          ),
-
-          apiClient.get<HoldingsResponse>(
-            '/portfolio/holdings'
-          ),
-        ]);
-
-        const data = performanceResponse.data;
-
-        setPerformance({
-          totalValue:
-            Number(data?.totalValue) || 0,
-
-          totalGain:
-            Number(data?.totalGain) || 0,
-
-          gainPercentage:
-            Number(data?.gainPercentage) || 0,
-
-          deposit:
-            Number(data?.deposit) || 0,
-
-          profits:
-            Number(data?.profits) || 0,
-
-          availableBalance:
-            Number(data?.availableBalance) || 0,
-
-          bonus:
-            Number(data?.bonus) || 0,
-
-          referrerBonus:
-            Number(data?.referrerBonus) || 0,
-
-          buyingPower:
-            Number(data?.buyingPower) || 0,
-
-          marginAvailable:
-            Number(data?.marginAvailable) || 0,
-
-          totalHoldingsValue:
-            Number(data?.totalHoldingsValue) || 0,
-        });
-
-        setHoldings(
-          Array.isArray(
-            holdingsResponse.data?.holdings
-          )
-            ? holdingsResponse.data.holdings
-            : []
-        );
-      } catch (error: any) {
-        console.error(
-          'DASHBOARD API ERROR:',
-          error
-        );
-
-        const status =
-          error?.response?.status;
-
-        const serverMessage =
-          error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message ||
-          'Unable to load your account data.';
-
-        if (status === 401) {
-          setErrorMessage(
-            'Your login session has expired. Please login again.'
-          );
-        } else {
-          setErrorMessage(
-            `Unable to load your account data. ${serverMessage}`
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadDashboard();
   }, []);
 
-  // ============================================================
+  // ==========================================================
   // FORMAT MONEY
-  // ============================================================
+  // ==========================================================
 
   const formatMoney = (
     value: number
@@ -201,176 +176,498 @@ const Dashboard: React.FC = () => {
     })}`;
   };
 
-  // ============================================================
-  // FORMATTED VALUES
-  // ============================================================
+  // ==========================================================
+  // NAVIGATION
+  // ==========================================================
 
-  const totalProfit =
-    performance.totalGain >= 0
-      ? `+${formatMoney(
-          performance.totalGain
-        )}`
-      : formatMoney(
-          performance.totalGain
-        );
+  const goTo = (path: string) => {
+    setDrawerOpen(false);
+    navigate(path);
+  };
 
-  const profitPercentage =
-    performance.gainPercentage >= 0
-      ? `+${performance.gainPercentage.toFixed(
-          2
-        )}%`
-      : `${performance.gainPercentage.toFixed(
-          2
-        )}%`;
+  // ==========================================================
+  // MENU ITEM
+  // ==========================================================
 
-  // ============================================================
-  // MARKET OVERVIEW
-  // ============================================================
+  const MenuItem = ({
+    icon,
+    label,
+    path,
+    badge,
+    badgeColor,
+  }: {
+    icon: React.ReactNode;
+    label: string;
+    path: string;
+    badge?: string;
+    badgeColor?: string;
+  }) => {
+    return (
+      <Button
+        fullWidth
+        onClick={() => goTo(path)}
+        sx={{
+          justifyContent: 'flex-start',
+          textTransform: 'none',
+          color: '#fff',
+          px: 2,
+          py: 1.2,
+          borderRadius: 2,
+          mb: 0.5,
+          minHeight: 52,
 
-  const marketAssets = [
-    {
-      symbol: 'BTC/USD',
-      name: 'Bitcoin',
-      price: '$80,241.40',
-      change: '+1.57%',
-      positive: true,
-      icon: '₿',
-    },
-    {
-      symbol: 'ETH/USD',
-      name: 'Ethereum',
-      price: '$2,513.10',
-      change: '+0.84%',
-      positive: true,
-      icon: 'Ξ',
-    },
-    {
-      symbol: 'BNB/USD',
-      name: 'BNB',
-      price: '$712.05',
-      change: '+2.12%',
-      positive: true,
-      icon: 'B',
-    },
-    {
-      symbol: 'AAPL',
-      name: 'Apple Inc.',
-      price: '$314.82',
-      change: '+1.26%',
-      positive: true,
-      icon: 'A',
-    },
-    {
-      symbol: 'TSLA',
-      name: 'Tesla Inc.',
-      price: '$850.20',
-      change: '-0.73%',
-      positive: false,
-      icon: 'T',
-    },
-    {
-      symbol: 'GOLD',
-      name: 'Gold CFD',
-      price: '$4,602.40',
-      change: '+0.38%',
-      positive: true,
-      icon: 'Au',
-    },
-  ];
+          '&:hover': {
+            background:
+              'rgba(70,100,255,0.25)',
+          },
+        }}
+      >
+        <Box
+          sx={{
+            width: 38,
+            display: 'flex',
+            justifyContent: 'center',
+            mr: 1,
+          }}
+        >
+          {icon}
+        </Box>
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+        <Typography
+          sx={{
+            fontSize: 16,
+            fontWeight: 600,
+            flexGrow: 1,
+            textAlign: 'left',
+          }}
+        >
+          {label}
+        </Typography>
+
+        {badge && (
+          <Chip
+            label={badge}
+            size="small"
+            sx={{
+              height: 28,
+              color: '#fff',
+              fontWeight: 800,
+              background:
+                badgeColor ||
+                '#19d85a',
+              '& .MuiChip-label': {
+                px: 1.4,
+              },
+            }}
+          />
+        )}
+      </Button>
+    );
+  };
+
+  // ==========================================================
+  // SECTION TITLE
+  // ==========================================================
+
+  const SectionTitle = ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) => (
+    <Typography
+      sx={{
+        color: '#b9c8ff',
+        fontSize: 13,
+        fontWeight: 800,
+        letterSpacing: 0.5,
+        px: 2,
+        pt: 2.5,
+        pb: 1,
+        textTransform: 'uppercase',
+      }}
+    >
+      {children}
+    </Typography>
+  );
+
+  // ==========================================================
+  // DRAWER
+  // ==========================================================
+
+  const drawer = (
+    <Box
+      sx={{
+        width: {
+          xs: '88vw',
+          sm: 430,
+        },
+        maxWidth: 430,
+        height: '100%',
+        color: '#fff',
+        background:
+          'linear-gradient(180deg,#07134f 0%,#102d91 45%,#173aa5 100%)',
+        overflowY: 'auto',
+        boxShadow:
+          '10px 0 50px rgba(0,0,0,0.45)',
+      }}
+    >
+      {/* ====================================================
+          DRAWER HEADER
+      ==================================================== */}
+
+      <Box
+        sx={{
+          px: 2,
+          py: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom:
+            '1px solid rgba(255,255,255,0.12)',
+        }}
+      >
+        <Box>
+          <Typography
+            sx={{
+              fontSize: 21,
+              fontWeight: 900,
+            }}
+          >
+            Global Digital Market
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#8fa9ff',
+              fontSize: 10,
+              mt: 0.3,
+            }}
+          >
+            PROFESSIONAL DIGITAL ASSET PLATFORM
+          </Typography>
+        </Box>
+
+        <IconButton
+          onClick={() =>
+            setDrawerOpen(false)
+          }
+          sx={{
+            color: '#fff',
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      {/* ====================================================
+          OVERVIEW
+      ==================================================== */}
+
+      <SectionTitle>
+        Overview
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<DashboardIcon />}
+          label="Dashboard"
+          path="/"
+        />
+
+        <MenuItem
+          icon={<ReceiptLongIcon />}
+          label="Account Statement"
+          path="/statement"
+        />
+      </Box>
+
+      {/* ====================================================
+          PORTFOLIO
+      ==================================================== */}
+
+      <SectionTitle>
+        Portfolio & Investments
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<TrackChangesIcon />}
+          label="Investment Plans"
+          path="/investment-plans"
+        />
+
+        <MenuItem
+          icon={<PieChartIcon />}
+          label="My Portfolio"
+          path="/portfolio"
+        />
+
+        <MenuItem
+          icon={<ShowChartIcon />}
+          label="Performance History"
+          path="/performance"
+        />
+      </Box>
+
+      {/* ====================================================
+          TRADING
+      ==================================================== */}
+
+      <SectionTitle>
+        Trading & Markets
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<CandlestickChartIcon />}
+          label="Live Markets"
+          path="/market"
+          badge="Live"
+          badgeColor="#18e76b"
+        />
+
+        <MenuItem
+          icon={<PeopleIcon />}
+          label="Copy Trading"
+          path="/copy-trading"
+          badge="Pro"
+          badgeColor="#c53cff"
+        />
+
+        <MenuItem
+          icon={<SmartToyIcon />}
+          label="AI Trading Bots"
+          path="/ai-trading"
+          badge="AI"
+          badgeColor="#08a9ed"
+        />
+      </Box>
+
+      {/* ====================================================
+          MARKET INTELLIGENCE
+      ==================================================== */}
+
+      <SectionTitle>
+        Market Intelligence
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<BoltIcon />}
+          label="Premium Signals"
+          path="/signals"
+          badge="Premium"
+          badgeColor="#ffb900"
+        />
+      </Box>
+
+      {/* ====================================================
+          WALLET
+      ==================================================== */}
+
+      <SectionTitle>
+        Wallet & Funds
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<AddCircleOutlineIcon />}
+          label="Deposit Funds"
+          path="/wallet"
+        />
+
+        <MenuItem
+          icon={<RemoveCircleOutlineIcon />}
+          label="Withdraw Funds"
+          path="/wallet"
+        />
+
+        <MenuItem
+          icon={<SwapHorizIcon />}
+          label="Internal Transfer"
+          path="/wallet"
+        />
+      </Box>
+
+      {/* ====================================================
+          FINANCING
+      ==================================================== */}
+
+      <SectionTitle>
+        Financing
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<CreditCardIcon />}
+          label="Fast Credit"
+          path="/wallet"
+          badge="Fast"
+          badgeColor="#19d85a"
+        />
+      </Box>
+
+      {/* ====================================================
+          SETTINGS
+      ==================================================== */}
+
+      <SectionTitle>
+        Account
+      </SectionTitle>
+
+      <Box sx={{ px: 1 }}>
+        <MenuItem
+          icon={<SettingsIcon />}
+          label="Settings"
+          path="/settings"
+        />
+
+        <MenuItem
+          icon={<SecurityIcon />}
+          label="Security"
+          path="/security"
+        />
+
+        <MenuItem
+          icon={<LanguageIcon />}
+          label="Language"
+          path="/language"
+        />
+
+        <MenuItem
+          icon={<HelpOutlineIcon />}
+          label="Help & Support"
+          path="/support"
+        />
+      </Box>
+
+      <Box sx={{ height: 30 }} />
+    </Box>
+  );
+
+  // ==========================================================
+  // DASHBOARD
+  // ==========================================================
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
         background:
-          'linear-gradient(180deg,#030a2c 0%,#071453 50%,#091b68 100%)',
+          'linear-gradient(180deg,#030a2c 0%,#071453 55%,#091b68 100%)',
         color: '#fff',
-        pb: 6,
       }}
     >
-      {/* ======================================================
-          TOP NAVIGATION
-      ====================================================== */}
+      {/* ====================================================
+          DRAWER
+      ==================================================== */}
 
-      <AppBar
-        position="sticky"
-        elevation={0}
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={() =>
+          setDrawerOpen(false)
+        }
+        PaperProps={{
+          sx: {
+            background: 'transparent',
+            boxShadow: 'none',
+          },
+        }}
+      >
+        {drawer}
+      </Drawer>
+
+      {/* ====================================================
+          TOP BAR
+      ==================================================== */}
+
+      <Box
         sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 100,
           background:
-            'rgba(3,10,44,0.96)',
+            'rgba(3,10,44,0.97)',
+          backdropFilter: 'blur(12px)',
           borderBottom:
             '1px solid rgba(125,150,255,0.2)',
         }}
       >
-        <Toolbar>
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography
+        <Container
+          maxWidth="xl"
+          sx={{ py: 1.5 }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={2}
+          >
+            <IconButton
+              onClick={() =>
+                setDrawerOpen(true)
+              }
               sx={{
-                fontSize: {
-                  xs: 18,
-                  sm: 22,
+                color: '#fff',
+                background:
+                  'rgba(50,80,200,0.25)',
+                '&:hover': {
+                  background:
+                    'rgba(50,80,200,0.4)',
                 },
-                fontWeight: 800,
               }}
             >
-              Global Digital Market
-            </Typography>
+              <MenuIcon />
+            </IconButton>
 
-            <Typography
+            <Box sx={{ flexGrow: 1 }}>
+              <Typography
+                sx={{
+                  fontSize: {
+                    xs: 18,
+                    sm: 22,
+                  },
+                  fontWeight: 900,
+                }}
+              >
+                Global Digital Market
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#8da7ff',
+                  fontSize: 10,
+                }}
+              >
+                PROFESSIONAL DIGITAL ASSET PLATFORM
+              </Typography>
+            </Box>
+
+            <Button
+              onClick={() =>
+                navigate('/wallet')
+              }
+              startIcon={
+                <AccountBalanceWalletIcon />
+              }
               sx={{
-                color: '#8da7ff',
-                fontSize: 11,
+                color: '#fff',
+                textTransform: 'none',
+                display: {
+                  xs: 'none',
+                  sm: 'flex',
+                },
               }}
             >
-              PROFESSIONAL DIGITAL ASSET PLATFORM
-            </Typography>
-          </Box>
+              Wallet
+            </Button>
+          </Stack>
+        </Container>
+      </Box>
 
-          <Button
-            onClick={() =>
-              navigate('/market')
-            }
-            sx={{
-              color: '#fff',
-              textTransform: 'none',
-            }}
-          >
-            Markets
-          </Button>
-
-          <Button
-            onClick={() =>
-              navigate('/portfolio')
-            }
-            sx={{
-              color: '#fff',
-              textTransform: 'none',
-            }}
-          >
-            Portfolio
-          </Button>
-
-          <Button
-            onClick={() =>
-              navigate('/wallet')
-            }
-            sx={{
-              color: '#fff',
-              textTransform: 'none',
-            }}
-          >
-            Wallet
-          </Button>
-        </Toolbar>
-      </AppBar>
-
-      {/* ======================================================
-          MAIN CONTENT
-      ====================================================== */}
+      {/* ====================================================
+          MAIN
+      ==================================================== */}
 
       <Container
         maxWidth="xl"
@@ -381,18 +678,18 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
-        {/* ====================================================
+        {/* ==================================================
             TITLE
-        ==================================================== */}
+        ================================================== */}
 
-        <Box sx={{ mb: 4 }}>
+        <Box sx={{ mb: 3 }}>
           <Typography
             sx={{
               fontSize: {
                 xs: 30,
                 md: 40,
               },
-              fontWeight: 800,
+              fontWeight: 900,
             }}
           >
             Dashboard
@@ -401,7 +698,7 @@ const Dashboard: React.FC = () => {
           <Typography
             sx={{
               color: '#9eaff0',
-              mt: 1,
+              mt: 0.5,
             }}
           >
             Welcome to your Global Digital
@@ -409,39 +706,25 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Box>
 
-        {/* ====================================================
+        {/* ==================================================
             ERROR
-        ==================================================== */}
+        ================================================== */}
 
         {errorMessage && (
           <Alert
             severity="error"
-            sx={{
-              mb: 3,
-            }}
+            sx={{ mb: 3 }}
             onClose={() =>
               setErrorMessage('')
             }
           >
             {errorMessage}
-
-            <Box sx={{ mt: 1 }}>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={() =>
-                  navigate('/login')
-                }
-              >
-                Login Again
-              </Button>
-            </Box>
           </Alert>
         )}
 
-        {/* ====================================================
-            TOTAL ACCOUNT VALUE
-        ==================================================== */}
+        {/* ==================================================
+            ACCOUNT HERO
+        ================================================== */}
 
         <Card
           sx={{
@@ -449,9 +732,9 @@ const Dashboard: React.FC = () => {
             borderRadius: 4,
             color: '#fff',
             background:
-              'linear-gradient(135deg,#172a8a,#1459e8)',
+              'linear-gradient(135deg,#182b91,#1459e8)',
             border:
-              '1px solid rgba(143,170,255,0.28)',
+              '1px solid rgba(143,170,255,0.3)',
             boxShadow:
               '0 20px 60px rgba(0,0,0,0.25)',
           }}
@@ -477,11 +760,11 @@ const Dashboard: React.FC = () => {
                   sx={{
                     color: '#b9c8ff',
                     fontSize: 13,
-                    fontWeight: 700,
+                    fontWeight: 800,
                     letterSpacing: 1,
                   }}
                 >
-                  TOTAL ACCOUNT VALUE
+                  AVAILABLE BALANCE
                 </Typography>
 
                 {loading ? (
@@ -498,95 +781,87 @@ const Dashboard: React.FC = () => {
                         xs: 40,
                         md: 52,
                       },
-                      fontWeight: 800,
+                      fontWeight: 900,
                       mt: 1,
                     }}
                   >
                     {formatMoney(
-                      performance.totalValue
+                      performance.availableBalance
                     )}
                   </Typography>
                 )}
 
                 <Typography
                   sx={{
-                    mt: 1,
                     color: '#cbd6ff',
+                    mt: 1,
                   }}
                 >
-                  Portfolio performance:{' '}
-                  {profitPercentage}
+                  Ready to use for your account.
                 </Typography>
               </Box>
 
-              {/* WALLET ACCESS */}
-
-              <Box
-                sx={{
-                  minWidth: {
-                    md: 260,
-                  },
-                  alignSelf: {
-                    md: 'center',
-                  },
+              <Stack
+                direction={{
+                  xs: 'column',
+                  sm: 'row',
+                }}
+                spacing={1.5}
+                alignSelf={{
+                  xs: 'stretch',
+                  md: 'center',
                 }}
               >
-                <Typography
-                  sx={{
-                    color: '#b9c8ff',
-                    fontSize: 12,
-                    fontWeight: 700,
-                  }}
-                >
-                  AVAILABLE BALANCE
-                </Typography>
-
-                <Typography
-                  sx={{
-                    fontSize: 28,
-                    fontWeight: 800,
-                    mt: 0.5,
-                  }}
-                >
-                  {formatMoney(
-                    performance.availableBalance
-                  )}
-                </Typography>
-
                 <Button
                   variant="contained"
+                  startIcon={
+                    <AddCircleOutlineIcon />
+                  }
                   onClick={() =>
                     navigate('/wallet')
                   }
                   sx={{
-                    mt: 2,
+                    py: 1.3,
+                    px: 2.5,
                     borderRadius: 2,
-                    background:
-                      'linear-gradient(90deg,#14d8ff,#1d8cff)',
-                    fontWeight: 800,
                     textTransform: 'none',
+                    fontWeight: 800,
+                    background:
+                      'linear-gradient(90deg,#13cfff,#188fff)',
                   }}
                 >
-                  Open Wallet
+                  Deposit Funds
                 </Button>
-              </Box>
+
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    <RemoveCircleOutlineIcon />
+                  }
+                  onClick={() =>
+                    navigate('/wallet')
+                  }
+                  sx={{
+                    py: 1.3,
+                    px: 2.5,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 800,
+                    color: '#fff',
+                    borderColor:
+                      'rgba(255,255,255,0.5)',
+                  }}
+                >
+                  Withdraw Funds
+                </Button>
+              </Stack>
             </Stack>
           </CardContent>
         </Card>
 
-        {/* ====================================================
-            ACCOUNT SUMMARY
-        ==================================================== */}
-
-        <Typography
-          sx={{
-            fontSize: 20,
-            fontWeight: 800,
-            mb: 2,
-          }}
-        >
-          Account Summary
-        </Typography>
+        {/* ==================================================
+            ACCOUNT CARDS
+        ================================================== */}
 
         <Box
           sx={{
@@ -594,10 +869,10 @@ const Dashboard: React.FC = () => {
             gridTemplateColumns: {
               xs: '1fr',
               sm: 'repeat(2,1fr)',
-              lg: 'repeat(5,1fr)',
+              lg: 'repeat(4,1fr)',
             },
             gap: 2,
-            mb: 4,
+            mb: 3,
           }}
         >
           {/* DEPOSIT */}
@@ -613,10 +888,10 @@ const Dashboard: React.FC = () => {
             }}
           >
             <CardContent>
-              <PaymentsIcon
+              <AccountBalanceWalletIcon
                 sx={{
-                  fontSize: 32,
-                  color: '#59d8ff',
+                  fontSize: 34,
+                  color: '#5ce8ff',
                 }}
               />
 
@@ -624,7 +899,7 @@ const Dashboard: React.FC = () => {
                 sx={{
                   color: '#9eaff0',
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   mt: 1,
                 }}
               >
@@ -633,24 +908,16 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  fontSize: 24,
-                  fontWeight: 800,
+                  fontSize: 25,
+                  fontWeight: 900,
                   mt: 1,
                 }}
               >
-                {formatMoney(
-                  performance.deposit
-                )}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#7186cd',
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                Total deposited funds
+                {loading
+                  ? '...'
+                  : formatMoney(
+                      performance.deposit
+                    )}
               </Typography>
             </CardContent>
           </Card>
@@ -668,9 +935,9 @@ const Dashboard: React.FC = () => {
             }}
           >
             <CardContent>
-              <TrendingUpIcon
+              <ShowChartIcon
                 sx={{
-                  fontSize: 32,
+                  fontSize: 34,
                   color: '#4df28d',
                 }}
               />
@@ -679,7 +946,7 @@ const Dashboard: React.FC = () => {
                 sx={{
                   color: '#9eaff0',
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   mt: 1,
                 }}
               >
@@ -688,83 +955,17 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  fontSize: 24,
-                  fontWeight: 800,
+                  fontSize: 25,
+                  fontWeight: 900,
                   mt: 1,
-                  color:
-                    performance.profits >= 0
-                      ? '#4df28d'
-                      : '#ff6681',
+                  color: '#4df28d',
                 }}
               >
-                {formatMoney(
-                  performance.profits
-                )}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#7186cd',
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                Account profits
-              </Typography>
-            </CardContent>
-          </Card>
-
-          {/* AVAILABLE BALANCE */}
-
-          <Card
-            sx={{
-              borderRadius: 3,
-              color: '#fff',
-              background:
-                'linear-gradient(145deg,#243e9d,#101f5e)',
-              border:
-                '1px solid rgba(100,150,255,0.2)',
-            }}
-          >
-            <CardContent>
-              <AccountBalanceWalletIcon
-                sx={{
-                  fontSize: 32,
-                  color: '#66dcff',
-                }}
-              />
-
-              <Typography
-                sx={{
-                  color: '#9eaff0',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  mt: 1,
-                }}
-              >
-                AVAILABLE BALANCE
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 24,
-                  fontWeight: 800,
-                  mt: 1,
-                }}
-              >
-                {formatMoney(
-                  performance.availableBalance
-                )}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#7186cd',
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                Available to use
+                {loading
+                  ? '...'
+                  : formatMoney(
+                      performance.profits
+                    )}
               </Typography>
             </CardContent>
           </Card>
@@ -784,7 +985,7 @@ const Dashboard: React.FC = () => {
             <CardContent>
               <SavingsIcon
                 sx={{
-                  fontSize: 32,
+                  fontSize: 34,
                   color: '#d99cff',
                 }}
               />
@@ -793,7 +994,7 @@ const Dashboard: React.FC = () => {
                 sx={{
                   color: '#c7aee8',
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   mt: 1,
                 }}
               >
@@ -802,29 +1003,21 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  fontSize: 24,
-                  fontWeight: 800,
+                  fontSize: 25,
+                  fontWeight: 900,
                   mt: 1,
                 }}
               >
-                {formatMoney(
-                  performance.bonus
-                )}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#9c7bc1',
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                Promotional bonus
+                {loading
+                  ? '...'
+                  : formatMoney(
+                      performance.bonus
+                    )}
               </Typography>
             </CardContent>
           </Card>
 
-          {/* REFERRER BONUS */}
+          {/* REFERRER */}
 
           <Card
             sx={{
@@ -837,9 +1030,9 @@ const Dashboard: React.FC = () => {
             }}
           >
             <CardContent>
-              <GroupAddIcon
+              <PeopleIcon
                 sx={{
-                  fontSize: 32,
+                  fontSize: 34,
                   color: '#ffc45c',
                 }}
               />
@@ -848,7 +1041,7 @@ const Dashboard: React.FC = () => {
                 sx={{
                   color: '#f1ca91',
                   fontSize: 12,
-                  fontWeight: 700,
+                  fontWeight: 800,
                   mt: 1,
                 }}
               >
@@ -857,447 +1050,157 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  fontSize: 24,
-                  fontWeight: 800,
+                  fontSize: 25,
+                  fontWeight: 900,
                   mt: 1,
                 }}
               >
-                {formatMoney(
-                  performance.referrerBonus
-                )}
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#c59d69',
-                  fontSize: 11,
-                  mt: 0.5,
-                }}
-              >
-                Referral rewards
+                {loading
+                  ? '...'
+                  : formatMoney(
+                      performance.referrerBonus
+                    )}
               </Typography>
             </CardContent>
           </Card>
         </Box>
 
-        {/* ====================================================
-            SECONDARY STATS
-        ==================================================== */}
+        {/* ==================================================
+            QUICK ACTIONS
+        ================================================== */}
 
-        <Box
+        <Card
           sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(3,1fr)',
-            },
-            gap: 2,
-            mb: 4,
+            borderRadius: 3,
+            mb: 3,
+            color: '#fff',
+            background:
+              'linear-gradient(145deg,#11246f,#08164c)',
+            border:
+              '1px solid rgba(100,150,255,0.2)',
           }}
         >
-          {/* TOTAL GAIN */}
+          <CardContent>
+            <Typography
+              sx={{
+                fontSize: 21,
+                fontWeight: 900,
+                mb: 2,
+              }}
+            >
+              Quick Actions
+            </Typography>
 
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg,#14287d,#0c1b58)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <TrendingUpIcon />
-
-              <Typography
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(3,1fr)',
+                },
+                gap: 1.5,
+              }}
+            >
+              <Button
+                variant="contained"
+                startIcon={
+                  <AddCircleOutlineIcon />
+                }
+                onClick={() =>
+                  navigate('/wallet')
+                }
                 sx={{
-                  color: '#9eaff0',
-                  mt: 1,
-                  fontSize: 12,
-                }}
-              >
-                TOTAL GAIN / LOSS
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 26,
+                  py: 1.5,
+                  textTransform: 'none',
                   fontWeight: 800,
-                  mt: 1,
+                  background:
+                    'linear-gradient(90deg,#13cfff,#188fff)',
                 }}
               >
-                {totalProfit}
-              </Typography>
-            </CardContent>
-          </Card>
+                Deposit Funds
+              </Button>
 
-          {/* ACTIVE POSITIONS */}
-
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg,#14287d,#0c1b58)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <PieChartIcon />
-
-              <Typography
+              <Button
+                variant="outlined"
+                startIcon={
+                  <RemoveCircleOutlineIcon />
+                }
+                onClick={() =>
+                  navigate('/wallet')
+                }
                 sx={{
-                  color: '#9eaff0',
-                  mt: 1,
-                  fontSize: 12,
-                }}
-              >
-                ACTIVE POSITIONS
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 26,
+                  py: 1.5,
+                  color: '#fff',
+                  borderColor:
+                    'rgba(120,220,255,0.5)',
+                  textTransform: 'none',
                   fontWeight: 800,
-                  mt: 1,
                 }}
               >
-                {holdings.length}
-              </Typography>
-            </CardContent>
-          </Card>
+                Withdraw Funds
+              </Button>
 
-          {/* TOTAL HOLDINGS */}
-
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg,#14287d,#0c1b58)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <AutoGraphIcon />
-
-              <Typography
+              <Button
+                variant="outlined"
+                startIcon={<SwapHorizIcon />}
+                onClick={() =>
+                  navigate('/wallet')
+                }
                 sx={{
-                  color: '#9eaff0',
-                  mt: 1,
-                  fontSize: 12,
-                }}
-              >
-                TOTAL HOLDINGS
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 26,
+                  py: 1.5,
+                  color: '#fff',
+                  borderColor:
+                    'rgba(120,220,255,0.5)',
+                  textTransform: 'none',
                   fontWeight: 800,
-                  mt: 1,
                 }}
               >
-                {formatMoney(
-                  performance.totalHoldingsValue ||
-                    0
-                )}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
+                Internal Transfer
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
 
-        {/* ====================================================
-            MARKET + PORTFOLIO
-        ==================================================== */}
+        {/* ==================================================
+            TRADING
+        ================================================== */}
 
-        <Box
+        <Card
           sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              lg: '1.5fr 1fr',
-            },
-            gap: 3,
+            borderRadius: 3,
+            color: '#fff',
+            background:
+              'linear-gradient(110deg,#1725a0,#1948ce,#078fe5)',
           }}
         >
-          {/* MARKET */}
-
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg,#11246f,#08164c)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 2 }}
-              >
-                <Box>
-                  <Typography
-                    sx={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                    }}
-                  >
-                    Market Overview
-                  </Typography>
-
-                  <Typography
-                    sx={{
-                      color: '#8296e0',
-                      fontSize: 12,
-                    }}
-                  >
-                    Selected market instruments
-                  </Typography>
-                </Box>
-
-                <Button
-                  onClick={() =>
-                    navigate('/market')
-                  }
-                  sx={{
-                    color: '#62dcff',
-                    textTransform: 'none',
-                  }}
-                >
-                  View Markets
-                </Button>
-              </Stack>
-
-              <Stack spacing={1}>
-                {marketAssets.map(
-                  (asset) => (
-                    <Box
-                      key={asset.symbol}
-                      sx={{
-                        p: 1.5,
-                        borderRadius: 2,
-                        background:
-                          'rgba(255,255,255,0.05)',
-                      }}
-                    >
-                      <Stack
-                        direction="row"
-                        alignItems="center"
-                      >
-                        <Box
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius:
-                              '50%',
-                            display: 'flex',
-                            alignItems:
-                              'center',
-                            justifyContent:
-                              'center',
-                            background:
-                              'linear-gradient(135deg,#263eae,#16286d)',
-                            fontWeight: 800,
-                          }}
-                        >
-                          {asset.icon}
-                        </Box>
-
-                        <Box
-                          sx={{
-                            flexGrow: 1,
-                            ml: 1.5,
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontWeight: 800,
-                              fontSize: 13,
-                            }}
-                          >
-                            {asset.symbol}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              color: '#758bd6',
-                              fontSize: 10,
-                            }}
-                          >
-                            {asset.name}
-                          </Typography>
-                        </Box>
-
-                        <Box
-                          sx={{
-                            textAlign:
-                              'right',
-                          }}
-                        >
-                          <Typography
-                            sx={{
-                              fontWeight: 800,
-                              fontSize: 13,
-                            }}
-                          >
-                            {asset.price}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              color:
-                                asset.positive
-                                  ? '#42ef88'
-                                  : '#ff6681',
-                              fontSize: 11,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {asset.change}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                    </Box>
-                  )
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* ==================================================
-              PORTFOLIO
-          ================================================== */}
-
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg,#11246f,#08164c)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 1 }}
-              >
+          <CardContent sx={{ p: 3 }}>
+            <Stack
+              direction={{
+                xs: 'column',
+                md: 'row',
+              }}
+              justifyContent="space-between"
+              alignItems={{
+                xs: 'flex-start',
+                md: 'center',
+              }}
+              spacing={2}
+            >
+              <Box>
                 <Typography
                   sx={{
-                    fontSize: 22,
-                    fontWeight: 800,
+                    fontSize: 23,
+                    fontWeight: 900,
                   }}
                 >
-                  My Portfolio
+                  Live Markets
                 </Typography>
 
-                <Button
-                  onClick={() =>
-                    navigate('/portfolio')
-                  }
-                  sx={{
-                    color: '#62dcff',
-                    textTransform: 'none',
-                  }}
-                >
-                  View
-                </Button>
-              </Stack>
-
-              <Typography
-                sx={{
-                  color: '#8296e0',
-                  fontSize: 12,
-                  mb: 2,
-                }}
-              >
-                Your actual database holdings
-              </Typography>
-
-              {loading ? (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent:
-                      'center',
-                    py: 4,
-                  }}
-                >
-                  <CircularProgress
-                    sx={{
-                      color: '#fff',
-                    }}
-                  />
-                </Box>
-              ) : holdings.length === 0 ? (
                 <Typography
                   sx={{
-                    color: '#9eaff0',
-                    py: 2,
+                    color: '#c1d7ff',
+                    fontSize: 12,
+                    mt: 0.5,
                   }}
                 >
-                  No portfolio holdings yet.
-                </Typography>
-              ) : (
-                <Stack spacing={1}>
-                  {holdings.map(
-                    (holding) => (
-                      <Box
-                        key={holding.id}
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          background:
-                            'rgba(255,255,255,0.05)',
-                          display: 'flex',
-                          justifyContent:
-                            'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Box>
-                          <Typography
-                            sx={{
-                              fontWeight: 800,
-                            }}
-                          >
-                            {holding.symbol}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              color: '#8296e0',
-                              fontSize: 11,
-                            }}
-                          >
-                            Quantity:{' '}
-                            {holding.quantity}
-                          </Typography>
-                        </Box>
-
-                        <Typography
-                          sx={{
-                            fontWeight: 800,
-                          }}
-                        >
-                          {formatMoney(
-                            Number(
-                              holding.market_value
-                            ) || 0
-                          )}
-                        </Typography>
-                      </Box>
-                    )
-                  )}
-                </Stack>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-      </Container>
-    </Box>
-  );
-};
-
-export default Dashboard;
+                 
