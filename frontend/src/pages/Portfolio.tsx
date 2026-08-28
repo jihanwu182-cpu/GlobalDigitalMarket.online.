@@ -1,27 +1,21 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Container,
-  Divider,
-  Grid,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Typography,
 } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
+
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 
@@ -35,7 +29,7 @@ interface Holding {
   gain: number;
 }
 
-interface PortfolioData {
+interface PortfolioState {
   holdings: Holding[];
   cashAvailable: number;
 }
@@ -45,7 +39,8 @@ const Portfolio: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [portfolio, setPortfolio] = useState<PortfolioData>({
+
+  const [portfolio, setPortfolio] = useState<PortfolioState>({
     holdings: [],
     cashAvailable: 0,
   });
@@ -56,123 +51,81 @@ const Portfolio: React.FC = () => {
         setLoading(true);
         setError('');
 
-        /*
-         * Try the real portfolio endpoint.
-         *
-         * The backend may return:
-         * { holdings: [...], cashAvailable: ... }
-         * or
-         * { portfolio: { holdings: [...] } }
-         */
         const response = await apiClient.get('/portfolio');
 
         const data = response.data || {};
+        const source = data.portfolio || data.data || data;
 
-        const portfolioData =
-          data.portfolio ||
-          data.data ||
-          data;
-
-        const rawHoldings = Array.isArray(
-          portfolioData.holdings
-        )
-          ? portfolioData.holdings
-          : Array.isArray(portfolioData.positions)
-          ? portfolioData.positions
-          : Array.isArray(portfolioData.assets)
-          ? portfolioData.assets
+        const rawHoldings = Array.isArray(source.holdings)
+          ? source.holdings
+          : Array.isArray(source.positions)
+          ? source.positions
           : [];
 
-        const normalizedHoldings: Holding[] =
-          rawHoldings
-            .map((item: any, index: number) => {
-              const quantity = Number(
-                item.quantity ??
-                  item.qty ??
-                  item.units ??
-                  0
-              );
+        const holdings: Holding[] = rawHoldings
+          .map((item: any, index: number) => {
+            const quantity = Number(item.quantity || item.qty || 0);
 
-              const avgCost = Number(
-                item.avgCost ??
-                  item.averageCost ??
-                  item.average_price ??
-                  item.costBasis ??
-                  0
-              );
-
-              const currentPrice = Number(
-                item.currentPrice ??
-                  item.current_price ??
-                  item.price ??
-                  0
-              );
-
-              const marketValue = Number(
-                item.marketValue ??
-                  item.market_value ??
-                  item.value ??
-                  quantity * currentPrice
-              );
-
-              const gain = Number(
-                item.gain ??
-                  item.profitLoss ??
-                  item.profit_loss ??
-                  marketValue -
-                    quantity * avgCost
-              );
-
-              return {
-                id:
-                  item.id ??
-                  item._id ??
-                  item.symbol ??
-                  index,
-
-                symbol: String(
-                  item.symbol ??
-                    item.asset ??
-                    item.ticker ??
-                    ''
-                ),
-
-                quantity,
-                avgCost,
-                currentPrice,
-                marketValue,
-                gain,
-              };
-            })
-            .filter(
-              (holding: Holding) =>
-                holding.symbol !== ''
+            const avgCost = Number(
+              item.avgCost ||
+                item.averageCost ||
+                item.average_price ||
+                0
             );
 
+            const currentPrice = Number(
+              item.currentPrice ||
+                item.current_price ||
+                item.price ||
+                0
+            );
+
+            const marketValue = Number(
+              item.marketValue ||
+                item.market_value ||
+                item.value ||
+                quantity * currentPrice
+            );
+
+            const gain = Number(
+              item.gain ||
+                item.profitLoss ||
+                item.profit_loss ||
+                marketValue - quantity * avgCost
+            );
+
+            return {
+              id: item.id || item._id || index,
+              symbol: String(
+                item.symbol ||
+                  item.asset ||
+                  item.ticker ||
+                  ''
+              ),
+              quantity,
+              avgCost,
+              currentPrice,
+              marketValue,
+              gain,
+            };
+          })
+          .filter((item: Holding) => item.symbol !== '');
+
         const cashAvailable = Number(
-          portfolioData.cashAvailable ??
-            portfolioData.cash_available ??
-            portfolioData.availableBalance ??
-            portfolioData.available_balance ??
+          source.availableBalance ||
+            source.available_balance ||
+            source.cashAvailable ||
+            source.cash_available ||
             0
         );
 
         setPortfolio({
-          holdings: normalizedHoldings,
+          holdings,
           cashAvailable,
         });
       } catch (err) {
-        console.error(
-          'Portfolio loading error:',
-          err
-        );
+        console.error('Portfolio error:', err);
 
-        /*
-         * Do not create fake investment data.
-         *
-         * If the backend endpoint is not available,
-         * show an empty portfolio instead.
-         */
         setPortfolio({
           holdings: [],
           cashAvailable: 0,
@@ -189,66 +142,32 @@ const Portfolio: React.FC = () => {
     loadPortfolio();
   }, []);
 
-  const totalValue = useMemo(() => {
-    return portfolio.holdings.reduce(
-      (sum, holding) =>
-        sum + holding.marketValue,
-      0
-    );
-  }, [portfolio.holdings]);
+  const totalValue = portfolio.holdings.reduce(
+    (total, holding) => total + holding.marketValue,
+    0
+  );
 
-  const totalGain = useMemo(() => {
-    return portfolio.holdings.reduce(
-      (sum, holding) =>
-        sum + holding.gain,
-      0
-    );
-  }, [portfolio.holdings]);
+  const totalGain = portfolio.holdings.reduce(
+    (total, holding) => total + holding.gain,
+    0
+  );
 
-  const investedCost = useMemo(() => {
-    return portfolio.holdings.reduce(
-      (sum, holding) =>
-        sum +
-        holding.quantity *
-          holding.avgCost,
-      0
-    );
-  }, [portfolio.holdings]);
+  const investedAmount = portfolio.holdings.reduce(
+    (total, holding) =>
+      total + holding.quantity * holding.avgCost,
+    0
+  );
 
-  const totalGainPercent = useMemo(() => {
-    if (investedCost <= 0) {
-      return 0;
-    }
+  const gainPercentage =
+    investedAmount > 0
+      ? (totalGain / investedAmount) * 100
+      : 0;
 
-    return (
-      (totalGain / investedCost) *
-      100
-    );
-  }, [totalGain, investedCost]);
-
-  const formatCurrency = (
-    value: number
-  ) => {
-    return new Intl.NumberFormat(
-      'en-US',
-      {
-        style: 'currency',
-        currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    ).format(value);
-  };
-
-  const formatNumber = (
-    value: number
-  ) => {
-    return new Intl.NumberFormat(
-      'en-US',
-      {
-        maximumFractionDigits: 8,
-      }
-    ).format(value);
+  const money = (value: number) => {
+    return `$${value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   if (loading) {
@@ -263,17 +182,10 @@ const Portfolio: React.FC = () => {
             'linear-gradient(180deg, #02071f 0%, #071453 100%)',
         }}
       >
-        <Stack
-          spacing={2}
-          alignItems="center"
-        >
-          <CircularProgress
-            sx={{ color: '#42a5f5' }}
-          />
+        <Stack spacing={2} alignItems="center">
+          <CircularProgress sx={{ color: '#5ce8ff' }} />
 
-          <Typography
-            sx={{ color: '#fff' }}
-          >
+          <Typography sx={{ color: '#fff' }}>
             Loading portfolio...
           </Typography>
         </Stack>
@@ -287,62 +199,46 @@ const Portfolio: React.FC = () => {
         minHeight: '100vh',
         color: '#fff',
         background:
-          'radial-gradient(circle at top right, rgba(25,84,199,0.28), transparent 30%), linear-gradient(180deg, #02071f 0%, #071453 55%, #091b68 100%)',
-        py: 4,
+          'radial-gradient(circle at top right, rgba(25,84,199,0.3), transparent 30%), linear-gradient(180deg, #02071f 0%, #071453 55%, #091b68 100%)',
+        pb: 6,
       }}
     >
-      <Container maxWidth="xl">
-        {/* PAGE HEADER */}
-
+      <Container maxWidth="xl" sx={{ pt: 4 }}>
         <Stack
-          direction={{
-            xs: 'column',
-            sm: 'row',
-          }}
+          direction={{ xs: 'column', sm: 'row' }}
           justifyContent="space-between"
-          alignItems={{
-            xs: 'flex-start',
-            sm: 'center',
-          }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
           spacing={2}
           sx={{ mb: 4 }}
         >
           <Box>
             <Typography
-              variant="h4"
               sx={{
-                fontWeight: 800,
-                color: '#fff',
-                mb: 0.5,
+                fontSize: { xs: 30, md: 42 },
+                fontWeight: 900,
               }}
             >
-              Portfolio
+              My Portfolio
             </Typography>
 
             <Typography
               sx={{
-                color:
-                  'rgba(255,255,255,0.65)',
+                color: '#8ea4e8',
+                mt: 0.5,
               }}
             >
-              View and manage your real
-              investment holdings.
+              Your real investment holdings and account assets.
             </Typography>
           </Box>
 
-          <Stack
-            direction="row"
-            spacing={1}
-          >
+          <Stack direction="row" spacing={1}>
             <Button
               variant="outlined"
-              onClick={() =>
-                navigate('/wallet')
-              }
+              onClick={() => navigate('/wallet')}
               sx={{
                 color: '#fff',
-                borderColor:
-                  'rgba(255,255,255,0.3)',
+                borderColor: 'rgba(255,255,255,0.35)',
+                textTransform: 'none',
               }}
             >
               Wallet
@@ -350,14 +246,14 @@ const Portfolio: React.FC = () => {
 
             <Button
               variant="contained"
-              onClick={() =>
-                navigate('/trading')
-              }
+              startIcon={<CandlestickChartIcon />}
+              onClick={() => navigate('/trading')}
               sx={{
-                fontWeight: 700,
+                textTransform: 'none',
+                fontWeight: 800,
               }}
             >
-              Start Trading
+              Trading
             </Button>
           </Stack>
         </Stack>
@@ -367,576 +263,336 @@ const Portfolio: React.FC = () => {
             severity="info"
             sx={{
               mb: 3,
-              background:
-                'rgba(33,150,243,0.12)',
               color: '#fff',
-              border:
-                '1px solid rgba(33,150,243,0.3)',
+              background: 'rgba(33,150,243,0.15)',
             }}
           >
             {error}
           </Alert>
         )}
 
-        {/* SUMMARY CARDS */}
-
-        <Grid
-          container
-          spacing={2}
-          sx={{ mb: 3 }}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              lg: 'repeat(4, 1fr)',
+            },
+            gap: 2,
+            mb: 3,
+          }}
         >
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={3}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                background:
-                  'rgba(12,25,75,0.82)',
-                border:
-                  '1px solid rgba(120,150,255,0.16)',
-                borderRadius: 3,
-                color: '#fff',
-              }}
-            >
-              <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  sx={{ mb: 2 }}
-                >
-                  <Typography
-                    sx={{
-                      color:
-                        'rgba(255,255,255,0.65)',
-                    }}
-                  >
-                    Total Portfolio Value
-                  </Typography>
+          <StatCard
+            title="Portfolio Value"
+            value={money(totalValue)}
+            subtitle="Current holdings value"
+            icon={<AccountBalanceWalletIcon />}
+          />
 
-                  <AccountBalanceWalletIcon
-                    sx={{
-                      color: '#42a5f5',
-                    }}
-                  />
-                </Stack>
+          <StatCard
+            title="Gain / Loss"
+            value={`${totalGain >= 0 ? '+' : ''}${money(totalGain)}`}
+            subtitle={`${gainPercentage >= 0 ? '+' : ''}${gainPercentage.toFixed(2)}%`}
+            icon={<TrendingUpIcon />}
+            positive={totalGain >= 0}
+          />
 
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 800,
-                  }}
-                >
-                  {formatCurrency(
-                    totalValue
-                  )}
-                </Typography>
+          <StatCard
+            title="Holdings"
+            value={String(portfolio.holdings.length)}
+            subtitle="Real portfolio assets"
+            icon={<ShowChartIcon />}
+          />
 
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 1,
-                    color:
-                      'rgba(255,255,255,0.55)',
-                  }}
-                >
-                  Based on available
-                  holdings
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          <StatCard
+            title="Cash Available"
+            value={money(portfolio.cashAvailable)}
+            subtitle="Available account balance"
+            icon={<AccountBalanceWalletIcon />}
+          />
+        </Box>
 
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={3}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                background:
-                  'rgba(12,25,75,0.82)',
-                border:
-                  '1px solid rgba(120,150,255,0.16)',
-                borderRadius: 3,
-                color: '#fff',
-              }}
-            >
-              <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  sx={{ mb: 2 }}
-                >
-                  <Typography
-                    sx={{
-                      color:
-                        'rgba(255,255,255,0.65)',
-                    }}
-                  >
-                    Total Gain/Loss
-                  </Typography>
-
-                  <TrendingUpIcon
-                    sx={{
-                      color:
-                        totalGain >= 0
-                          ? '#4caf50'
-                          : '#f44336',
-                    }}
-                  />
-                </Stack>
-
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 800,
-                    color:
-                      totalGain >= 0
-                        ? '#4caf50'
-                        : '#f44336',
-                  }}
-                >
-                  {totalGain >= 0
-                    ? '+'
-                    : ''}
-                  {formatCurrency(
-                    totalGain
-                  )}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 1,
-                    color:
-                      totalGain >= 0
-                        ? '#4caf50'
-                        : '#f44336',
-                  }}
-                >
-                  {totalGainPercent >=
-                  0
-                    ? '+'
-                    : ''}
-                  {totalGainPercent.toFixed(
-                    2
-                  )}
-                  %
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={3}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                background:
-                  'rgba(12,25,75,0.82)',
-                border:
-                  '1px solid rgba(120,150,255,0.16)',
-                borderRadius: 3,
-                color: '#fff',
-              }}
-            >
-              <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  sx={{ mb: 2 }}
-                >
-                  <Typography
-                    sx={{
-                      color:
-                        'rgba(255,255,255,0.65)',
-                    }}
-                  >
-                    Holdings
-                  </Typography>
-
-                  <ShowChartIcon
-                    sx={{
-                      color: '#9c27b0',
-                    }}
-                  />
-                </Stack>
-
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 800,
-                  }}
-                >
-                  {portfolio.holdings.length}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 1,
-                    color:
-                      'rgba(255,255,255,0.55)',
-                  }}
-                >
-                  Real assets in
-                  portfolio
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid
-            item
-            xs={12}
-            sm={6}
-            md={3}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                background:
-                  'rgba(12,25,75,0.82)',
-                border:
-                  '1px solid rgba(120,150,255,0.16)',
-                borderRadius: 3,
-                color: '#fff',
-              }}
-            >
-              <CardContent>
-                <Stack
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  sx={{ mb: 2 }}
-                >
-                  <Typography
-                    sx={{
-                      color:
-                        'rgba(255,255,255,0.65)',
-                    }}
-                  >
-                    Cash Available
-                  </Typography>
-
-                  <AccountBalanceWalletIcon
-                    sx={{
-                      color: '#ffb300',
-                    }}
-                  />
-                </Stack>
-
-                <Typography
-                  variant="h5"
-                  sx={{
-                    fontWeight: 800,
-                  }}
-                >
-                  {formatCurrency(
-                    portfolio.cashAvailable
-                  )}
-                </Typography>
-
-                <Typography
-                  variant="body2"
-                  sx={{
-                    mt: 1,
-                    color:
-                      'rgba(255,255,255,0.55)',
-                  }}
-                >
-                  Available to trade
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* EMPTY PORTFOLIO */}
-
-        {portfolio.holdings.length ===
-          0 && (
+        {portfolio.holdings.length === 0 ? (
           <Card
             sx={{
-              background:
-                'rgba(12,25,75,0.82)',
-              border:
-                '1px solid rgba(120,150,255,0.16)',
-              borderRadius: 3,
+              borderRadius: 4,
               color: '#fff',
-              mb: 3,
+              background:
+                'linear-gradient(145deg, #11246f, #08164c)',
+              border:
+                '1px solid rgba(100,150,255,0.2)',
             }}
           >
             <CardContent
               sx={{
-                py: 7,
+                py: 8,
                 textAlign: 'center',
               }}
             >
               <ShowChartIcon
                 sx={{
-                  fontSize: 60,
-                  color:
-                    'rgba(66,165,245,0.65)',
+                  fontSize: 64,
+                  color: '#5ce8ff',
                   mb: 2,
                 }}
               />
 
               <Typography
-                variant="h5"
                 sx={{
-                  fontWeight: 800,
+                  fontSize: 26,
+                  fontWeight: 900,
                   mb: 1,
                 }}
               >
-                No portfolio holdings
+                No Portfolio Holdings
               </Typography>
 
               <Typography
                 sx={{
                   maxWidth: 600,
                   mx: 'auto',
-                  color:
-                    'rgba(255,255,255,0.6)',
+                  color: '#8ea4e8',
+                  lineHeight: 1.7,
                   mb: 3,
                 }}
               >
-                Your portfolio does not
-                contain any investment
-                holdings yet. Once you make
-                a real investment, your
-                assets will appear here.
+                There are currently no real investment
+                holdings in your account. When you make a
+                real investment, your assets will appear
+                here automatically.
               </Typography>
 
               <Button
                 variant="contained"
-                onClick={() =>
-                  navigate('/trading')
-                }
+                startIcon={<CandlestickChartIcon />}
+                onClick={() => navigate('/trading')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 800,
+                }}
               >
-                Explore Trading
+                Explore Markets
               </Button>
             </CardContent>
           </Card>
-        )}
+        ) : (
+          <Card
+            sx={{
+              borderRadius: 4,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg, #11246f, #08164c)',
+              border:
+                '1px solid rgba(100,150,255,0.2)',
+            }}
+          >
+            <CardContent>
+              <Typography
+                sx={{
+                  fontSize: 22,
+                  fontWeight: 900,
+                  mb: 3,
+                }}
+              >
+                Portfolio Holdings
+              </Typography>
 
-        {/* HOLDINGS */}
-
-        {portfolio.holdings.length >
-          0 && (
-          <>
-            <Card
-              sx={{
-                background:
-                  'rgba(12,25,75,0.82)',
-                border:
-                  '1px solid rgba(120,150,255,0.16)',
-                borderRadius: 3,
-                color: '#fff',
-                mb: 3,
-              }}
-            >
-              <CardContent>
-                <Typography
-                  variant="h6"
+              <Box
+                sx={{
+                  overflowX: 'auto',
+                }}
+              >
+                <Box
                   sx={{
-                    fontWeight: 700,
-                    mb: 2,
+                    minWidth: 850,
                   }}
                 >
-                  Portfolio Holdings
-                </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns:
+                        '1.2fr 1fr 1fr 1fr 1.2fr 1.2fr',
+                      gap: 2,
+                      p: 2,
+                      color: '#8198df',
+                      fontSize: 12,
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    <Box>Asset</Box>
+                    <Box>Quantity</Box>
+                    <Box>Average Cost</Box>
+                    <Box>Current Price</Box>
+                    <Box>Value</Box>
+                    <Box>Gain / Loss</Box>
+                  </Box>
 
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell
+                  {portfolio.holdings.map((holding) => {
+                    const cost =
+                      holding.quantity * holding.avgCost;
+
+                    const percentage =
+                      cost > 0
+                        ? (holding.gain / cost) * 100
+                        : 0;
+
+                    return (
+                      <Box
+                        key={holding.id}
+                        sx={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            '1.2fr 1fr 1fr 1fr 1.2fr 1.2fr',
+                          gap: 2,
+                          p: 2,
+                          borderTop:
+                            '1px solid rgba(255,255,255,0.08)',
+                        }}
+                      >
+                        <Typography
                           sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
+                            fontWeight: 900,
                           }}
                         >
-                          Asset
-                        </TableCell>
+                          {holding.symbol}
+                        </Typography>
 
-                        <TableCell
-                          align="right"
-                          sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          Quantity
-                        </TableCell>
+                        <Typography>
+                          {holding.quantity}
+                        </Typography>
 
-                        <TableCell
-                          align="right"
-                          sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          Avg Cost
-                        </TableCell>
+                        <Typography>
+                          {money(holding.avgCost)}
+                        </Typography>
 
-                        <TableCell
-                          align="right"
-                          sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          Current Price
-                        </TableCell>
+                        <Typography>
+                          {money(holding.currentPrice)}
+                        </Typography>
 
-                        <TableCell
-                          align="right"
-                          sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          Value
-                        </TableCell>
+                        <Typography>
+                          {money(holding.marketValue)}
+                        </Typography>
 
-                        <TableCell
-                          align="right"
-                          sx={{
-                            color:
-                              'rgba(255,255,255,0.65)',
-                            borderBottom:
-                              '1px solid rgba(255,255,255,0.1)',
-                          }}
-                        >
-                          Gain/Loss
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
+                        <Box>
+                          <Typography
+                            sx={{
+                              fontWeight: 800,
+                              color:
+                                holding.gain >= 0
+                                  ? '#4df28d'
+                                  : '#ff6b7a',
+                            }}
+                          >
+                            {holding.gain >= 0 ? '+' : ''}
+                            {money(holding.gain)}
+                          </Typography>
 
-                    <TableBody>
-                      {portfolio.holdings.map(
-                        (holding) => {
-                          const cost =
-                            holding.quantity *
-                            holding.avgCost;
+                          <Typography
+                            sx={{
+                              fontSize: 11,
+                              color:
+                                holding.gain >= 0
+                                  ? '#4df28d'
+                                  : '#ff6b7a',
+                            }}
+                          >
+                            {percentage >= 0 ? '+' : ''}
+                            {percentage.toFixed(2)}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+      </Container>
+    </Box>
+  );
+};
 
-                          const percentage =
-                            cost > 0
-                              ? (holding.gain /
-                                  cost) *
-                                100
-                              : 0;
+interface StatCardProps {
+  title: string;
+  value: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  positive?: boolean;
+}
 
-                          return (
-                            <TableRow
-                              key={holding.id}
-                            >
-                              <TableCell
-                                sx={{
-                                  color: '#fff',
-                                  fontWeight: 700,
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {holding.symbol}
-                              </TableCell>
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  subtitle,
+  icon,
+  positive,
+}) => {
+  return (
+    <Card
+      sx={{
+        height: '100%',
+        borderRadius: 3,
+        color: '#fff',
+        background:
+          'linear-gradient(145deg, #11246f, #08164c)',
+        border:
+          '1px solid rgba(100,150,255,0.2)',
+      }}
+    >
+      <CardContent>
+        <Stack
+          direction="row"
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          <Typography
+            sx={{
+              color: '#8198df',
+              fontSize: 12,
+              fontWeight: 800,
+              textTransform: 'uppercase',
+            }}
+          >
+            {title}
+          </Typography>
 
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  color:
-                                    'rgba(255,255,255,0.85)',
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {formatNumber(
-                                  holding.quantity
-                                )}
-                              </TableCell>
+          <Box
+            sx={{
+              color: positive === false
+                ? '#ff6b7a'
+                : '#5ce8ff',
+              display: 'flex',
+            }}
+          >
+            {icon}
+          </Box>
+        </Stack>
 
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  color:
-                                    'rgba(255,255,255,0.85)',
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {formatCurrency(
-                                  holding.avgCost
-                                )}
-                              </TableCell>
+        <Typography
+          sx={{
+            mt: 2,
+            fontSize: 25,
+            fontWeight: 900,
+          }}
+        >
+          {value}
+        </Typography>
 
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  color:
-                                    'rgba(255,255,255,0.85)',
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {formatCurrency(
-                                  holding.currentPrice
-                                )}
-                              </TableCell>
+        <Typography
+          sx={{
+            mt: 0.5,
+            color: '#8198df',
+            fontSize: 12,
+          }}
+        >
+          {subtitle}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+};
 
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  color: '#fff',
-                                  fontWeight: 600,
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                {formatCurrency(
-                                  holding.marketValue
-                                )}
-                              </TableCell>
-
-                              <TableCell
-                                align="right"
-                                sx={{
-                                  borderBottom:
-                                    '1px solid rgba(255,255,255,0.08)',
-                                }}
-                              >
-                                <Stack
-                                  alignItems="flex-end"
-                                >
-                                  <Typography
-                                    sx={{
-                                      fontWeight: 700,
-                                      color:
-                                        holding.gain >=
-                                        0
-                                          ? '#4caf50'
-                                          : '#
+export default Portfolio;
