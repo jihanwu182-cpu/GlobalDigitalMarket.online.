@@ -13,7 +13,6 @@ import {
 } from '@mui/material';
 
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import BoltIcon from '@mui/icons-material/Bolt';
@@ -115,58 +114,84 @@ const Dashboard: React.FC = () => {
         );
       } catch (error: any) {
         console.error(
-          'DASHBOARD ERROR:',
-          error
+          '=============================='
         );
+        console.error('DASHBOARD API ERROR');
+        console.error(
+          '=============================='
+        );
+
+        console.error('Full error:', error);
+
+        console.error(
+          'Response:',
+          error?.response
+        );
+
+        console.error(
+          'Response data:',
+          error?.response?.data
+        );
+
+        console.error(
+          'Response status:',
+          error?.response?.status
+        );
+
+        let serverMessage = '';
+
+        if (typeof error?.response?.data === 'string') {
+          serverMessage =
+            error.response.data;
+        } else if (
+          error?.response?.data?.message
+        ) {
+          serverMessage =
+            error.response.data.message;
+        } else if (
+          error?.response?.data?.error
+        ) {
+          const backendError =
+            error.response.data.error;
+
+          if (
+            typeof backendError === 'string'
+          ) {
+            serverMessage = backendError;
+          } else {
+            serverMessage = JSON.stringify(
+              backendError
+            );
+          }
+        } else if (error?.message) {
+          serverMessage = error.message;
+        } else {
+          serverMessage =
+            'Unknown server error.';
+        }
 
         const status =
           error?.response?.status;
 
-        const serverMessage =
-          error?.response?.data?.message ||
-          error?.response?.data?.error;
-
         if (status === 401) {
           setErrorMessage(
-            `Authentication failed (401): ${
-              serverMessage ||
-              'Invalid or missing login token.'
-            }`
-          );
-        } else if (status === 403) {
-          setErrorMessage(
-            `Access denied (403): ${
-              serverMessage ||
-              'You are not authorized.'
-            }`
-          );
-        } else if (status === 404) {
-          setErrorMessage(
-            `API endpoint not found (404): ${
-              serverMessage ||
-              'Portfolio endpoint does not exist.'
-            }`
+            'Your login session has expired. Please login again.'
           );
         } else if (status === 500) {
           setErrorMessage(
-            `Server error (500): ${
-              serverMessage ||
-              'The backend encountered an error.'
-            }`
+            `Server error (500): ${serverMessage}`
+          );
+        } else if (status === 404) {
+          setErrorMessage(
+            `API endpoint not found (404): ${serverMessage}`
           );
         } else if (status) {
           setErrorMessage(
-            `Server error (${status}): ${
-              serverMessage ||
-              'The server returned an error.'
-            }`
+            `API error (${status}): ${serverMessage}`
           );
         } else {
           setErrorMessage(
-            `Connection error: ${
-              error?.message ||
-              'Could not connect to the API.'
-            }`
+            `Connection error: ${serverMessage}`
           );
         }
       } finally {
@@ -178,20 +203,23 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const formatMoney = (value: number) => {
-    return `$${Number(value || 0).toLocaleString(
-      'en-US',
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    )}`;
+    return `$${Number(
+      value || 0
+    ).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   const portfolioValue =
-    formatMoney(performance.totalValue);
+    formatMoney(
+      performance.totalValue
+    );
 
   const availableBalance =
-    formatMoney(performance.availableBalance);
+    formatMoney(
+      performance.availableBalance
+    );
 
   const totalProfit =
     performance.totalGain >= 0
@@ -363,8 +391,8 @@ const Dashboard: React.FC = () => {
               mt: 1,
             }}
           >
-            Welcome to your Global Digital Market
-            account.
+            Welcome to your Global Digital
+            Market account.
           </Typography>
         </Box>
 
@@ -382,8 +410,10 @@ const Dashboard: React.FC = () => {
             <CardContent>
               <Typography
                 sx={{
-                  fontWeight: 700,
                   color: '#ffd54f',
+                  fontSize: 20,
+                  fontWeight: 800,
+                  mb: 1,
                 }}
               >
                 Dashboard API Error
@@ -391,7 +421,7 @@ const Dashboard: React.FC = () => {
 
               <Typography
                 sx={{
-                  mt: 1,
+                  whiteSpace: 'pre-wrap',
                   wordBreak: 'break-word',
                 }}
               >
@@ -699,8 +729,7 @@ const Dashboard: React.FC = () => {
                             height: 40,
                             borderRadius:
                               '50%',
-                            display:
-                              'flex',
+                            display: 'flex',
                             alignItems:
                               'center',
                             justifyContent:
@@ -730,8 +759,7 @@ const Dashboard: React.FC = () => {
 
                           <Typography
                             sx={{
-                              color:
-                                '#758bd6',
+                              color: '#758bd6',
                               fontSize: 10,
                             }}
                           >
@@ -801,7 +829,8 @@ const Dashboard: React.FC = () => {
                   mb: 2,
                 }}
               >
-                Your actual database holdings
+                Your actual database
+                holdings
               </Typography>
 
               {loading ? (
@@ -826,7 +855,8 @@ const Dashboard: React.FC = () => {
                     py: 2,
                   }}
                 >
-                  No portfolio holdings yet.
+                  No portfolio holdings
+                  yet.
                 </Typography>
               ) : (
                 <Stack spacing={1}>
@@ -855,13 +885,14 @@ const Dashboard: React.FC = () => {
 
                           <Typography
                             sx={{
-                              color:
-                                '#8296e0',
+                              color: '#8296e0',
                               fontSize: 11,
                             }}
                           >
                             Quantity:{' '}
-                            {holding.quantity}
+                            {
+                              holding.quantity
+                            }
                           </Typography>
                         </Box>
 
@@ -938,7 +969,8 @@ const Dashboard: React.FC = () => {
                     mt: 0.5,
                   }}
                 >
-                  Open your trading workspace.
+                  Open your trading
+                  workspace.
                 </Typography>
               </Box>
 
