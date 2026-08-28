@@ -7,11 +7,8 @@ import {
   CardContent,
   TextField,
   Typography,
-  CircularProgress,
   Alert,
 } from '@mui/material';
-
-import authService from '../services/authService';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -22,17 +19,14 @@ const Register: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleRegister = async (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setErrorMessage('');
-    setSuccessMessage('');
+    setError('');
+    setSuccess('');
 
     if (
       !firstName.trim() ||
@@ -41,80 +35,21 @@ const Register: React.FC = () => {
       !password ||
       !confirmPassword
     ) {
-      setErrorMessage('Please fill in all fields.');
+      setError('Please fill in all fields.');
       return;
     }
 
     if (password.length < 8) {
-      setErrorMessage(
-        'Password must be at least 8 characters long.'
-      );
+      setError('Password must be at least 8 characters.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setErrorMessage('Passwords do not match.');
+      setError('Passwords do not match.');
       return;
     }
 
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailPattern.test(email.trim())) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const response = await authService.register(
-        email.trim(),
-        password,
-        firstName.trim(),
-        lastName.trim()
-      );
-
-      console.log('REGISTRATION RESPONSE:', response);
-
-      setSuccessMessage(
-        response.message || 'Account created successfully!'
-      );
-
-      /*
-       * IMPORTANT:
-       * We are NOT navigating automatically yet.
-       * This lets us confirm that the real backend registration
-       * is working before moving to the dashboard.
-       */
-    } catch (error: any) {
-      console.error('REGISTRATION ERROR:', error);
-
-      if (error?.response) {
-        console.error(
-          'Backend status:',
-          error.response.status
-        );
-
-        console.error(
-          'Backend response:',
-          error.response.data
-        );
-      }
-
-      if (error?.response?.data?.message) {
-        setErrorMessage(error.response.data.message);
-      } else if (error?.response?.data?.error) {
-        setErrorMessage(error.response.data.error);
-      } else if (error?.message) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage(
-          'Registration failed. Please try again.'
-        );
-      }
-    } finally {
-      setLoading(false);
-    }
+    setSuccess('Registration page is working correctly.');
   };
 
   return (
@@ -124,14 +59,16 @@ const Register: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f5f5f5',
-        p: 2,
+        background:
+          'linear-gradient(135deg, #0f172a 0%, #16213e 50%, #1e3a5f 100%)',
+        padding: 2,
       }}
     >
       <Card
         sx={{
           width: '100%',
           maxWidth: 450,
+          boxShadow: 5,
         }}
       >
         <CardContent sx={{ p: 4 }}>
@@ -147,21 +84,21 @@ const Register: React.FC = () => {
             Create Account
           </Typography>
 
-          {errorMessage && (
+          {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {errorMessage}
+              {error}
             </Alert>
           )}
 
-          {successMessage && (
+          {success && (
             <Alert severity="success" sx={{ mb: 2 }}>
-              {successMessage}
+              {success}
             </Alert>
           )}
 
           <Box
             component="form"
-            onSubmit={handleRegister}
+            onSubmit={handleSubmit}
             sx={{
               display: 'flex',
               flexDirection: 'column',
@@ -172,20 +109,14 @@ const Register: React.FC = () => {
               fullWidth
               label="First Name"
               value={firstName}
-              onChange={(event) =>
-                setFirstName(event.target.value)
-              }
-              disabled={loading}
+              onChange={(e) => setFirstName(e.target.value)}
             />
 
             <TextField
               fullWidth
               label="Last Name"
               value={lastName}
-              onChange={(event) =>
-                setLastName(event.target.value)
-              }
-              disabled={loading}
+              onChange={(e) => setLastName(e.target.value)}
             />
 
             <TextField
@@ -193,10 +124,7 @@ const Register: React.FC = () => {
               label="Email"
               type="email"
               value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
-              disabled={loading}
+              onChange={(e) => setEmail(e.target.value)}
             />
 
             <TextField
@@ -204,10 +132,7 @@ const Register: React.FC = () => {
               label="Password"
               type="password"
               value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              disabled={loading}
+              onChange={(e) => setPassword(e.target.value)}
               helperText="Minimum 8 characters"
             />
 
@@ -216,51 +141,33 @@ const Register: React.FC = () => {
               label="Confirm Password"
               type="password"
               value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(event.target.value)
-              }
-              disabled={loading}
+              onChange={(e) => setConfirmPassword(e.target.value)}
             />
 
             <Button
               fullWidth
               type="submit"
               variant="contained"
-              disabled={loading}
               sx={{
                 py: 1.5,
                 mt: 1,
               }}
             >
-              {loading ? (
-                <>
-                  <CircularProgress
-                    size={24}
-                    sx={{ mr: 1 }}
-                  />
-                  Creating Account...
-                </>
-              ) : (
-                'Create Account'
-              )}
+              Create Account
             </Button>
-
-            {successMessage && (
-              <Button
-                type="button"
-                variant="outlined"
-                onClick={() => navigate('/login')}
-              >
-                Continue to Login
-              </Button>
-            )}
 
             <Button
               type="button"
-              disabled={loading}
               onClick={() => navigate('/login')}
             >
               Already have an account? Login
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => navigate('/')}
+            >
+              Back to Home
             </Button>
           </Box>
         </CardContent>
