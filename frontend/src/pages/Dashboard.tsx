@@ -17,16 +17,31 @@ import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import BoltIcon from '@mui/icons-material/Bolt';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
+import SavingsIcon from '@mui/icons-material/Savings';
+import GroupAddIcon from '@mui/icons-material/GroupAdd';
+import PaymentsIcon from '@mui/icons-material/Payments';
 
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
+
+// ============================================================
+// TYPES
+// ============================================================
 
 interface PerformanceResponse {
   totalValue: number;
   totalGain: number;
   gainPercentage: number;
+
+  deposit: number;
+  profits: number;
   availableBalance: number;
-  buyingPower?: number;
+  bonus: number;
+  referrerBonus: number;
+
+  buyingPower: number;
+  marginAvailable?: number;
+  totalHoldingsValue?: number;
 }
 
 interface Holding {
@@ -44,6 +59,10 @@ interface HoldingsResponse {
   holdings: Holding[];
 }
 
+// ============================================================
+// DASHBOARD
+// ============================================================
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
@@ -54,13 +73,27 @@ const Dashboard: React.FC = () => {
       totalValue: 0,
       totalGain: 0,
       gainPercentage: 0,
+
+      deposit: 0,
+      profits: 0,
       availableBalance: 0,
+      bonus: 0,
+      referrerBonus: 0,
+
       buyingPower: 0,
+      marginAvailable: 0,
+      totalHoldingsValue: 0,
     });
 
-  const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [holdings, setHoldings] =
+    useState<Holding[]>([]);
 
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] =
+    useState('');
+
+  // ==========================================================
+  // LOAD REAL ACCOUNT DATA
+  // ==========================================================
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -68,40 +101,62 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         setErrorMessage('');
 
-        const performanceResponse =
-          await apiClient.get<PerformanceResponse>(
+        const [
+          performanceResponse,
+          holdingsResponse,
+        ] = await Promise.all([
+          apiClient.get<PerformanceResponse>(
             '/portfolio/performance'
-          );
+          ),
 
-        const holdingsResponse =
-          await apiClient.get<HoldingsResponse>(
+          apiClient.get<HoldingsResponse>(
             '/portfolio/holdings'
-          );
+          ),
+        ]);
+
+        const data =
+          performanceResponse.data;
 
         setPerformance({
           totalValue:
-            Number(
-              performanceResponse.data?.totalValue
-            ) || 0,
+            Number(data?.totalValue) || 0,
 
           totalGain:
-            Number(
-              performanceResponse.data?.totalGain
-            ) || 0,
+            Number(data?.totalGain) || 0,
 
           gainPercentage:
-            Number(
-              performanceResponse.data?.gainPercentage
-            ) || 0,
+            Number(data?.gainPercentage) || 0,
+
+          deposit:
+            Number(data?.deposit) || 0,
+
+          profits:
+            Number(data?.profits) || 0,
 
           availableBalance:
             Number(
-              performanceResponse.data?.availableBalance
+              data?.availableBalance
+            ) || 0,
+
+          bonus:
+            Number(data?.bonus) || 0,
+
+          referrerBonus:
+            Number(
+              data?.referrerBonus
             ) || 0,
 
           buyingPower:
+            Number(data?.buyingPower) || 0,
+
+          marginAvailable:
             Number(
-              performanceResponse.data?.buyingPower
+              data?.marginAvailable
+            ) || 0,
+
+          totalHoldingsValue:
+            Number(
+              data?.totalHoldingsValue
             ) || 0,
         });
 
@@ -114,84 +169,26 @@ const Dashboard: React.FC = () => {
         );
       } catch (error: any) {
         console.error(
-          '=============================='
+          'DASHBOARD API ERROR:',
+          error
         );
-        console.error('DASHBOARD API ERROR');
-        console.error(
-          '=============================='
-        );
-
-        console.error('Full error:', error);
-
-        console.error(
-          'Response:',
-          error?.response
-        );
-
-        console.error(
-          'Response data:',
-          error?.response?.data
-        );
-
-        console.error(
-          'Response status:',
-          error?.response?.status
-        );
-
-        let serverMessage = '';
-
-        if (typeof error?.response?.data === 'string') {
-          serverMessage =
-            error.response.data;
-        } else if (
-          error?.response?.data?.message
-        ) {
-          serverMessage =
-            error.response.data.message;
-        } else if (
-          error?.response?.data?.error
-        ) {
-          const backendError =
-            error.response.data.error;
-
-          if (
-            typeof backendError === 'string'
-          ) {
-            serverMessage = backendError;
-          } else {
-            serverMessage = JSON.stringify(
-              backendError
-            );
-          }
-        } else if (error?.message) {
-          serverMessage = error.message;
-        } else {
-          serverMessage =
-            'Unknown server error.';
-        }
 
         const status =
           error?.response?.status;
+
+        const serverMessage =
+          error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          'Unable to connect to the server.';
 
         if (status === 401) {
           setErrorMessage(
             'Your login session has expired. Please login again.'
           );
-        } else if (status === 500) {
-          setErrorMessage(
-            `Server error (500): ${serverMessage}`
-          );
-        } else if (status === 404) {
-          setErrorMessage(
-            `API endpoint not found (404): ${serverMessage}`
-          );
-        } else if (status) {
-          setErrorMessage(
-            `API error (${status}): ${serverMessage}`
-          );
         } else {
           setErrorMessage(
-            `Connection error: ${serverMessage}`
+            `Unable to load your account data. ${serverMessage}`
           );
         }
       } finally {
@@ -202,7 +199,13 @@ const Dashboard: React.FC = () => {
     loadDashboard();
   }, []);
 
-  const formatMoney = (value: number) => {
+  // ==========================================================
+  // FORMAT MONEY
+  // ==========================================================
+
+  const formatMoney = (
+    value: number
+  ): string => {
     return `$${Number(
       value || 0
     ).toLocaleString('en-US', {
@@ -211,14 +214,13 @@ const Dashboard: React.FC = () => {
     })}`;
   };
 
+  // ==========================================================
+  // FORMATTED VALUES
+  // ==========================================================
+
   const portfolioValue =
     formatMoney(
       performance.totalValue
-    );
-
-  const availableBalance =
-    formatMoney(
-      performance.availableBalance
     );
 
   const totalProfit =
@@ -238,6 +240,10 @@ const Dashboard: React.FC = () => {
       : `${performance.gainPercentage.toFixed(
           2
         )}%`;
+
+  // ==========================================================
+  // MARKET DATA
+  // ==========================================================
 
   const marketAssets = [
     {
@@ -290,6 +296,10 @@ const Dashboard: React.FC = () => {
     },
   ];
 
+  // ==========================================================
+  // RENDER
+  // ==========================================================
+
   return (
     <Box
       sx={{
@@ -300,12 +310,16 @@ const Dashboard: React.FC = () => {
         pb: 5,
       }}
     >
+      {/* ====================================================
+          TOP BAR
+      ==================================================== */}
+
       <AppBar
         position="sticky"
         elevation={0}
         sx={{
           background:
-            'rgba(3, 10, 44, 0.95)',
+            'rgba(3,10,44,0.96)',
           borderBottom:
             '1px solid rgba(125,150,255,0.2)',
         }}
@@ -363,6 +377,10 @@ const Dashboard: React.FC = () => {
         </Toolbar>
       </AppBar>
 
+      {/* ====================================================
+          MAIN
+      ==================================================== */}
+
       <Container
         maxWidth="xl"
         sx={{
@@ -372,6 +390,10 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
+        {/* ==================================================
+            TITLE
+        ================================================== */}
+
         <Box sx={{ mb: 4 }}>
           <Typography
             sx={{
@@ -396,6 +418,10 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Box>
 
+        {/* ==================================================
+            ERROR
+        ================================================== */}
+
         {errorMessage && (
           <Card
             sx={{
@@ -411,20 +437,15 @@ const Dashboard: React.FC = () => {
               <Typography
                 sx={{
                   color: '#ffd54f',
-                  fontSize: 20,
+                  fontSize: 18,
                   fontWeight: 800,
                   mb: 1,
                 }}
               >
-                Dashboard API Error
+                Dashboard Error
               </Typography>
 
-              <Typography
-                sx={{
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
+              <Typography>
                 {errorMessage}
               </Typography>
 
@@ -441,6 +462,10 @@ const Dashboard: React.FC = () => {
           </Card>
         )}
 
+        {/* ==================================================
+            PORTFOLIO HERO
+        ================================================== */}
+
         <Card
           sx={{
             mb: 3,
@@ -450,6 +475,8 @@ const Dashboard: React.FC = () => {
               'linear-gradient(135deg, #172a8a, #1459e8)',
             border:
               '1px solid rgba(143,170,255,0.28)',
+            boxShadow:
+              '0 20px 60px rgba(0,0,0,0.25)',
           }}
         >
           <CardContent
@@ -460,56 +487,429 @@ const Dashboard: React.FC = () => {
               },
             }}
           >
-            <Typography
-              sx={{
-                color: '#b9c8ff',
-                fontSize: 13,
-                fontWeight: 700,
+            <Stack
+              direction={{
+                xs: 'column',
+                md: 'row',
               }}
+              justifyContent="space-between"
+              spacing={3}
             >
-              TOTAL PORTFOLIO VALUE
-            </Typography>
+              <Box>
+                <Typography
+                  sx={{
+                    color: '#b9c8ff',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    letterSpacing: 1,
+                  }}
+                >
+                  TOTAL ACCOUNT VALUE
+                </Typography>
 
-            {loading ? (
-              <CircularProgress
+                {loading ? (
+                  <CircularProgress
+                    sx={{
+                      color: '#fff',
+                      mt: 2,
+                    }}
+                  />
+                ) : (
+                  <Typography
+                    sx={{
+                      fontSize: {
+                        xs: 40,
+                        md: 52,
+                      },
+                      fontWeight: 800,
+                      mt: 1,
+                    }}
+                  >
+                    {portfolioValue}
+                  </Typography>
+                )}
+
+                <Typography
+                  sx={{
+                    mt: 1,
+                    color: '#cbd6ff',
+                  }}
+                >
+                  Portfolio performance:{' '}
+                  {profitPercentage}
+                </Typography>
+              </Box>
+
+              <Box
                 sx={{
-                  color: '#fff',
-                  mt: 2,
-                }}
-              />
-            ) : (
-              <Typography
-                sx={{
-                  fontSize: {
-                    xs: 40,
-                    md: 52,
+                  minWidth: {
+                    md: 260,
                   },
-                  fontWeight: 800,
-                  mt: 1,
+                  alignSelf: {
+                    md: 'center',
+                  },
                 }}
               >
-                {portfolioValue}
-              </Typography>
-            )}
+                <Typography
+                  sx={{
+                    color: '#b9c8ff',
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  BUYING POWER
+                </Typography>
 
-            <Typography
-              sx={{
-                mt: 1,
-                color: '#cbd6ff',
-              }}
-            >
-              Performance: {profitPercentage}
-            </Typography>
+                <Typography
+                  sx={{
+                    fontSize: 28,
+                    fontWeight: 800,
+                    mt: 0.5,
+                  }}
+                >
+                  {formatMoney(
+                    performance.buyingPower
+                  )}
+                </Typography>
+
+                <Button
+                  variant="contained"
+                  startIcon={<BoltIcon />}
+                  onClick={() =>
+                    navigate('/trading')
+                  }
+                  sx={{
+                    mt: 2,
+                    borderRadius: 2,
+                    background:
+                      'linear-gradient(90deg,#14d8ff,#1d8cff)',
+                    fontWeight: 800,
+                    textTransform: 'none',
+                  }}
+                >
+                  Start Trading
+                </Button>
+              </Box>
+            </Stack>
           </CardContent>
         </Card>
+
+        {/* ==================================================
+            FINANCIAL SUMMARY
+        ================================================== */}
+
+        <Typography
+          sx={{
+            fontSize: 20,
+            fontWeight: 800,
+            mb: 2,
+          }}
+        >
+          Account Summary
+        </Typography>
 
         <Box
           sx={{
             display: 'grid',
             gridTemplateColumns: {
               xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              lg: 'repeat(4, 1fr)',
+              sm: 'repeat(2,1fr)',
+              lg: 'repeat(5,1fr)',
+            },
+            gap: 2,
+            mb: 4,
+          }}
+        >
+          {/* DEPOSIT */}
+
+          <Card
+            sx={{
+              borderRadius: 3,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg,#163b9b,#0c205e)',
+              border:
+                '1px solid rgba(100,150,255,0.2)',
+            }}
+          >
+            <CardContent>
+              <PaymentsIcon
+                sx={{
+                  fontSize: 32,
+                  color: '#59d8ff',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  color: '#9eaff0',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  mt: 1,
+                }}
+              >
+                DEPOSIT
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  mt: 1,
+                }}
+              >
+                {formatMoney(
+                  performance.deposit
+                )}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#7186cd',
+                  fontSize: 11,
+                  mt: 0.5,
+                }}
+              >
+                Total deposited funds
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* PROFITS */}
+
+          <Card
+            sx={{
+              borderRadius: 3,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg,#125c52,#0b302e)',
+              border:
+                '1px solid rgba(70,240,170,0.2)',
+            }}
+          >
+            <CardContent>
+              <TrendingUpIcon
+                sx={{
+                  fontSize: 32,
+                  color: '#4df28d',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  color: '#9eaff0',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  mt: 1,
+                }}
+              >
+                PROFITS
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  mt: 1,
+                  color:
+                    performance.profits >= 0
+                      ? '#4df28d'
+                      : '#ff6681',
+                }}
+              >
+                {formatMoney(
+                  performance.profits
+                )}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#7186cd',
+                  fontSize: 11,
+                  mt: 0.5,
+                }}
+              >
+                Account profits
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* AVAILABLE BALANCE */}
+
+          <Card
+            sx={{
+              borderRadius: 3,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg,#243e9d,#101f5e)',
+              border:
+                '1px solid rgba(100,150,255,0.2)',
+            }}
+          >
+            <CardContent>
+              <AccountBalanceWalletIcon
+                sx={{
+                  fontSize: 32,
+                  color: '#66dcff',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  color: '#9eaff0',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  mt: 1,
+                }}
+              >
+                AVAILABLE BALANCE
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  mt: 1,
+                }}
+              >
+                {formatMoney(
+                  performance.availableBalance
+                )}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#7186cd',
+                  fontSize: 11,
+                  mt: 0.5,
+                }}
+              >
+                Available to use
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* BONUS */}
+
+          <Card
+            sx={{
+              borderRadius: 3,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg,#70439e,#351d60)',
+              border:
+                '1px solid rgba(200,130,255,0.25)',
+            }}
+          >
+            <CardContent>
+              <SavingsIcon
+                sx={{
+                  fontSize: 32,
+                  color: '#d99cff',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  color: '#c7aee8',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  mt: 1,
+                }}
+              >
+                BONUS
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  mt: 1,
+                }}
+              >
+                {formatMoney(
+                  performance.bonus
+                )}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#9c7bc1',
+                  fontSize: 11,
+                  mt: 0.5,
+                }}
+              >
+                Promotional bonus
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* REFERRER BONUS */}
+
+          <Card
+            sx={{
+              borderRadius: 3,
+              color: '#fff',
+              background:
+                'linear-gradient(145deg,#8a5722,#4b2c12)',
+              border:
+                '1px solid rgba(255,190,80,0.25)',
+            }}
+          >
+            <CardContent>
+              <GroupAddIcon
+                sx={{
+                  fontSize: 32,
+                  color: '#ffc45c',
+                }}
+              />
+
+              <Typography
+                sx={{
+                  color: '#f1ca91',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  mt: 1,
+                }}
+              >
+                REFERRER BONUS
+              </Typography>
+
+              <Typography
+                sx={{
+                  fontSize: 24,
+                  fontWeight: 800,
+                  mt: 1,
+                }}
+              >
+                {formatMoney(
+                  performance.referrerBonus
+                )}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#c59d69',
+                  fontSize: 11,
+                  mt: 0.5,
+                }}
+              >
+                Referral rewards
+              </Typography>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* ==================================================
+            SECONDARY STATS
+        ================================================== */}
+
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(3,1fr)',
             },
             gap: 2,
             mb: 4,
@@ -518,7 +918,7 @@ const Dashboard: React.FC = () => {
           <Card
             sx={{
               background:
-                'linear-gradient(145deg, #14287d, #0c1b58)',
+                'linear-gradient(145deg,#14287d,#0c1b58)',
               color: '#fff',
               borderRadius: 3,
             }}
@@ -533,7 +933,7 @@ const Dashboard: React.FC = () => {
                   fontSize: 12,
                 }}
               >
-                TOTAL PROFIT
+                TOTAL GAIN / LOSS
               </Typography>
 
               <Typography
@@ -551,40 +951,7 @@ const Dashboard: React.FC = () => {
           <Card
             sx={{
               background:
-                'linear-gradient(145deg, #14287d, #0c1b58)',
-              color: '#fff',
-              borderRadius: 3,
-            }}
-          >
-            <CardContent>
-              <AccountBalanceWalletIcon />
-
-              <Typography
-                sx={{
-                  color: '#9eaff0',
-                  mt: 1,
-                  fontSize: 12,
-                }}
-              >
-                AVAILABLE BALANCE
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: 26,
-                  fontWeight: 800,
-                  mt: 1,
-                }}
-              >
-                {availableBalance}
-              </Typography>
-            </CardContent>
-          </Card>
-
-          <Card
-            sx={{
-              background:
-                'linear-gradient(145deg, #14287d, #0c1b58)',
+                'linear-gradient(145deg,#14287d,#0c1b58)',
               color: '#fff',
               borderRadius: 3,
             }}
@@ -617,7 +984,7 @@ const Dashboard: React.FC = () => {
           <Card
             sx={{
               background:
-                'linear-gradient(145deg, #14287d, #0c1b58)',
+                'linear-gradient(145deg,#14287d,#0c1b58)',
               color: '#fff',
               borderRadius: 3,
             }}
@@ -632,7 +999,7 @@ const Dashboard: React.FC = () => {
                   fontSize: 12,
                 }}
               >
-                BUYING POWER
+                TOTAL HOLDINGS
               </Typography>
 
               <Typography
@@ -643,12 +1010,17 @@ const Dashboard: React.FC = () => {
                 }}
               >
                 {formatMoney(
-                  performance.buyingPower || 0
+                  performance.totalHoldingsValue ||
+                    0
                 )}
               </Typography>
             </CardContent>
           </Card>
         </Box>
+
+        {/* ==================================================
+            MARKET + PORTFOLIO
+        ================================================== */}
 
         <Box
           sx={{
@@ -660,10 +1032,12 @@ const Dashboard: React.FC = () => {
             gap: 3,
           }}
         >
+          {/* MARKET */}
+
           <Card
             sx={{
               background:
-                'linear-gradient(145deg, #11246f, #08164c)',
+                'linear-gradient(145deg,#11246f,#08164c)',
               color: '#fff',
               borderRadius: 3,
             }}
@@ -703,7 +1077,7 @@ const Dashboard: React.FC = () => {
                     color: '#62dcff',
                   }}
                 >
-                  View
+                  View Markets
                 </Button>
               </Stack>
 
@@ -735,7 +1109,7 @@ const Dashboard: React.FC = () => {
                             justifyContent:
                               'center',
                             background:
-                              'linear-gradient(135deg, #263eae, #16286d)',
+                              'linear-gradient(135deg,#263eae,#16286d)',
                             fontWeight: 800,
                           }}
                         >
@@ -803,10 +1177,12 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* PORTFOLIO */}
+
           <Card
             sx={{
               background:
-                'linear-gradient(145deg, #11246f, #08164c)',
+                'linear-gradient(145deg,#11246f,#08164c)',
               color: '#fff',
               borderRadius: 3,
             }}
@@ -829,8 +1205,7 @@ const Dashboard: React.FC = () => {
                   mb: 2,
                 }}
               >
-                Your actual database
-                holdings
+                Your actual database holdings
               </Typography>
 
               {loading ? (
@@ -855,8 +1230,7 @@ const Dashboard: React.FC = () => {
                     py: 2,
                   }}
                 >
-                  No portfolio holdings
-                  yet.
+                  No portfolio holdings yet.
                 </Typography>
               ) : (
                 <Stack spacing={1}>
@@ -890,9 +1264,7 @@ const Dashboard: React.FC = () => {
                             }}
                           >
                             Quantity:{' '}
-                            {
-                              holding.quantity
-                            }
+                            {holding.quantity}
                           </Typography>
                         </Box>
 
@@ -930,13 +1302,17 @@ const Dashboard: React.FC = () => {
           </Card>
         </Box>
 
+        {/* ==================================================
+            QUICK TRADE
+        ================================================== */}
+
         <Card
           sx={{
             mt: 3,
             borderRadius: 3,
             color: '#fff',
             background:
-              'linear-gradient(110deg, #1725a0, #1948ce, #078fe5)',
+              'linear-gradient(110deg,#1725a0,#1948ce,#078fe5)',
           }}
         >
           <CardContent sx={{ p: 3 }}>
@@ -969,8 +1345,7 @@ const Dashboard: React.FC = () => {
                     mt: 0.5,
                   }}
                 >
-                  Open your trading
-                  workspace.
+                  Open your trading workspace.
                 </Typography>
               </Box>
 
