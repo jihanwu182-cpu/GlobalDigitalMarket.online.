@@ -71,11 +71,13 @@ const QuickCard: React.FC<QuickCardProps> = ({
         color: '#fff',
         background:
           'linear-gradient(145deg,#101f63,#08143f)',
-        border: '1px solid rgba(100,150,255,0.20)',
+        border:
+          '1px solid rgba(100,150,255,0.20)',
         transition: 'transform 0.2s ease',
         '&:hover': {
           transform: 'translateY(-3px)',
-          borderColor: 'rgba(92,232,255,0.45)',
+          borderColor:
+            'rgba(92,232,255,0.45)',
         },
       }}
     >
@@ -89,7 +91,8 @@ const QuickCard: React.FC<QuickCardProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             color: '#5ce8ff',
-            background: 'rgba(92,232,255,0.10)',
+            background:
+              'rgba(92,232,255,0.10)',
             mb: 2,
           }}
         >
@@ -140,21 +143,30 @@ const QuickCard: React.FC<QuickCardProps> = ({
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] =
+    useState(false);
 
-  const [account, setAccount] = useState<AccountData>({
-    availableBalance: 0,
-  });
+  const [profileOpen, setProfileOpen] =
+    useState(false);
 
-  const [profile, setProfile] = useState<UserProfile>({
-    name: '',
-    email: '',
-    username: '',
-    accountId: '',
-  });
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState('');
+
+  const [account, setAccount] =
+    useState<AccountData>({
+      availableBalance: 0,
+    });
+
+  const [profile, setProfile] =
+    useState<UserProfile>({
+      name: '',
+      email: '',
+      username: '',
+      accountId: '',
+    });
 
   const loadProfile = () => {
     try {
@@ -168,14 +180,16 @@ const Dashboard: React.FC = () => {
       let storedUser: any = null;
 
       for (const key of keys) {
-        const value = localStorage.getItem(key);
+        const value =
+          localStorage.getItem(key);
 
         if (!value) {
           continue;
         }
 
         try {
-          const parsed = JSON.parse(value);
+          const parsed =
+            JSON.parse(value);
 
           if (
             parsed &&
@@ -191,23 +205,31 @@ const Dashboard: React.FC = () => {
 
       const token =
         localStorage.getItem('token') ||
-        localStorage.getItem('accessToken') ||
-        localStorage.getItem('authToken');
+        localStorage.getItem(
+          'accessToken'
+        ) ||
+        localStorage.getItem(
+          'authToken'
+        );
 
       let tokenUser: any = null;
 
       if (token) {
         try {
-          const parts = token.split('.');
+          const parts =
+            token.split('.');
 
           if (parts.length === 3) {
-            const normalized = parts[1]
-              .replace(/-/g, '+')
-              .replace(/_/g, '/');
+            const normalized =
+              parts[1]
+                .replace(/-/g, '+')
+                .replace(/_/g, '/');
 
-            const decoded = atob(normalized);
+            const decoded =
+              atob(normalized);
 
-            tokenUser = JSON.parse(decoded);
+            tokenUser =
+              JSON.parse(decoded);
           }
         } catch {
           tokenUser = null;
@@ -271,95 +293,120 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const loadAccount = async () => {
-    try {
-      setLoading(true);
-      setError('');
+  const loadAccount =
+    async () => {
+      try {
+        setLoading(true);
+        setError('');
 
-      const response = await apiClient.get(
-        '/portfolio/performance'
-      );
+        const response =
+          await apiClient.get(
+            '/portfolio/performance'
+          );
 
-      const data = response.data || {};
-      const balance = Number(
-        data.availableBalance
-      );
+        const data =
+          response.data || {};
 
-      setAccount({
-        availableBalance:
-          Number.isFinite(balance)
-            ? balance
-            : 0,
-      });
-    } catch (accountError: any) {
-      console.error(
-        'Account loading error:',
-        accountError
-      );
-
-      if (
-        accountError?.response?.status === 401
-      ) {
-        setError(
-          'Your login session has expired. Please login again.'
+        const balance = Number(
+          data.availableBalance
         );
-      } else {
-        setError(
-          accountError?.response?.data?.message ||
-            accountError?.response?.data?.error ||
-            'Unable to load your account balance.'
+
+        setAccount({
+          availableBalance:
+            Number.isFinite(balance)
+              ? balance
+              : 0,
+        });
+      } catch (accountError: any) {
+        console.error(
+          'Account loading error:',
+          accountError
         );
+
+        if (
+          accountError?.response
+            ?.status === 401
+        ) {
+          setError(
+            'Your login session has expired. Please login again.'
+          );
+        } else {
+          setError(
+            accountError?.response
+              ?.data?.message ||
+              accountError?.response
+                ?.data?.error ||
+              'Unable to load your account balance.'
+          );
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   useEffect(() => {
     loadProfile();
     loadAccount();
   }, []);
 
-  const displayName = useMemo(() => {
-    if (profile.name) {
-      return profile.name;
-    }
+  const displayName =
+    useMemo(() => {
+      if (profile.name) {
+        return profile.name;
+      }
 
-    if (profile.username) {
-      return profile.username;
-    }
+      if (profile.username) {
+        return profile.username;
+      }
 
-    return 'Account Holder';
-  }, [profile.name, profile.username]);
+      return 'Account Holder';
+    }, [
+      profile.name,
+      profile.username,
+    ]);
 
-  const initials = useMemo(() => {
-    const value = displayName.trim();
+  const initials =
+    useMemo(() => {
+      const value =
+        displayName.trim();
 
-    if (!value) {
-      return 'A';
-    }
+      if (!value) {
+        return 'A';
+      }
 
-    const parts = value.split(/\s+/);
+      const parts =
+        value.split(/\s+/);
 
-    if (parts.length >= 2) {
-      return (
-        parts[0][0] +
-        parts[parts.length - 1][0]
-      ).toUpperCase();
-    }
+      if (parts.length >= 2) {
+        return (
+          parts[0][0] +
+          parts[
+            parts.length - 1
+          ][0]
+        ).toUpperCase();
+      }
 
-    return value.slice(0, 2).toUpperCase();
-  }, [displayName]);
+      return value
+        .slice(0, 2)
+        .toUpperCase();
+    }, [displayName]);
 
-  const money = (value: number) => {
-    if (!Number.isFinite(value)) {
+  const money = (
+    value: number
+  ) => {
+    if (
+      !Number.isFinite(value)
+    ) {
       return '$0.00';
     }
 
-    return `$${value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    return `$${value.toLocaleString(
+      'en-US',
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    )}`;
   };
 
   const logout = () => {
@@ -413,13 +460,18 @@ const Dashboard: React.FC = () => {
         pb: 6,
       }}
     >
+      {/* MOBILE / DESKTOP MENU */}
+
       <Drawer
         anchor="left"
         open={menuOpen}
-        onClose={() => setMenuOpen(false)}
+        onClose={() =>
+          setMenuOpen(false)
+        }
         PaperProps={{
           sx: {
-            background: 'transparent',
+            background:
+              'transparent',
           },
         }}
       >
@@ -470,12 +522,18 @@ const Dashboard: React.FC = () => {
             </Box>
 
             <IconButton
-              onClick={() => setMenuOpen(false)}
-              sx={{ color: '#fff' }}
+              onClick={() =>
+                setMenuOpen(false)
+              }
+              sx={{
+                color: '#fff',
+              }}
             >
               <CloseIcon />
             </IconButton>
           </Stack>
+
+          {/* USER CARD */}
 
           <Box
             sx={{
@@ -507,13 +565,19 @@ const Dashboard: React.FC = () => {
                 {initials}
               </Avatar>
 
-              <Box sx={{ minWidth: 0 }}>
+              <Box
+                sx={{
+                  minWidth: 0,
+                }}
+              >
                 <Typography
                   sx={{
                     fontWeight: 800,
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    textOverflow:
+                      'ellipsis',
+                    whiteSpace:
+                      'nowrap',
                   }}
                 >
                   {displayName}
@@ -524,18 +588,23 @@ const Dashboard: React.FC = () => {
                     color: '#91a7e9',
                     fontSize: 11,
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    textOverflow:
+                      'ellipsis',
+                    whiteSpace:
+                      'nowrap',
                   }}
                 >
-                  {profile.email || 'Account'}
+                  {profile.email ||
+                    'Account'}
                 </Typography>
               </Box>
             </Stack>
 
             <Button
               fullWidth
-              startIcon={<PersonOutlineIcon />}
+              startIcon={
+                <PersonOutlineIcon />
+              }
               onClick={() => {
                 setMenuOpen(false);
                 setProfileOpen(true);
@@ -543,7 +612,8 @@ const Dashboard: React.FC = () => {
               sx={{
                 mt: 1.5,
                 color: '#fff',
-                textTransform: 'none',
+                textTransform:
+                  'none',
                 border:
                   '1px solid rgba(120,190,255,0.35)',
               }}
@@ -551,6 +621,8 @@ const Dashboard: React.FC = () => {
               View Profile
             </Button>
           </Box>
+
+          {/* MAIN */}
 
           <Typography
             sx={{
@@ -565,17 +637,25 @@ const Dashboard: React.FC = () => {
             MAIN
           </Typography>
 
+          {/* FIXED DASHBOARD ROUTE */}
+
           <MenuItem
             icon={<DashboardIcon />}
             text="Dashboard"
             onClick={() => {
               setMenuOpen(false);
-              navigate('/');
+
+              // IMPORTANT:
+              // Dashboard must go to /dashboard,
+              // not /
+              navigate('/dashboard');
             }}
           />
 
           <MenuItem
-            icon={<AccountBalanceWalletIcon />}
+            icon={
+              <AccountBalanceWalletIcon />
+            }
             text="Wallet & Funds"
             onClick={goWallet}
           />
@@ -587,13 +667,17 @@ const Dashboard: React.FC = () => {
           />
 
           <MenuItem
-            icon={<CandlestickChartIcon />}
+            icon={
+              <CandlestickChartIcon />
+            }
             text="Markets"
             onClick={goMarket}
           />
 
           <MenuItem
-            icon={<CandlestickChartIcon />}
+            icon={
+              <CandlestickChartIcon />
+            }
             text="Trading"
             onClick={goTrading}
           />
@@ -605,6 +689,8 @@ const Dashboard: React.FC = () => {
                 'rgba(255,255,255,0.10)',
             }}
           />
+
+          {/* ACCOUNT */}
 
           <Typography
             sx={{
@@ -620,7 +706,9 @@ const Dashboard: React.FC = () => {
           </Typography>
 
           <MenuItem
-            icon={<PersonOutlineIcon />}
+            icon={
+              <PersonOutlineIcon />
+            }
             text="Profile"
             onClick={() => {
               setMenuOpen(false);
@@ -646,16 +734,24 @@ const Dashboard: React.FC = () => {
             }}
           />
 
-          <Box sx={{ px: 2, mt: 2 }}>
+          <Box
+            sx={{
+              px: 2,
+              mt: 2,
+            }}
+          >
             <Button
               fullWidth
-              startIcon={<LogoutIcon />}
+              startIcon={
+                <LogoutIcon />
+              }
               onClick={logout}
               sx={{
                 color: '#ff8297',
                 border:
                   '1px solid rgba(255,100,130,0.25)',
-                textTransform: 'none',
+                textTransform:
+                  'none',
                 py: 1.2,
               }}
             >
@@ -665,6 +761,8 @@ const Dashboard: React.FC = () => {
         </Box>
       </Drawer>
 
+      {/* TOP BAR */}
+
       <Box
         sx={{
           position: 'sticky',
@@ -672,7 +770,8 @@ const Dashboard: React.FC = () => {
           zIndex: 10,
           background:
             'rgba(2,7,31,0.96)',
-          backdropFilter: 'blur(14px)',
+          backdropFilter:
+            'blur(14px)',
           borderBottom:
             '1px solid rgba(125,150,255,0.18)',
         }}
@@ -682,10 +781,14 @@ const Dashboard: React.FC = () => {
             direction="row"
             alignItems="center"
             spacing={1.5}
-            sx={{ py: 1.5 }}
+            sx={{
+              py: 1.5,
+            }}
           >
             <IconButton
-              onClick={() => setMenuOpen(true)}
+              onClick={() =>
+                setMenuOpen(true)
+              }
               sx={{
                 color: '#fff',
                 background:
@@ -695,7 +798,11 @@ const Dashboard: React.FC = () => {
               <MenuIcon />
             </IconButton>
 
-            <Box sx={{ flexGrow: 1 }}>
+            <Box
+              sx={{
+                flexGrow: 1,
+              }}
+            >
               <Typography
                 sx={{
                   fontSize: {
@@ -720,7 +827,9 @@ const Dashboard: React.FC = () => {
             </Box>
 
             <Button
-              onClick={() => setProfileOpen(true)}
+              onClick={() =>
+                setProfileOpen(true)
+              }
               sx={{
                 minWidth: 0,
                 p: 0.5,
@@ -742,6 +851,8 @@ const Dashboard: React.FC = () => {
           </Stack>
         </Container>
       </Box>
+
+      {/* DASHBOARD CONTENT */}
 
       <Container
         maxWidth="xl"
@@ -776,14 +887,20 @@ const Dashboard: React.FC = () => {
           </Typography>
         </Box>
 
+        {/* ERROR */}
+
         {error && (
           <Alert
             severity="error"
-            sx={{ mb: 3 }}
+            sx={{
+              mb: 3,
+            }}
             action={
               <Button
                 color="inherit"
-                onClick={() => navigate('/login')}
+                onClick={() =>
+                  navigate('/login')
+                }
               >
                 Login
               </Button>
@@ -792,6 +909,8 @@ const Dashboard: React.FC = () => {
             {error}
           </Alert>
         )}
+
+        {/* BALANCE CARD */}
 
         <Card
           sx={{
@@ -806,7 +925,14 @@ const Dashboard: React.FC = () => {
               '0 20px 60px rgba(0,0,0,0.25)',
           }}
         >
-          <CardContent sx={{ p: { xs: 2.5, md: 4 } }}>
+          <CardContent
+            sx={{
+              p: {
+                xs: 2.5,
+                md: 4,
+              },
+            }}
+          >
             <Typography
               sx={{
                 color: '#b9caff',
@@ -846,7 +972,9 @@ const Dashboard: React.FC = () => {
             <Stack
               direction="row"
               spacing={1}
-              sx={{ mt: 2 }}
+              sx={{
+                mt: 2,
+              }}
               flexWrap="wrap"
               useFlexGap
             >
@@ -889,10 +1017,10 @@ const Dashboard: React.FC = () => {
                 lineHeight: 1.6,
               }}
             >
-              This amount is read from your
-              account data. No fake portfolio
-              value, profit or market chart is
-              displayed.
+              This amount is read from
+              your account data. No fake
+              portfolio value, profit or
+              market chart is displayed.
             </Typography>
 
             <Stack
@@ -901,7 +1029,9 @@ const Dashboard: React.FC = () => {
                 sm: 'row',
               }}
               spacing={1.5}
-              sx={{ mt: 3 }}
+              sx={{
+                mt: 3,
+              }}
             >
               <Button
                 variant="contained"
@@ -912,7 +1042,8 @@ const Dashboard: React.FC = () => {
                 sx={{
                   color: '#041033',
                   background: '#5ce8ff',
-                  textTransform: 'none',
+                  textTransform:
+                    'none',
                   fontWeight: 900,
                 }}
               >
@@ -929,7 +1060,8 @@ const Dashboard: React.FC = () => {
                   color: '#fff',
                   borderColor:
                     'rgba(255,255,255,0.5)',
-                  textTransform: 'none',
+                  textTransform:
+                    'none',
                   fontWeight: 800,
                 }}
               >
@@ -946,7 +1078,8 @@ const Dashboard: React.FC = () => {
                   color: '#fff',
                   borderColor:
                     'rgba(255,255,255,0.5)',
-                  textTransform: 'none',
+                  textTransform:
+                    'none',
                   fontWeight: 800,
                 }}
               >
@@ -955,6 +1088,8 @@ const Dashboard: React.FC = () => {
             </Stack>
           </CardContent>
         </Card>
+
+        {/* QUICK ACCESS */}
 
         <Typography
           sx={{
@@ -988,7 +1123,9 @@ const Dashboard: React.FC = () => {
           />
 
           <QuickCard
-            icon={<PieChartIcon />}
+            icon={
+              <PieChartIcon />
+            }
             title="Portfolio"
             description="View your actual portfolio information."
             onClick={goPortfolio}
@@ -1004,12 +1141,18 @@ const Dashboard: React.FC = () => {
           />
 
           <QuickCard
-            icon={<PersonOutlineIcon />}
+            icon={
+              <PersonOutlineIcon />
+            }
             title="Profile"
             description="Review your account and profile information."
-            onClick={() => setProfileOpen(true)}
+            onClick={() =>
+              setProfileOpen(true)
+            }
           />
         </Box>
+
+        {/* PORTFOLIO */}
 
         <Card
           sx={{
@@ -1068,7 +1211,8 @@ const Dashboard: React.FC = () => {
                   color: '#fff',
                   borderColor:
                     'rgba(110,190,255,0.45)',
-                  textTransform: 'none',
+                  textTransform:
+                    'none',
                   fontWeight: 800,
                 }}
               >
@@ -1077,6 +1221,8 @@ const Dashboard: React.FC = () => {
             </Stack>
           </CardContent>
         </Card>
+
+        {/* SECURITY */}
 
         <Card
           sx={{
@@ -1093,10 +1239,14 @@ const Dashboard: React.FC = () => {
               direction="row"
               spacing={1.5}
               alignItems="center"
-              sx={{ mb: 2 }}
+              sx={{
+                mb: 2,
+              }}
             >
               <SecurityIcon
-                sx={{ color: '#5ce8ff' }}
+                sx={{
+                  color: '#5ce8ff',
+                }}
               />
 
               <Typography
@@ -1119,13 +1269,17 @@ const Dashboard: React.FC = () => {
 
             <Stack spacing={1.5}>
               <SecurityItem
-                icon={<VerifiedUserIcon />}
+                icon={
+                  <VerifiedUserIcon />
+                }
                 title="Authenticated"
                 text="Your account session is protected."
               />
 
               <SecurityItem
-                icon={<LockOutlinedIcon />}
+                icon={
+                  <LockOutlinedIcon />
+                }
                 title="Secure Access"
                 text="Account information requires authentication."
               />
@@ -1142,10 +1296,14 @@ const Dashboard: React.FC = () => {
         </Card>
       </Container>
 
+      {/* PROFILE DRAWER */}
+
       <Drawer
         anchor="right"
         open={profileOpen}
-        onClose={() => setProfileOpen(false)}
+        onClose={() =>
+          setProfileOpen(false)
+        }
       >
         <Box
           sx={{
@@ -1166,7 +1324,9 @@ const Dashboard: React.FC = () => {
             direction="row"
             justifyContent="space-between"
             alignItems="center"
-            sx={{ mb: 3 }}
+            sx={{
+              mb: 3,
+            }}
           >
             <Typography
               sx={{
@@ -1181,7 +1341,9 @@ const Dashboard: React.FC = () => {
               onClick={() =>
                 setProfileOpen(false)
               }
-              sx={{ color: '#fff' }}
+              sx={{
+                color: '#fff',
+              }}
             >
               <CloseIcon />
             </IconButton>
@@ -1190,7 +1352,9 @@ const Dashboard: React.FC = () => {
           <Stack
             alignItems="center"
             spacing={1.5}
-            sx={{ mb: 3 }}
+            sx={{
+              mb: 3,
+            }}
           >
             <Avatar
               sx={{
@@ -1255,14 +1419,17 @@ const Dashboard: React.FC = () => {
 
           <Button
             fullWidth
-            startIcon={<LogoutIcon />}
+            startIcon={
+              <LogoutIcon />
+            }
             onClick={logout}
             sx={{
               mt: 2,
               color: '#ff8297',
               border:
                 '1px solid rgba(255,100,130,0.25)',
-              textTransform: 'none',
+              textTransform:
+                'none',
               py: 1.2,
             }}
           >
@@ -1274,13 +1441,17 @@ const Dashboard: React.FC = () => {
   );
 };
 
+/* MENU ITEM */
+
 interface MenuItemProps {
   icon: React.ReactNode;
   text: string;
   onClick: () => void;
 }
 
-const MenuItem: React.FC<MenuItemProps> = ({
+const MenuItem: React.FC<
+  MenuItemProps
+> = ({
   icon,
   text,
   onClick,
@@ -1290,9 +1461,11 @@ const MenuItem: React.FC<MenuItemProps> = ({
       fullWidth
       onClick={onClick}
       sx={{
-        justifyContent: 'flex-start',
+        justifyContent:
+          'flex-start',
         color: '#fff',
-        textTransform: 'none',
+        textTransform:
+          'none',
         borderRadius: 2,
         px: 2,
         py: 1.2,
@@ -1302,7 +1475,8 @@ const MenuItem: React.FC<MenuItemProps> = ({
         sx={{
           width: 38,
           display: 'flex',
-          justifyContent: 'center',
+          justifyContent:
+            'center',
           mr: 1,
           color: '#5ce8ff',
         }}
@@ -1321,6 +1495,8 @@ const MenuItem: React.FC<MenuItemProps> = ({
     </Button>
   );
 };
+
+/* SECURITY ITEM */
 
 interface SecurityItemProps {
   icon: React.ReactNode;
@@ -1373,6 +1549,8 @@ const SecurityItem: React.FC<
   );
 };
 
+/* PROFILE ITEM */
+
 interface ProfileItemProps {
   title: string;
   value: string;
@@ -1401,7 +1579,8 @@ const ProfileItem: React.FC<
           color: '#8198df',
           fontSize: 10,
           fontWeight: 800,
-          textTransform: 'uppercase',
+          textTransform:
+            'uppercase',
           letterSpacing: 0.8,
         }}
       >
@@ -1414,7 +1593,8 @@ const ProfileItem: React.FC<
           fontSize: 14,
           fontWeight: 700,
           mt: 0.5,
-          wordBreak: 'break-word',
+          wordBreak:
+            'break-word',
         }}
       >
         {value}
