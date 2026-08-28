@@ -16,7 +16,6 @@ import {
   TextField,
   Typography,
   Chip,
-  Divider,
 } from '@mui/material';
 
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
@@ -28,12 +27,8 @@ import AddIcon from '@mui/icons-material/Add';
 import SendIcon from '@mui/icons-material/Send';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
-import apiClient from '../services/apiClient';
 import { useNavigate } from 'react-router-dom';
-
-// ============================================================
-// TYPES
-// ============================================================
+import apiClient from '../services/apiClient';
 
 interface WalletData {
   balance: number;
@@ -57,14 +52,11 @@ interface Transaction {
   date?: string;
 }
 
-// ============================================================
-// WALLET
-// ============================================================
-
 const Wallet: React.FC = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const [wallet, setWallet] = useState<WalletData>({
     balance: 0,
@@ -78,25 +70,16 @@ const Wallet: React.FC = () => {
     currency: 'USD',
   });
 
-  const [transactions, setTransactions] = useState<
-    Transaction[]
-  >([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] =
-    useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const [openDeposit, setOpenDeposit] =
-    useState(false);
+  const [openDeposit, setOpenDeposit] = useState(false);
+  const [openWithdraw, setOpenWithdraw] = useState(false);
 
-  const [openWithdraw, setOpenWithdraw] =
-    useState(false);
-
-  const [depositAmount, setDepositAmount] =
-    useState('');
-
-  const [withdrawAmount, setWithdrawAmount] =
-    useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const [depositMethod, setDepositMethod] =
     useState('Bank Transfer');
@@ -104,99 +87,52 @@ const Wallet: React.FC = () => {
   const [withdrawMethod, setWithdrawMethod] =
     useState('Bank Account');
 
-  const [actionLoading, setActionLoading] =
-    useState(false);
-
-  // ==========================================================
-  // FORMAT MONEY
-  // ==========================================================
-
-  const formatMoney = (
-    value: number
-  ): string => {
-    return `$${Number(value || 0).toLocaleString(
-      'en-US',
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }
-    )}`;
+  const formatMoney = (value: number): string => {
+    return `$${Number(value || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   };
-
-  // ==========================================================
-  // LOAD WALLET
-  // ==========================================================
 
   const loadWallet = async () => {
     try {
       setLoading(true);
       setErrorMessage('');
 
-      const [
-        performanceResponse,
-        transactionResponse,
-      ] = await Promise.all([
-        apiClient.get(
-          '/portfolio/performance'
-        ),
+      const performanceResponse = await apiClient.get(
+        '/portfolio/performance'
+      );
 
-        apiClient.get(
-          '/wallet/transactions'
-        ),
-      ]);
+      const transactionResponse = await apiClient.get(
+        '/wallet/transactions'
+      );
 
-      const data =
-        performanceResponse.data || {};
+      const data = performanceResponse.data || {};
 
       setWallet({
-        balance:
-          Number(data.balance) ||
-          Number(data.totalValue) ||
-          0,
-
-        deposit:
-          Number(data.deposit) || 0,
-
-        profits:
-          Number(data.profits) || 0,
-
-        availableBalance:
-          Number(data.availableBalance) || 0,
-
-        bonus:
-          Number(data.bonus) || 0,
-
-        referrerBonus:
-          Number(data.referrerBonus) || 0,
-
-        buyingPower:
-          Number(data.buyingPower) || 0,
-
-        marginAvailable:
-          Number(data.marginAvailable) || 0,
-
-        currency:
-          data.currency || 'USD',
+        balance: Number(data.balance) || Number(data.totalValue) || 0,
+        deposit: Number(data.deposit) || 0,
+        profits: Number(data.profits) || 0,
+        availableBalance: Number(data.availableBalance) || 0,
+        bonus: Number(data.bonus) || 0,
+        referrerBonus: Number(data.referrerBonus) || 0,
+        buyingPower: Number(data.buyingPower) || 0,
+        marginAvailable: Number(data.marginAvailable) || 0,
+        currency: data.currency || 'USD',
       });
 
       const serverTransactions =
-        transactionResponse.data
-          ?.transactions;
+        transactionResponse.data?.transactions;
 
       setTransactions(
         Array.isArray(serverTransactions)
           ? serverTransactions
           : []
       );
-
     } catch (error: any) {
-      console.error(
-        'WALLET LOAD ERROR:',
-        error
-      );
+      console.error('WALLET LOAD ERROR:', error);
 
-      const status =
-        error?.response?.status;
+      const status = error?.response?.status;
 
       const message =
         error?.response?.data?.message ||
@@ -211,32 +147,20 @@ const Wallet: React.FC = () => {
       } else {
         setErrorMessage(message);
       }
-
     } finally {
       setLoading(false);
     }
   };
 
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
-
   useEffect(() => {
     loadWallet();
   }, []);
 
-  // ==========================================================
-  // DEPOSIT
-  // ==========================================================
-
   const handleDeposit = async () => {
-    const amount =
-      Number(depositAmount);
+    const amount = Number(depositAmount);
 
     if (!Number.isFinite(amount) || amount < 10) {
-      setErrorMessage(
-        'Minimum deposit amount is $10.00.'
-      );
+      setErrorMessage('Minimum deposit amount is $10.00.');
       return;
     }
 
@@ -245,14 +169,10 @@ const Wallet: React.FC = () => {
       setErrorMessage('');
       setSuccessMessage('');
 
-      const response =
-        await apiClient.post(
-          '/wallet/deposit',
-          {
-            amount,
-            method: depositMethod,
-          }
-        );
+      const response = await apiClient.post('/wallet/deposit', {
+        amount,
+        method: depositMethod,
+      });
 
       setSuccessMessage(
         response.data?.message ||
@@ -263,31 +183,21 @@ const Wallet: React.FC = () => {
       setOpenDeposit(false);
 
       await loadWallet();
-
     } catch (error: any) {
-      console.error(
-        'DEPOSIT ERROR:',
-        error
-      );
+      console.error('DEPOSIT ERROR:', error);
 
       setErrorMessage(
         error?.response?.data?.message ||
           error?.response?.data?.error ||
           'Unable to submit deposit request.'
       );
-
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ==========================================================
-  // WITHDRAW
-  // ==========================================================
-
   const handleWithdraw = async () => {
-    const amount =
-      Number(withdrawAmount);
+    const amount = Number(withdrawAmount);
 
     if (!Number.isFinite(amount) || amount <= 0) {
       setErrorMessage(
@@ -296,10 +206,7 @@ const Wallet: React.FC = () => {
       return;
     }
 
-    if (
-      amount >
-      wallet.availableBalance
-    ) {
+    if (amount > wallet.availableBalance) {
       setErrorMessage(
         'Withdrawal amount exceeds your available balance.'
       );
@@ -311,14 +218,10 @@ const Wallet: React.FC = () => {
       setErrorMessage('');
       setSuccessMessage('');
 
-      const response =
-        await apiClient.post(
-          '/wallet/withdraw',
-          {
-            amount,
-            method: withdrawMethod,
-          }
-        );
+      const response = await apiClient.post('/wallet/withdraw', {
+        amount,
+        method: withdrawMethod,
+      });
 
       setSuccessMessage(
         response.data?.message ||
@@ -329,37 +232,23 @@ const Wallet: React.FC = () => {
       setOpenWithdraw(false);
 
       await loadWallet();
-
     } catch (error: any) {
-      console.error(
-        'WITHDRAW ERROR:',
-        error
-      );
+      console.error('WITHDRAW ERROR:', error);
 
       setErrorMessage(
         error?.response?.data?.message ||
           error?.response?.data?.error ||
           'Unable to submit withdrawal request.'
       );
-
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ==========================================================
-  // TRANSACTION STATUS
-  // ==========================================================
-
   const getStatusColor = (
     status: string
-  ):
-    | 'success'
-    | 'warning'
-    | 'error'
-    | 'default' => {
-    const value =
-      String(status || '').toUpperCase();
+  ): 'success' | 'warning' | 'error' | 'default' => {
+    const value = String(status || '').toUpperCase();
 
     if (
       value === 'COMPLETED' ||
@@ -386,45 +275,26 @@ const Wallet: React.FC = () => {
     return 'default';
   };
 
-  // ==========================================================
-  // TRANSACTION DATE
-  // ==========================================================
-
-  const formatDate = (
-    transaction: Transaction
-  ) => {
+  const formatDate = (transaction: Transaction) => {
     const value =
-      transaction.createdAt ||
-      transaction.date;
+      transaction.createdAt || transaction.date;
 
     if (!value) {
       return '-';
     }
 
-    const date =
-      new Date(value);
+    const date = new Date(value);
 
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
+    if (Number.isNaN(date.getTime())) {
       return String(value);
     }
 
-    return date.toLocaleDateString(
-      'en-US',
-      {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }
-    );
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   };
-
-  // ==========================================================
-  // STAT CARD
-  // ==========================================================
 
   const StatCard = ({
     title,
@@ -438,73 +308,69 @@ const Wallet: React.FC = () => {
     subtitle: string;
     icon: React.ReactNode;
     iconColor?: string;
-  }) => (
-    <Card
-      sx={{
-        height: '100%',
-        borderRadius: 3,
-        color: '#fff',
-        background:
-          'linear-gradient(145deg,#14287d,#0c1b58)',
-        border:
-          '1px solid rgba(100,150,255,0.2)',
-      }}
-    >
-      <CardContent>
-        <Box
-          sx={{
-            color: iconColor,
-            mb: 1,
-          }}
-        >
-          {icon}
-        </Box>
+  }) => {
+    return (
+      <Card
+        sx={{
+          height: '100%',
+          borderRadius: 3,
+          color: '#fff',
+          background:
+            'linear-gradient(145deg,#14287d,#0c1b58)',
+          border:
+            '1px solid rgba(100,150,255,0.2)',
+        }}
+      >
+        <CardContent>
+          <Box
+            sx={{
+              color: iconColor,
+              mb: 1,
+            }}
+          >
+            {icon}
+          </Box>
 
-        <Typography
-          sx={{
-            color: '#9eaff0',
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          {title}
-        </Typography>
+          <Typography
+            sx={{
+              color: '#9eaff0',
+              fontSize: 12,
+              fontWeight: 700,
+            }}
+          >
+            {title}
+          </Typography>
 
-        <Typography
-          sx={{
-            fontSize: 24,
-            fontWeight: 800,
-            mt: 1,
-          }}
-        >
-          {loading ? (
-            <CircularProgress
-              size={24}
-              sx={{
-                color: '#fff',
-              }}
-            />
-          ) : (
-            value
-          )}
-        </Typography>
+          <Typography
+            sx={{
+              fontSize: 24,
+              fontWeight: 800,
+              mt: 1,
+            }}
+          >
+            {loading ? (
+              <CircularProgress
+                size={24}
+                sx={{ color: '#fff' }}
+              />
+            ) : (
+              value
+            )}
+          </Typography>
 
-        <Typography
-          sx={{
-            color: '#7186cd',
-            fontSize: 11,
-            mt: 0.5,
-          }}
-        >
-          {subtitle}
-        </Typography>
-      </CardContent>
-    </Card>
-  );
-
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+          <Typography
+            sx={{
+              color: '#7186cd',
+              fontSize: 11,
+              mt: 0.5,
+            }}
+          >
+            {subtitle}
+          </Typography>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <Box
@@ -516,10 +382,6 @@ const Wallet: React.FC = () => {
         pb: 6,
       }}
     >
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
-
       <Box
         sx={{
           borderBottom:
@@ -567,26 +429,20 @@ const Wallet: React.FC = () => {
             >
               <Button
                 onClick={loadWallet}
-                startIcon={
-                  <RefreshIcon />
-                }
+                startIcon={<RefreshIcon />}
                 sx={{
                   color: '#fff',
-                  textTransform:
-                    'none',
+                  textTransform: 'none',
                 }}
               >
                 Refresh
               </Button>
 
               <Button
-                onClick={() =>
-                  navigate('/')
-                }
+                onClick={() => navigate('/')}
                 sx={{
                   color: '#fff',
-                  textTransform:
-                    'none',
+                  textTransform: 'none',
                 }}
               >
                 Dashboard
@@ -605,10 +461,6 @@ const Wallet: React.FC = () => {
           },
         }}
       >
-        {/* ==================================================
-            TITLE
-        ================================================== */}
-
         <Box sx={{ mb: 4 }}>
           <Typography
             sx={{
@@ -628,24 +480,16 @@ const Wallet: React.FC = () => {
               mt: 1,
             }}
           >
-            Manage your funds, bonuses
-            and transaction activity.
+            Manage your funds, bonuses and
+            transaction activity.
           </Typography>
         </Box>
-
-        {/* ==================================================
-            MESSAGES
-        ================================================== */}
 
         {errorMessage && (
           <Alert
             severity="error"
-            sx={{
-              mb: 2,
-            }}
-            onClose={() =>
-              setErrorMessage('')
-            }
+            sx={{ mb: 2 }}
+            onClose={() => setErrorMessage('')}
           >
             {errorMessage}
           </Alert>
@@ -654,20 +498,12 @@ const Wallet: React.FC = () => {
         {successMessage && (
           <Alert
             severity="success"
-            sx={{
-              mb: 2,
-            }}
-            onClose={() =>
-              setSuccessMessage('')
-            }
+            sx={{ mb: 2 }}
+            onClose={() => setSuccessMessage('')}
           >
             {successMessage}
           </Alert>
         )}
-
-        {/* ==================================================
-            MAIN BALANCE
-        ================================================== */}
 
         <Card
           sx={{
@@ -678,8 +514,6 @@ const Wallet: React.FC = () => {
               'linear-gradient(135deg,#172a8a,#1459e8)',
             border:
               '1px solid rgba(143,170,255,0.28)',
-            boxShadow:
-              '0 20px 60px rgba(0,0,0,0.25)',
           }}
         >
           <CardContent
@@ -705,4 +539,46 @@ const Wallet: React.FC = () => {
                     fontSize: 13,
                     fontWeight: 700,
                     letterSpacing: 1,
-                 
+                  }}
+                >
+                  AVAILABLE BALANCE
+                </Typography>
+
+                <Typography
+                  sx={{
+                    fontSize: {
+                      xs: 40,
+                      md: 52,
+                    },
+                    fontWeight: 800,
+                    mt: 1,
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress
+                      sx={{ color: '#fff' }}
+                    />
+                  ) : (
+                    formatMoney(
+                      wallet.availableBalance
+                    )
+                  )}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color: '#cbd6ff',
+                    mt: 1,
+                  }}
+                >
+                  Funds available for trading
+                  or withdrawal.
+                </Typography>
+              </Box>
+
+              <Stack
+                direction={{
+                  xs: 'column',
+                  sm: 'row',
+                }}
+               
