@@ -82,7 +82,7 @@ app.get('/health/db', async (req, res) => {
       'SELECT NOW() AS database_time'
     );
 
-    // Test whether users table exists
+    // Check users table
     const usersTable = await pool.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables
@@ -91,12 +91,17 @@ app.get('/health/db', async (req, res) => {
       ) AS users_table_exists
     `);
 
+    const usersTableExists =
+      usersTable.rows[0].users_table_exists;
+
     res.status(200).json({
       status: 'OK',
       database: 'connected',
-      usersTableExists:
-        usersTable.rows[0].users_table_exists,
-      databaseTime: result.rows[0].database_time
+      usersTableExists: usersTableExists,
+      databaseTime: result.rows[0].database_time,
+      message: usersTableExists
+        ? 'PostgreSQL connected and users table exists.'
+        : 'PostgreSQL connected, but users table does not exist yet.'
     });
 
   } catch (error) {
@@ -105,10 +110,18 @@ app.get('/health/db', async (req, res) => {
       error
     );
 
+    logger.error(
+      'Database health check failed:',
+      error
+    );
+
     res.status(500).json({
       status: 'ERROR',
       database: 'not connected',
-      message: error.message
+      message:
+        error.message ||
+        'Unknown database connection error',
+      code: error.code || null
     });
   }
 });
@@ -153,7 +166,8 @@ app.use(
 
 app.use((req, res) => {
   res.status(404).json({
-    error: 'Endpoint not found'
+    error: 'Endpoint not found',
+    path: req.originalUrl
   });
 });
 
@@ -174,6 +188,10 @@ if (require.main === module) {
   app.listen(PORT, HOST, () => {
     logger.info(
       `GlobalDigitalMarket.online server running on port ${PORT}`
+    );
+
+    console.log(
+      `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
     );
   });
 }
