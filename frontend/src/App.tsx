@@ -21,7 +21,10 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+
 import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+
 import Dashboard from './pages/Dashboard';
 import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
@@ -102,8 +105,7 @@ class ErrorBoundary extends React.Component<
             justifyContent: 'center',
             padding: '20px',
             background: '#f5f5f5',
-            fontFamily:
-              'Arial, sans-serif',
+            fontFamily: 'Arial, sans-serif',
           }}
         >
           <div
@@ -141,9 +143,7 @@ class ErrorBoundary extends React.Component<
                 wordBreak: 'break-word',
               }}
             >
-              <strong>
-                Error:
-              </strong>
+              <strong>Error:</strong>
 
               <br />
 
@@ -151,18 +151,14 @@ class ErrorBoundary extends React.Component<
             </div>
 
             <button
-              onClick={
-                this.handleReload
-              }
+              onClick={this.handleReload}
               style={{
-                padding:
-                  '12px 20px',
+                padding: '12px 20px',
                 marginRight: '10px',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                background:
-                  '#1976d2',
+                background: '#1976d2',
                 color: '#ffffff',
                 fontSize: '16px',
               }}
@@ -171,20 +167,14 @@ class ErrorBoundary extends React.Component<
             </button>
 
             <button
-              onClick={
-                this.handleHome
-              }
+              onClick={this.handleHome}
               style={{
-                padding:
-                  '12px 20px',
-                border:
-                  '1px solid #1976d2',
+                padding: '12px 20px',
+                border: '1px solid #1976d2',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                background:
-                  '#ffffff',
-                color:
-                  '#1976d2',
+                background: '#ffffff',
+                color: '#1976d2',
                 fontSize: '16px',
               }}
             >
@@ -270,6 +260,15 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
+                ADMIN DASHBOARD
+            ================================================== */}
+
+            <Route
+              path="/admin"
+              element={<AdminDashboard />}
+            />
+
+            {/* ==================================================
                 USER DASHBOARD
             ================================================== */}
 
@@ -284,9 +283,7 @@ const App: React.FC = () => {
 
             <Route
               path="/account-statement"
-              element={
-                <AccountStatement />
-              }
+              element={<AccountStatement />}
             />
 
             {/* ==================================================
@@ -331,9 +328,7 @@ const App: React.FC = () => {
 
             <Route
               path="/support"
-              element={
-                <ContactSupport />
-              }
+              element={<ContactSupport />}
             />
 
             {/* ==================================================
