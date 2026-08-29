@@ -1,6 +1,14 @@
 const pool = require('../config/database');
 const logger = require('../utils/logger');
 
+const {
+  generateAccessToken,
+} = require('../utils/jwt');
+
+const {
+  comparePassword,
+} = require('../utils/bcrypt');
+
 // ============================================================
 // HELPERS
 // ============================================================
@@ -11,6 +19,207 @@ const safeNumber = (value) => {
   return Number.isFinite(number)
     ? number
     : 0;
+};
+
+// ============================================================
+// ADMIN LOGIN
+// ============================================================
+
+const adminLogin = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      email,
+      password,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // REQUIRED FIELDS
+    // --------------------------------------------------------
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message:
+          'Admin email and password are required.',
+      });
+    }
+
+    const normalizedEmail =
+      String(email)
+        .trim()
+        .toLowerCase();
+
+    logger.info(
+      `Admin login attempt for email: ${normalizedEmail}`
+    );
+
+    // --------------------------------------------------------
+    // FIND USER
+    // --------------------------------------------------------
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          password_hash,
+          first_name,
+          last_name,
+          username,
+          phone,
+          role,
+          status
+        FROM users
+        WHERE LOWER(email) = $1
+        LIMIT 1
+        `,
+        [normalizedEmail]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({
+        message:
+          'Invalid administrator email or password.',
+      });
+    }
+
+    const admin =
+      result.rows[0];
+
+    // --------------------------------------------------------
+    // CHECK PASSWORD
+    // --------------------------------------------------------
+
+    const passwordMatches =
+      await comparePassword(
+        password,
+        admin.password_hash
+      );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message:
+          'Invalid administrator email or password.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // CHECK ADMIN ROLE
+    // --------------------------------------------------------
+
+    const role =
+      String(
+        admin.role || ''
+      ).toLowerCase();
+
+    if (
+      role !== 'admin' &&
+      role !== 'administrator' &&
+      role !== 'superadmin'
+    ) {
+      logger.warn(
+        `Non-admin login attempt for ${normalizedEmail}`
+      );
+
+      return res.status(403).json({
+        message:
+          'Administrator access required.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // CHECK ACCOUNT STATUS
+    // --------------------------------------------------------
+
+    const status =
+      String(
+        admin.status || ''
+      ).toLowerCase();
+
+    if (
+      status === 'blocked' ||
+      status === 'suspended' ||
+      status === 'disabled'
+    ) {
+      return res.status(403).json({
+        message:
+          'This administrator account is unavailable.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // GENERATE ADMIN TOKEN
+    // --------------------------------------------------------
+
+    const accessToken =
+      generateAccessToken({
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+      });
+
+    // --------------------------------------------------------
+    // ADMIN OBJECT
+    // --------------------------------------------------------
+
+    const adminUser = {
+      id: admin.id,
+
+      email:
+        admin.email,
+
+      firstName:
+        admin.first_name,
+
+      lastName:
+        admin.last_name,
+
+      username:
+        admin.username || '',
+
+      phone:
+        admin.phone || '',
+
+      role:
+        admin.role,
+
+      status:
+        admin.status,
+    };
+
+    logger.info(
+      `Successful admin login for email: ${normalizedEmail}`
+    );
+
+    // --------------------------------------------------------
+    // RESPONSE
+    // --------------------------------------------------------
+
+    return res.status(200).json({
+      message:
+        'Administrator login successful.',
+
+      token:
+        accessToken,
+
+      accessToken,
+
+      admin:
+        adminUser,
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin login error:',
+      error
+    );
+
+    return next(error);
+  }
 };
 
 // ============================================================
@@ -223,9 +432,11 @@ const getUsers = async (
     const users =
       result.rows.map(
         (user) => ({
-          id: user.id,
+          id:
+            user.id,
 
-          email: user.email,
+          email:
+            user.email,
 
           firstName:
             user.first_name,
@@ -294,7 +505,8 @@ const getUsers = async (
 
     return res.status(200).json({
       users,
-      count: users.length,
+      count:
+        users.length,
     });
   } catch (error) {
     logger.error(
@@ -388,32 +600,48 @@ const getUser = async (
 
     return res.status(200).json({
       user: {
-        id: user.id,
-        email: user.email,
+        id:
+          user.id,
+
+        email:
+          user.email,
+
         firstName:
           user.first_name,
+
         lastName:
           user.last_name,
+
         username:
           user.username,
+
         phone:
           user.phone,
+
         country:
           user.country,
+
         preferredCurrency:
           user.preferred_currency,
+
         referralCode:
           user.referral_code,
+
         referrerCode:
           user.referrer_code,
+
         role:
           user.role,
+
         status:
           user.status,
+
         emailVerified:
           user.email_verified,
+
         identityVerificationStatus:
           user.identity_verification_status,
+
         createdAt:
           user.created_at,
 
@@ -422,46 +650,59 @@ const getUser = async (
             ? {
                 id:
                   user.account_id,
+
                 accountNumber:
                   user.account_number,
+
                 accountType:
                   user.account_type,
+
                 accountName:
                   user.account_name,
+
                 currency:
                   user.account_currency,
+
                 balance:
                   safeNumber(
                     user.balance
                   ),
+
                 deposit:
                   safeNumber(
                     user.deposit
                   ),
+
                 profits:
                   safeNumber(
                     user.profits
                   ),
+
                 availableBalance:
                   safeNumber(
                     user.available_balance
                   ),
+
                 bonus:
                   safeNumber(
                     user.bonus
                   ),
+
                 referrerBonus:
                   safeNumber(
                     user.referrer_bonus
                   ),
+
                 buyingPower:
                   safeNumber(
                     user.buying_power
                   ),
+
                 marginAvailable:
                   safeNumber(
                     user.margin_available
                   ),
+
                 status:
                   user.account_status,
               }
@@ -659,39 +900,54 @@ const getDeposits = async (
       deposits:
         result.rows.map(
           (row) => ({
-            id: row.id,
+            id:
+              row.id,
+
             accountId:
               row.account_id,
+
             transactionReference:
               row.transaction_reference,
+
             amount:
               safeNumber(
                 row.amount
               ),
+
             currency:
               row.currency,
+
             paymentMethod:
               row.payment_method,
+
             status:
               row.status,
+
             description:
               row.description,
+
             proofOfPaymentUrl:
               row.proof_of_payment_url,
+
             adminNote:
               row.admin_note,
+
             createdAt:
               row.created_at,
 
             user: {
               id:
                 row.user_id,
+
               firstName:
                 row.first_name,
+
               lastName:
                 row.last_name,
+
               email:
                 row.email,
+
               username:
                 row.username,
             },
@@ -757,37 +1013,51 @@ const getWithdrawals = async (
       withdrawals:
         result.rows.map(
           (row) => ({
-            id: row.id,
+            id:
+              row.id,
+
             accountId:
               row.account_id,
+
             transactionReference:
               row.transaction_reference,
+
             amount:
               safeNumber(
                 row.amount
               ),
+
             currency:
               row.currency,
+
             paymentMethod:
               row.payment_method,
+
             status:
               row.status,
+
             description:
               row.description,
+
             adminNote:
               row.admin_note,
+
             createdAt:
               row.created_at,
 
             user: {
               id:
                 row.user_id,
+
               firstName:
                 row.first_name,
+
               lastName:
                 row.last_name,
+
               email:
                 row.email,
+
               username:
                 row.username,
             },
@@ -884,12 +1154,16 @@ const getKycRequests = async (
             user: {
               firstName:
                 row.first_name,
+
               lastName:
                 row.last_name,
+
               email:
                 row.email,
+
               username:
                 row.username,
+
               country:
                 row.country,
             },
@@ -999,6 +1273,7 @@ const updateUserStatus =
       return res.status(200).json({
         message:
           'User status updated successfully.',
+
         user:
           result.rows[0],
       });
@@ -1114,7 +1389,7 @@ const updateTransactionStatus =
         transaction.status;
 
       // ------------------------------------------------------
-      // Update transaction
+      // UPDATE TRANSACTION
       // ------------------------------------------------------
 
       const updatedResult =
@@ -1124,20 +1399,27 @@ const updateTransactionStatus =
 
           SET
             status = $1,
+
             admin_note =
-              COALESCE($2, admin_note),
+              COALESCE(
+                $2,
+                admin_note
+              ),
+
             verified_by =
               CASE
                 WHEN $1 = 'COMPLETED'
                 THEN $3
                 ELSE verified_by
               END,
+
             verified_at =
               CASE
                 WHEN $1 = 'COMPLETED'
                 THEN CURRENT_TIMESTAMP
                 ELSE verified_at
               END,
+
             updated_at =
               CURRENT_TIMESTAMP
 
@@ -1163,9 +1445,9 @@ const updateTransactionStatus =
         );
 
       // ------------------------------------------------------
-      // IMPORTANT:
-      // Account balance changes only when a transaction
-      // changes INTO COMPLETED for the first time.
+      // UPDATE ACCOUNT BALANCE
+      // ONLY WHEN TRANSACTION BECOMES COMPLETED
+      // FOR THE FIRST TIME
       // ------------------------------------------------------
 
       if (
@@ -1276,6 +1558,7 @@ const updateTransactionStatus =
         transaction:
           updatedResult.rows[0],
       });
+
     } catch (error) {
       try {
         await client.query(
@@ -1296,6 +1579,7 @@ const updateTransactionStatus =
       );
 
       return next(error);
+
     } finally {
       client.release();
     }
@@ -1306,6 +1590,7 @@ const updateTransactionStatus =
 // ============================================================
 
 module.exports = {
+  adminLogin,
   getDashboard,
   getUsers,
   getUser,
