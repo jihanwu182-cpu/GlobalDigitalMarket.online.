@@ -11,16 +11,54 @@ const apiClient = axios.create({
   },
 });
 
-// Add authentication token to every request
+// ============================================================
+// AUTHENTICATION TOKEN
+// ============================================================
+//
+// Admin requests use adminToken.
+// Normal user requests use authToken/accessToken/token.
+//
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token =
-      localStorage.getItem('authToken') ||
-      localStorage.getItem('accessToken') ||
-      localStorage.getItem('token');
+    const requestUrl =
+      config.url || '';
+
+    const isAdminRequest =
+      requestUrl.startsWith('/admin');
+
+    let token: string | null = null;
+
+    if (isAdminRequest) {
+      // ------------------------------------------------------
+      // ADMIN REQUEST
+      // ------------------------------------------------------
+      token =
+        localStorage.getItem(
+          'adminToken'
+        );
+    } else {
+      // ------------------------------------------------------
+      // NORMAL USER REQUEST
+      // ------------------------------------------------------
+      token =
+        localStorage.getItem(
+          'authToken'
+        ) ||
+        localStorage.getItem(
+          'accessToken'
+        ) ||
+        localStorage.getItem(
+          'token'
+        );
+    }
 
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers =
+        config.headers || {};
+
+      config.headers.Authorization =
+        `Bearer ${token}`;
     }
 
     return config;
@@ -30,13 +68,20 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Handle API responses and errors
+// ============================================================
+// API RESPONSE HANDLER
+// ============================================================
+
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
+
   (error) => {
-    console.error('API ERROR:', error);
+    console.error(
+      'API ERROR:',
+      error
+    );
 
     if (error.response) {
       console.error(
@@ -48,6 +93,29 @@ apiClient.interceptors.response.use(
         'DATA:',
         error.response.data
       );
+
+      // ------------------------------------------------------
+      // ADMIN AUTHENTICATION ERROR
+      // ------------------------------------------------------
+
+      if (
+        error.response.status === 401 &&
+        error.config?.url?.startsWith(
+          '/admin'
+        )
+      ) {
+        console.error(
+          'ADMIN AUTHENTICATION FAILED'
+        );
+
+        localStorage.removeItem(
+          'adminToken'
+        );
+
+        localStorage.removeItem(
+          'admin'
+        );
+      }
     } else {
       console.error(
         'NETWORK ERROR:',
@@ -56,7 +124,7 @@ apiClient.interceptors.response.use(
     }
 
     // Do not automatically redirect.
-    // HashRouter handles navigation in the frontend.
+    // HashRouter handles navigation.
     return Promise.reject(error);
   }
 );
