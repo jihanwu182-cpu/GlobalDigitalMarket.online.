@@ -122,37 +122,69 @@ app.get('/health/db', async (req, res) => {
 });
 
 // ============================================================
+// API PREFIX
+// ============================================================
+
+const API_PREFIX =
+  process.env.API_PREFIX || '/api';
+
+// ============================================================
 // API ROUTES
 // ============================================================
 
+// AUTH
 app.use(
-  `${process.env.API_PREFIX || '/api'}/auth`,
+  `${API_PREFIX}/auth`,
   require('./routes/authRoutes')
 );
 
+// USERS
 app.use(
-  `${process.env.API_PREFIX || '/api'}/users`,
+  `${API_PREFIX}/users`,
   require('./routes/userRoutes')
 );
 
+// PORTFOLIO
 app.use(
-  `${process.env.API_PREFIX || '/api'}/portfolio`,
+  `${API_PREFIX}/portfolio`,
   require('./routes/portfolioRoutes')
 );
 
+// TRADING
 app.use(
-  `${process.env.API_PREFIX || '/api'}/trades`,
+  `${API_PREFIX}/trades`,
   require('./routes/tradeRoutes')
 );
 
+// MARKET
 app.use(
-  `${process.env.API_PREFIX || '/api'}/market`,
+  `${API_PREFIX}/market`,
   require('./routes/marketRoutes')
 );
 
+// WALLET
 app.use(
-  `${process.env.API_PREFIX || '/api'}/wallet`,
+  `${API_PREFIX}/wallet`,
   require('./routes/walletRoutes')
+);
+
+// ============================================================
+// ADMIN
+// ============================================================
+//
+// Admin API will be available at:
+//
+// /api/admin
+//
+// IMPORTANT:
+// adminRoutes.js must exist inside:
+// backend/src/routes/adminRoutes.js
+//
+// ============================================================
+
+app.use(
+  `${API_PREFIX}/admin`,
+  require('./routes/adminRoutes')
 );
 
 // ============================================================
@@ -175,23 +207,33 @@ app.use(errorHandler);
 // SERVER
 // ============================================================
 
-const PORT = process.env.PORT || 5000;
-const HOST = process.env.HOST || '0.0.0.0';
+const PORT =
+  process.env.PORT || 5000;
+
+const HOST =
+  process.env.HOST || '0.0.0.0';
+
+// ============================================================
+// START SERVER
+// ============================================================
 
 const startServer = async () => {
   try {
-    // Create required database tables
     await initializeDatabase();
 
     logger.info(
       'Database initialization completed successfully'
     );
 
-    app.listen(PORT, HOST, () => {
-      logger.info(
-        `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
-      );
-    });
+    app.listen(
+      PORT,
+      HOST,
+      () => {
+        logger.info(
+          `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
+        );
+      }
+    );
   } catch (error) {
     logger.error(
       'Server startup failed:',
