@@ -120,6 +120,7 @@ const Register: React.FC = () => {
       return;
     }
 
+    // PHONE NUMBER IS REQUIRED
     if (!phone.trim()) {
       setErrorMessage(
         'Phone number is required.'
@@ -142,7 +143,9 @@ const Register: React.FC = () => {
     }
 
     if (!password) {
-      setErrorMessage('Please enter a password.');
+      setErrorMessage(
+        'Please enter a password.'
+      );
       return;
     }
 
@@ -178,11 +181,12 @@ const Register: React.FC = () => {
           phone: phone.trim(),
           country: country.trim(),
           preferredCurrency,
-          referrerCode: referrerCode.trim() || undefined,
+          referrerCode:
+            referrerCode.trim() || undefined,
         }
       );
 
-      const data = response.data;
+      const data = response.data || {};
 
       console.log(
         'Registration successful:',
@@ -203,6 +207,11 @@ const Register: React.FC = () => {
           'token',
           data.accessToken
         );
+
+        localStorage.setItem(
+          'accessToken',
+          data.accessToken
+        );
       }
 
       if (data?.refreshToken) {
@@ -212,12 +221,49 @@ const Register: React.FC = () => {
         );
       }
 
+      // ------------------------------------------------------
+      // SAVE USER
+      // ------------------------------------------------------
+
       if (data?.user) {
         localStorage.setItem(
           'user',
           JSON.stringify(data.user)
         );
+
+        localStorage.setItem(
+          'currentUser',
+          JSON.stringify(data.user)
+        );
+      } else {
+        // If backend does not return a user object,
+        // save the information we already have.
+        const localUser = {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          name:
+            `${firstName.trim()} ${lastName.trim()}`.trim(),
+          username: username.trim(),
+          email: email.trim().toLowerCase(),
+          phone: phone.trim(),
+          country: country.trim(),
+          preferredCurrency,
+        };
+
+        localStorage.setItem(
+          'user',
+          JSON.stringify(localUser)
+        );
+
+        localStorage.setItem(
+          'currentUser',
+          JSON.stringify(localUser)
+        );
       }
+
+      // ------------------------------------------------------
+      // SAVE ACCOUNT
+      // ------------------------------------------------------
 
       if (data?.account) {
         localStorage.setItem(
@@ -239,11 +285,13 @@ const Register: React.FC = () => {
       setConfirmPassword('');
 
       /*
-       * Give the user a moment to see the success message,
-       * then take them to the dashboard.
+       * Registration completed successfully.
+       *
+       * IMPORTANT:
+       * Go to the USER DASHBOARD, not Home.
        */
       setTimeout(() => {
-        navigate('/');
+        navigate('/dashboard');
       }, 1500);
 
     } catch (error: any) {
@@ -265,8 +313,11 @@ const Register: React.FC = () => {
       ) {
         message =
           error.response.data.error;
-      } else if (error?.message) {
-        message = error.message;
+      } else if (
+        error?.message
+      ) {
+        message =
+          error.message;
       }
 
       setErrorMessage(message);
@@ -310,9 +361,7 @@ const Register: React.FC = () => {
             },
           }}
         >
-          {/* --------------------------------------------------
-              HEADER
-          -------------------------------------------------- */}
+          {/* HEADER */}
 
           <Typography
             variant="h4"
@@ -337,13 +386,14 @@ const Register: React.FC = () => {
             Join Global Digital Market
           </Typography>
 
-          {/* --------------------------------------------------
-              ALERTS
-          -------------------------------------------------- */}
+          {/* ALERTS */}
 
           {errorMessage && (
             <Alert
               severity="error"
+              onClose={() =>
+                setErrorMessage('')
+              }
               sx={{
                 mb: 2,
                 borderRadius: 2,
@@ -356,6 +406,9 @@ const Register: React.FC = () => {
           {successMessage && (
             <Alert
               severity="success"
+              onClose={() =>
+                setSuccessMessage('')
+              }
               sx={{
                 mb: 2,
                 borderRadius: 2,
@@ -365,9 +418,7 @@ const Register: React.FC = () => {
             </Alert>
           )}
 
-          {/* --------------------------------------------------
-              FORM
-          -------------------------------------------------- */}
+          {/* FORM */}
 
           <Box
             component="form"
@@ -389,6 +440,8 @@ const Register: React.FC = () => {
               PERSONAL INFORMATION
             </Typography>
 
+            {/* FIRST + LAST NAME */}
+
             <Box
               sx={{
                 display: 'grid',
@@ -405,11 +458,15 @@ const Register: React.FC = () => {
                 label="First Name"
                 value={firstName}
                 onChange={(e) =>
-                  setFirstName(e.target.value)
+                  setFirstName(
+                    e.target.value
+                  )
                 }
                 disabled={loading}
                 InputLabelProps={{
-                  sx: { color: '#91a7e9' },
+                  sx: {
+                    color: '#91a7e9',
+                  },
                 }}
               />
 
@@ -419,14 +476,20 @@ const Register: React.FC = () => {
                 label="Last Name"
                 value={lastName}
                 onChange={(e) =>
-                  setLastName(e.target.value)
+                  setLastName(
+                    e.target.value
+                  )
                 }
                 disabled={loading}
                 InputLabelProps={{
-                  sx: { color: '#91a7e9' },
+                  sx: {
+                    color: '#91a7e9',
+                  },
                 }}
               />
             </Box>
+
+            {/* USERNAME */}
 
             <TextField
               fullWidth
@@ -434,14 +497,20 @@ const Register: React.FC = () => {
               label="Username"
               value={username}
               onChange={(e) =>
-                setUsername(e.target.value)
+                setUsername(
+                  e.target.value
+                )
               }
               disabled={loading}
               helperText="Minimum 3 characters"
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
+
+            {/* EMAIL */}
 
             <TextField
               fullWidth
@@ -450,13 +519,19 @@ const Register: React.FC = () => {
               type="email"
               value={email}
               onChange={(e) =>
-                setEmail(e.target.value)
+                setEmail(
+                  e.target.value
+                )
               }
               disabled={loading}
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
+
+            {/* PHONE */}
 
             <TextField
               fullWidth
@@ -465,13 +540,17 @@ const Register: React.FC = () => {
               type="tel"
               value={phone}
               onChange={(e) =>
-                setPhone(e.target.value)
+                setPhone(
+                  e.target.value
+                )
               }
               disabled={loading}
               placeholder="+234 800 000 0000"
               helperText="Required for account security"
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
 
@@ -493,6 +572,8 @@ const Register: React.FC = () => {
               ACCOUNT PREFERENCES
             </Typography>
 
+            {/* COUNTRY */}
+
             <TextField
               select
               fullWidth
@@ -500,29 +581,39 @@ const Register: React.FC = () => {
               label="Country"
               value={country}
               onChange={(e) =>
-                setCountry(e.target.value)
+                setCountry(
+                  e.target.value
+                )
               }
               disabled={loading}
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             >
-              {countries.map((item) => (
-                <MenuItem
-                  key={item}
-                  value={item}
-                >
-                  {item}
-                </MenuItem>
-              ))}
+              {countries.map(
+                (item) => (
+                  <MenuItem
+                    key={item}
+                    value={item}
+                  >
+                    {item}
+                  </MenuItem>
+                )
+              )}
             </TextField>
+
+            {/* CURRENCY */}
 
             <TextField
               select
               fullWidth
               required
               label="Preferred Currency"
-              value={preferredCurrency}
+              value={
+                preferredCurrency
+              }
               onChange={(e) =>
                 setPreferredCurrency(
                   e.target.value
@@ -531,30 +622,45 @@ const Register: React.FC = () => {
               disabled={loading}
               helperText="Your account will use this currency"
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             >
-              {currencies.map((currency) => (
-                <MenuItem
-                  key={currency.code}
-                  value={currency.code}
-                >
-                  {currency.code} — {currency.name}
-                </MenuItem>
-              ))}
+              {currencies.map(
+                (currency) => (
+                  <MenuItem
+                    key={
+                      currency.code
+                    }
+                    value={
+                      currency.code
+                    }
+                  >
+                    {currency.code} —{' '}
+                    {currency.name}
+                  </MenuItem>
+                )
+              )}
             </TextField>
+
+            {/* REFERRER */}
 
             <TextField
               fullWidth
               label="Referrer Code (Optional)"
               value={referrerCode}
               onChange={(e) =>
-                setReferrerCode(e.target.value)
+                setReferrerCode(
+                  e.target.value
+                )
               }
               disabled={loading}
               helperText="Leave blank if you were not referred by someone."
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
 
@@ -576,6 +682,8 @@ const Register: React.FC = () => {
               SECURITY
             </Typography>
 
+            {/* PASSWORD */}
+
             <TextField
               fullWidth
               required
@@ -583,21 +691,29 @@ const Register: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) =>
-                setPassword(e.target.value)
+                setPassword(
+                  e.target.value
+                )
               }
               disabled={loading}
               helperText="Minimum 8 characters"
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
+
+            {/* CONFIRM PASSWORD */}
 
             <TextField
               fullWidth
               required
               label="Confirm Password"
               type="password"
-              value={confirmPassword}
+              value={
+                confirmPassword
+              }
               onChange={(e) =>
                 setConfirmPassword(
                   e.target.value
@@ -605,13 +721,13 @@ const Register: React.FC = () => {
               }
               disabled={loading}
               InputLabelProps={{
-                sx: { color: '#91a7e9' },
+                sx: {
+                  color: '#91a7e9',
+                },
               }}
             />
 
-            {/* ------------------------------------------------
-                SUBMIT
-            ------------------------------------------------ */}
+            {/* SUBMIT */}
 
             <Button
               fullWidth
@@ -624,7 +740,8 @@ const Register: React.FC = () => {
                 borderRadius: 2,
                 fontWeight: 900,
                 fontSize: 15,
-                textTransform: 'none',
+                textTransform:
+                  'none',
                 background:
                   'linear-gradient(90deg,#12ccef,#2865ff)',
                 '&:hover': {
@@ -649,6 +766,8 @@ const Register: React.FC = () => {
               )}
             </Button>
 
+            {/* LOGIN */}
+
             <Button
               type="button"
               disabled={loading}
@@ -657,12 +776,15 @@ const Register: React.FC = () => {
               }
               sx={{
                 color: '#5ce8ff',
-                textTransform: 'none',
+                textTransform:
+                  'none',
                 fontWeight: 700,
               }}
             >
               Already have an account? Login
             </Button>
+
+            {/* HOME */}
 
             <Button
               type="button"
@@ -672,7 +794,8 @@ const Register: React.FC = () => {
               }
               sx={{
                 color: '#8fa8ed',
-                textTransform: 'none',
+                textTransform:
+                  'none',
               }}
             >
               Back to Home
