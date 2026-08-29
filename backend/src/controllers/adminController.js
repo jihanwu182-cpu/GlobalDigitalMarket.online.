@@ -33,6 +33,37 @@ const normalizeUserStatus = (value) => {
     .toLowerCase();
 };
 
+const parseBoolean = (
+  value,
+  defaultValue = true
+) => {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return defaultValue;
+  }
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized =
+      value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return defaultValue;
+};
+
 const getSignalStrength = (value) => {
   const strength = Number(value);
 
@@ -46,13 +77,15 @@ const getSignalStrength = (value) => {
   );
 };
 
+const isPositiveInteger = (value) => {
+  return (
+    Number.isInteger(value) &&
+    value > 0
+  );
+};
+
 // ============================================================
 // SIGNAL DATABASE SETUP
-// ============================================================
-//
-// These tables are created automatically if they do not exist.
-// This prevents the admin API from crashing when signal
-// management is first deployed.
 // ============================================================
 
 const ensureSignalTables = async () => {
@@ -130,7 +163,7 @@ const adminLogin = async (
     const {
       email,
       password,
-    } = req.body;
+    } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({
@@ -201,6 +234,10 @@ const adminLogin = async (
       role !== 'administrator' &&
       role !== 'superadmin'
     ) {
+      logger.warn(
+        `Non-admin login attempt for ${normalizedEmail}`
+      );
+
       return res.status(403).json({
         message:
           'Administrator access required.',
@@ -314,7 +351,10 @@ const getDashboard = async (
     const depositsResult =
       await pool.query(`
         SELECT
-          COALESCE(SUM(amount), 0) AS total
+          COALESCE(
+            SUM(amount),
+            0
+          ) AS total
         FROM transactions
         WHERE transaction_type = 'DEPOSIT'
         AND status = 'COMPLETED'
@@ -323,7 +363,10 @@ const getDashboard = async (
     const withdrawalsResult =
       await pool.query(`
         SELECT
-          COALESCE(SUM(amount), 0) AS total
+          COALESCE(
+            SUM(amount),
+            0
+          ) AS total
         FROM transactions
         WHERE transaction_type = 'WITHDRAWAL'
         AND status = 'COMPLETED'
@@ -361,7 +404,10 @@ const getDashboard = async (
     const balanceResult =
       await pool.query(`
         SELECT
-          COALESCE(SUM(balance), 0) AS total
+          COALESCE(
+            SUM(balance),
+            0
+          ) AS total
         FROM accounts
       `);
 
@@ -479,22 +525,42 @@ const getUsers = async (
       result.rows.map(
         (user) => ({
           id: user.id,
+
           email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          username: user.username,
-          phone: user.phone,
-          country: user.country,
+
+          firstName:
+            user.first_name,
+
+          lastName:
+            user.last_name,
+
+          username:
+            user.username,
+
+          phone:
+            user.phone,
+
+          country:
+            user.country,
+
           preferredCurrency:
             user.preferred_currency,
+
           referralCode:
             user.referral_code,
-          role: user.role,
-          status: user.status,
+
+          role:
+            user.role,
+
+          status:
+            user.status,
+
           emailVerified:
             user.email_verified,
+
           identityVerificationStatus:
             user.identity_verification_status,
+
           createdAt:
             user.created_at,
 
@@ -529,7 +595,9 @@ const getUsers = async (
 
     return res.status(200).json({
       users,
-      count: users.length,
+
+      count:
+        users.length,
     });
 
   } catch (error) {
@@ -555,10 +623,7 @@ const getUser = async (
     const userId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(userId) ||
-      userId <= 0
-    ) {
+    if (!isPositiveInteger(userId)) {
       return res.status(400).json({
         message:
           'Invalid user ID.',
@@ -624,25 +689,48 @@ const getUser = async (
 
     return res.status(200).json({
       user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        username: user.username,
-        phone: user.phone,
-        country: user.country,
+        id:
+          user.id,
+
+        email:
+          user.email,
+
+        firstName:
+          user.first_name,
+
+        lastName:
+          user.last_name,
+
+        username:
+          user.username,
+
+        phone:
+          user.phone,
+
+        country:
+          user.country,
+
         preferredCurrency:
           user.preferred_currency,
+
         referralCode:
           user.referral_code,
+
         referrerCode:
           user.referrer_code,
-        role: user.role,
-        status: user.status,
+
+        role:
+          user.role,
+
+        status:
+          user.status,
+
         emailVerified:
           user.email_verified,
+
         identityVerificationStatus:
           user.identity_verification_status,
+
         createdAt:
           user.created_at,
 
@@ -839,7 +927,9 @@ const getTransactions = async (
 
     return res.status(200).json({
       transactions,
-      count: transactions.length,
+
+      count:
+        transactions.length,
     });
 
   } catch (error) {
@@ -1200,7 +1290,7 @@ const updateUserStatus = async (
 
     const normalizedStatus =
       normalizeUserStatus(
-        req.body.status
+        req.body?.status
       );
 
     const allowedStatuses = [
@@ -1210,10 +1300,7 @@ const updateUserStatus = async (
       'disabled',
     ];
 
-    if (
-      !Number.isInteger(userId) ||
-      userId <= 0
-    ) {
+    if (!isPositiveInteger(userId)) {
       return res.status(400).json({
         message:
           'Invalid user ID.',
@@ -1265,6 +1352,7 @@ const updateUserStatus = async (
     return res.status(200).json({
       message:
         'User status updated successfully.',
+
       user:
         result.rows[0],
     });
@@ -1298,7 +1386,7 @@ const updateTransactionStatus = async (
     const {
       status,
       adminNote,
-    } = req.body;
+    } = req.body || {};
 
     const allowedStatuses = [
       'PENDING',
@@ -1312,10 +1400,9 @@ const updateTransactionStatus = async (
       normalizeStatus(status);
 
     if (
-      !Number.isInteger(
+      !isPositiveInteger(
         transactionId
-      ) ||
-      transactionId <= 0
+      )
     ) {
       return res.status(400).json({
         message:
@@ -1336,6 +1423,10 @@ const updateTransactionStatus = async (
     }
 
     await client.query('BEGIN');
+
+    // --------------------------------------------------------
+    // LOCK TRANSACTION
+    // --------------------------------------------------------
 
     const transactionResult =
       await client.query(
@@ -1371,6 +1462,184 @@ const updateTransactionStatus = async (
       normalizeStatus(
         transaction.status
       );
+
+    const transactionType =
+      normalizeStatus(
+        transaction.transaction_type
+      );
+
+    const amount =
+      safeNumber(
+        transaction.amount
+      );
+
+    // --------------------------------------------------------
+    // PREVENT INVALID STATUS TRANSITIONS
+    // --------------------------------------------------------
+
+    if (
+      previousStatus === 'COMPLETED' &&
+      normalizedStatus !== 'COMPLETED'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'A completed transaction cannot be changed to another status.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // NO-OP
+    // --------------------------------------------------------
+
+    if (
+      previousStatus ===
+      normalizedStatus
+    ) {
+      const unchangedResult =
+        await client.query(
+          `
+          UPDATE transactions
+          SET
+            admin_note =
+              COALESCE(
+                $1,
+                admin_note
+              ),
+            updated_at =
+              CURRENT_TIMESTAMP
+          WHERE id = $2
+          RETURNING
+            id,
+            account_id,
+            transaction_type,
+            amount,
+            currency,
+            status,
+            admin_note,
+            verified_by,
+            verified_at
+          `,
+          [
+            adminNote || null,
+            transactionId,
+          ]
+        );
+
+      await client.query('COMMIT');
+
+      return res.status(200).json({
+        message:
+          'Transaction already has this status.',
+
+        transaction:
+          unchangedResult.rows[0],
+      });
+    }
+
+    // --------------------------------------------------------
+    // ACCOUNT LOCK FOR FINANCIAL OPERATIONS
+    // --------------------------------------------------------
+
+    let account = null;
+
+    if (
+      normalizedStatus === 'COMPLETED' &&
+      (
+        transactionType === 'DEPOSIT' ||
+        transactionType === 'WITHDRAWAL'
+      )
+    ) {
+      const accountResult =
+        await client.query(
+          `
+          SELECT
+            id,
+            balance,
+            deposit,
+            available_balance,
+            buying_power,
+            margin_available
+          FROM accounts
+          WHERE id = $1
+          FOR UPDATE
+          `,
+          [transaction.account_id]
+        );
+
+      if (
+        accountResult.rows.length === 0
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(404).json({
+          message:
+            'Account associated with this transaction was not found.',
+        });
+      }
+
+      account =
+        accountResult.rows[0];
+    }
+
+    // --------------------------------------------------------
+    // VALIDATE AMOUNT
+    // --------------------------------------------------------
+
+    if (
+      normalizedStatus === 'COMPLETED' &&
+      (
+        !Number.isFinite(amount) ||
+        amount <= 0
+      )
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Transaction amount must be greater than zero.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // WITHDRAWAL BALANCE CHECK
+    // --------------------------------------------------------
+
+    if (
+      normalizedStatus === 'COMPLETED' &&
+      transactionType === 'WITHDRAWAL'
+    ) {
+      const currentBalance =
+        safeNumber(
+          account.balance
+        );
+
+      const currentAvailable =
+        safeNumber(
+          account.available_balance
+        );
+
+      if (
+        currentBalance < amount ||
+        currentAvailable < amount
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'Insufficient account balance to complete this withdrawal.',
+          availableBalance:
+            currentAvailable,
+          requestedAmount:
+            amount,
+        });
+      }
+    }
+
+    // --------------------------------------------------------
+    // UPDATE TRANSACTION
+    // --------------------------------------------------------
 
     const updatedResult =
       await client.query(
@@ -1413,7 +1682,8 @@ const updateTransactionStatus = async (
           status,
           admin_note,
           verified_by,
-          verified_at
+          verified_at,
+          updated_at
         `,
         [
           normalizedStatus,
@@ -1424,38 +1694,32 @@ const updateTransactionStatus = async (
       );
 
     // --------------------------------------------------------
-    // CREDIT DEPOSIT
+    // COMPLETE DEPOSIT
     // --------------------------------------------------------
 
     if (
       normalizedStatus === 'COMPLETED' &&
       previousStatus !== 'COMPLETED' &&
-      transaction.transaction_type ===
-        'DEPOSIT'
+      transactionType === 'DEPOSIT'
     ) {
-      const amount =
-        safeNumber(
-          transaction.amount
-        );
-
       await client.query(
         `
         UPDATE accounts
         SET
           balance =
-            balance + $1,
+            COALESCE(balance, 0) + $1,
 
           deposit =
-            deposit + $1,
+            COALESCE(deposit, 0) + $1,
 
           available_balance =
-            available_balance + $1,
+            COALESCE(available_balance, 0) + $1,
 
           buying_power =
-            buying_power + $1,
+            COALESCE(buying_power, 0) + $1,
 
           margin_available =
-            margin_available + $1,
+            COALESCE(margin_available, 0) + $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -1470,47 +1734,29 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // DEBIT WITHDRAWAL
+    // COMPLETE WITHDRAWAL
     // --------------------------------------------------------
 
     if (
       normalizedStatus === 'COMPLETED' &&
       previousStatus !== 'COMPLETED' &&
-      transaction.transaction_type ===
-        'WITHDRAWAL'
+      transactionType === 'WITHDRAWAL'
     ) {
-      const amount =
-        safeNumber(
-          transaction.amount
-        );
-
       await client.query(
         `
         UPDATE accounts
         SET
           balance =
-            GREATEST(
-              0,
-              balance - $1
-            ),
+            COALESCE(balance, 0) - $1,
 
           available_balance =
-            GREATEST(
-              0,
-              available_balance - $1
-            ),
+            COALESCE(available_balance, 0) - $1,
 
           buying_power =
-            GREATEST(
-              0,
-              buying_power - $1
-            ),
+            COALESCE(buying_power, 0) - $1,
 
           margin_available =
-            GREATEST(
-              0,
-              margin_available - $1
-            ),
+            COALESCE(margin_available, 0) - $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -1526,16 +1772,23 @@ const updateTransactionStatus = async (
 
     await client.query('COMMIT');
 
+    logger.info(
+      `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${normalizedStatus}`
+    );
+
     return res.status(200).json({
       message:
         'Transaction status updated successfully.',
+
       transaction:
         updatedResult.rows[0],
     });
 
   } catch (error) {
     try {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
     } catch (rollbackError) {
       logger.error(
         'Transaction rollback error:',
@@ -1557,6 +1810,10 @@ const updateTransactionStatus = async (
 
 // ============================================================
 // INVESTMENT PLANS
+// ============================================================
+
+// ============================================================
+// GET ALL INVESTMENT PLANS
 // ============================================================
 
 const getInvestmentPlans = async (
@@ -1629,7 +1886,9 @@ const getInvestmentPlans = async (
 
     return res.status(200).json({
       plans,
-      count: plans.length,
+
+      count:
+        plans.length,
     });
 
   } catch (error) {
@@ -1660,7 +1919,7 @@ const createInvestmentPlan = async (
       roiPercent,
       durationDays,
       status,
-    } = req.body;
+    } = req.body || {};
 
     const planName =
       String(name || '').trim();
@@ -1669,6 +1928,13 @@ const createInvestmentPlan = async (
       return res.status(400).json({
         message:
           'Investment plan name is required.',
+      });
+    }
+
+    if (planName.length > 150) {
+      return res.status(400).json({
+        message:
+          'Investment plan name is too long.',
       });
     }
 
@@ -1767,26 +2033,91 @@ const createInvestmentPlan = async (
           $6,
           $7
         )
-        RETURNING *
+        RETURNING
+          id,
+          name,
+          description,
+          minimum_amount,
+          maximum_amount,
+          roi_percent,
+          duration_days,
+          status,
+          created_at,
+          updated_at
         `,
         [
           planName,
+
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
+
           minimum,
+
           maximum,
+
           roi,
+
           duration,
+
           planStatus,
         ]
       );
 
+    const plan =
+      result.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} created investment plan ${plan.id}: ${plan.name}`
+    );
+
     return res.status(201).json({
       message:
         'Investment plan created successfully.',
-      plan:
-        result.rows[0],
+
+      plan: {
+        id:
+          plan.id,
+
+        name:
+          plan.name,
+
+        description:
+          plan.description || '',
+
+        minimumAmount:
+          safeNumber(
+            plan.minimum_amount
+          ),
+
+        maximumAmount:
+          plan.maximum_amount === null
+            ? null
+            : safeNumber(
+                plan.maximum_amount
+              ),
+
+        roiPercent:
+          safeNumber(
+            plan.roi_percent
+          ),
+
+        durationDays:
+          Number(
+            plan.duration_days
+          ),
+
+        status:
+          plan.status,
+
+        createdAt:
+          plan.created_at,
+
+        updatedAt:
+          plan.updated_at,
+      },
     });
 
   } catch (error) {
@@ -1812,10 +2143,7 @@ const updateInvestmentPlan = async (
     const planId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(planId) ||
-      planId <= 0
-    ) {
+    if (!isPositiveInteger(planId)) {
       return res.status(400).json({
         message:
           'Invalid investment plan ID.',
@@ -1830,7 +2158,7 @@ const updateInvestmentPlan = async (
       roiPercent,
       durationDays,
       status,
-    } = req.body;
+    } = req.body || {};
 
     const planName =
       String(name || '').trim();
@@ -1839,6 +2167,13 @@ const updateInvestmentPlan = async (
       return res.status(400).json({
         message:
           'Investment plan name is required.',
+      });
+    }
+
+    if (planName.length > 150) {
+      return res.status(400).json({
+        message:
+          'Investment plan name is too long.',
       });
     }
 
@@ -1920,6 +2255,7 @@ const updateInvestmentPlan = async (
       await pool.query(
         `
         UPDATE investment_plans
+
         SET
           name = $1,
           description = $2,
@@ -1929,19 +2265,40 @@ const updateInvestmentPlan = async (
           duration_days = $6,
           status = $7,
           updated_at = CURRENT_TIMESTAMP
+
         WHERE id = $8
-        RETURNING *
+
+        RETURNING
+          id,
+          name,
+          description,
+          minimum_amount,
+          maximum_amount,
+          roi_percent,
+          duration_days,
+          status,
+          created_at,
+          updated_at
         `,
         [
           planName,
+
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
+
           minimum,
+
           maximum,
+
           roi,
+
           duration,
+
           planStatus,
+
           planId,
         ]
       );
@@ -1953,11 +2310,58 @@ const updateInvestmentPlan = async (
       });
     }
 
+    const plan =
+      result.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} updated investment plan ${planId}`
+    );
+
     return res.status(200).json({
       message:
         'Investment plan updated successfully.',
-      plan:
-        result.rows[0],
+
+      plan: {
+        id:
+          plan.id,
+
+        name:
+          plan.name,
+
+        description:
+          plan.description || '',
+
+        minimumAmount:
+          safeNumber(
+            plan.minimum_amount
+          ),
+
+        maximumAmount:
+          plan.maximum_amount === null
+            ? null
+            : safeNumber(
+                plan.maximum_amount
+              ),
+
+        roiPercent:
+          safeNumber(
+            plan.roi_percent
+          ),
+
+        durationDays:
+          Number(
+            plan.duration_days
+          ),
+
+        status:
+          plan.status,
+
+        createdAt:
+          plan.created_at,
+
+        updatedAt:
+          plan.updated_at,
+      },
     });
 
   } catch (error) {
@@ -1983,10 +2387,7 @@ const deleteInvestmentPlan = async (
     const planId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(planId) ||
-      planId <= 0
-    ) {
+    if (!isPositiveInteger(planId)) {
       return res.status(400).json({
         message:
           'Invalid investment plan ID.',
@@ -1997,8 +2398,12 @@ const deleteInvestmentPlan = async (
       await pool.query(
         `
         DELETE FROM investment_plans
+
         WHERE id = $1
-        RETURNING id, name
+
+        RETURNING
+          id,
+          name
         `,
         [planId]
       );
@@ -2010,9 +2415,14 @@ const deleteInvestmentPlan = async (
       });
     }
 
+    logger.info(
+      `Admin ${req.user.id} deleted investment plan ${planId}`
+    );
+
     return res.status(200).json({
       message:
         'Investment plan deleted successfully.',
+
       plan:
         result.rows[0],
     });
@@ -2031,7 +2441,9 @@ const deleteInvestmentPlan = async (
 // SIGNAL PLANS
 // ============================================================
 
-// GET ALL SIGNAL PLANS
+// ============================================================
+// GET SIGNAL PLANS
+// ============================================================
 
 const getSignalPlans = async (
   req,
@@ -2085,7 +2497,9 @@ const getSignalPlans = async (
 
     return res.status(200).json({
       plans,
-      count: plans.length,
+
+      count:
+        plans.length,
     });
 
   } catch (error) {
@@ -2098,7 +2512,9 @@ const getSignalPlans = async (
   }
 };
 
+// ============================================================
 // CREATE SIGNAL PLAN
+// ============================================================
 
 const createSignalPlan = async (
   req,
@@ -2113,7 +2529,7 @@ const createSignalPlan = async (
       description,
       strength,
       status,
-    } = req.body;
+    } = req.body || {};
 
     const planName =
       String(name || '').trim();
@@ -2132,11 +2548,27 @@ const createSignalPlan = async (
       });
     }
 
+    const rawStrength =
+      strength === undefined
+        ? 50
+        : Number(strength);
+
+    if (
+      !Number.isFinite(
+        rawStrength
+      ) ||
+      rawStrength < 0 ||
+      rawStrength > 100
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal strength must be between 0 and 100.',
+      });
+    }
+
     const signalStrength =
       getSignalStrength(
-        strength === undefined
-          ? 50
-          : strength
+        rawStrength
       );
 
     const signalStatus =
@@ -2169,20 +2601,35 @@ const createSignalPlan = async (
           $3,
           $4
         )
-        RETURNING *
+        RETURNING
+          id,
+          name,
+          description,
+          strength,
+          status,
+          created_at,
+          updated_at
         `,
         [
           planName,
+
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
+
           signalStrength,
+
           signalStatus,
         ]
       );
 
+    const plan =
+      result.rows[0];
+
     logger.info(
-      `Admin ${req.user.id} created signal plan ${result.rows[0].id}`
+      `Admin ${req.user.id} created signal plan ${plan.id}`
     );
 
     return res.status(201).json({
@@ -2191,27 +2638,27 @@ const createSignalPlan = async (
 
       plan: {
         id:
-          result.rows[0].id,
+          plan.id,
 
         name:
-          result.rows[0].name,
+          plan.name,
 
         description:
-          result.rows[0].description || '',
+          plan.description || '',
 
         strength:
           getSignalStrength(
-            result.rows[0].strength
+            plan.strength
           ),
 
         status:
-          result.rows[0].status,
+          plan.status,
 
         createdAt:
-          result.rows[0].created_at,
+          plan.created_at,
 
         updatedAt:
-          result.rows[0].updated_at,
+          plan.updated_at,
       },
     });
 
@@ -2225,7 +2672,9 @@ const createSignalPlan = async (
   }
 };
 
+// ============================================================
 // UPDATE SIGNAL PLAN
+// ============================================================
 
 const updateSignalPlan = async (
   req,
@@ -2238,10 +2687,7 @@ const updateSignalPlan = async (
     const planId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(planId) ||
-      planId <= 0
-    ) {
+    if (!isPositiveInteger(planId)) {
       return res.status(400).json({
         message:
           'Invalid signal plan ID.',
@@ -2253,7 +2699,7 @@ const updateSignalPlan = async (
       description,
       strength,
       status,
-    } = req.body;
+    } = req.body || {};
 
     const planName =
       String(name || '').trim();
@@ -2265,9 +2711,32 @@ const updateSignalPlan = async (
       });
     }
 
+    if (planName.length > 150) {
+      return res.status(400).json({
+        message:
+          'Signal plan name is too long.',
+      });
+    }
+
+    const rawStrength =
+      Number(strength);
+
+    if (
+      !Number.isFinite(
+        rawStrength
+      ) ||
+      rawStrength < 0 ||
+      rawStrength > 100
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal strength must be between 0 and 100.',
+      });
+    }
+
     const signalStrength =
       getSignalStrength(
-        strength
+        rawStrength
       );
 
     const signalStatus =
@@ -2289,22 +2758,38 @@ const updateSignalPlan = async (
       await pool.query(
         `
         UPDATE signal_plans
+
         SET
           name = $1,
           description = $2,
           strength = $3,
           status = $4,
           updated_at = CURRENT_TIMESTAMP
+
         WHERE id = $5
-        RETURNING *
+
+        RETURNING
+          id,
+          name,
+          description,
+          strength,
+          status,
+          created_at,
+          updated_at
         `,
         [
           planName,
+
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
+
           signalStrength,
+
           signalStatus,
+
           planId,
         ]
       );
@@ -2316,33 +2801,40 @@ const updateSignalPlan = async (
       });
     }
 
+    const plan =
+      result.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} updated signal plan ${planId}`
+    );
+
     return res.status(200).json({
       message:
         'Signal plan updated successfully.',
 
       plan: {
         id:
-          result.rows[0].id,
+          plan.id,
 
         name:
-          result.rows[0].name,
+          plan.name,
 
         description:
-          result.rows[0].description || '',
+          plan.description || '',
 
         strength:
           getSignalStrength(
-            result.rows[0].strength
+            plan.strength
           ),
 
         status:
-          result.rows[0].status,
+          plan.status,
 
         createdAt:
-          result.rows[0].created_at,
+          plan.created_at,
 
         updatedAt:
-          result.rows[0].updated_at,
+          plan.updated_at,
       },
     });
 
@@ -2356,7 +2848,9 @@ const updateSignalPlan = async (
   }
 };
 
+// ============================================================
 // DELETE SIGNAL PLAN
+// ============================================================
 
 const deleteSignalPlan = async (
   req,
@@ -2369,10 +2863,7 @@ const deleteSignalPlan = async (
     const planId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(planId) ||
-      planId <= 0
-    ) {
+    if (!isPositiveInteger(planId)) {
       return res.status(400).json({
         message:
           'Invalid signal plan ID.',
@@ -2383,8 +2874,12 @@ const deleteSignalPlan = async (
       await pool.query(
         `
         DELETE FROM signal_plans
+
         WHERE id = $1
-        RETURNING id, name
+
+        RETURNING
+          id,
+          name
         `,
         [planId]
       );
@@ -2395,6 +2890,10 @@ const deleteSignalPlan = async (
           'Signal plan not found.',
       });
     }
+
+    logger.info(
+      `Admin ${req.user.id} deleted signal plan ${planId}`
+    );
 
     return res.status(200).json({
       message:
@@ -2429,10 +2928,7 @@ const getUserSignal = async (
     const userId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(userId) ||
-      userId <= 0
-    ) {
+    if (!isPositiveInteger(userId)) {
       return res.status(400).json({
         message:
           'Invalid user ID.',
@@ -2514,7 +3010,9 @@ const getUserSignal = async (
                 ),
 
               enabled:
-                row.enabled,
+                Boolean(
+                  row.enabled
+                ),
 
               plan:
                 row.plan_id
@@ -2567,10 +3065,7 @@ const updateUserSignal = async (
     const userId =
       Number(req.params.id);
 
-    if (
-      !Number.isInteger(userId) ||
-      userId <= 0
-    ) {
+    if (!isPositiveInteger(userId)) {
       return res.status(400).json({
         message:
           'Invalid user ID.',
@@ -2581,7 +3076,7 @@ const updateUserSignal = async (
       signalPlanId,
       strength,
       enabled,
-    } = req.body;
+    } = req.body || {};
 
     // --------------------------------------------------------
     // VERIFY USER
@@ -2616,6 +3111,8 @@ const updateUserSignal = async (
 
     let planId = null;
 
+    let planStrength = null;
+
     if (
       signalPlanId !== undefined &&
       signalPlanId !== null &&
@@ -2624,10 +3121,7 @@ const updateUserSignal = async (
       planId =
         Number(signalPlanId);
 
-      if (
-        !Number.isInteger(planId) ||
-        planId <= 0
-      ) {
+      if (!isPositiveInteger(planId)) {
         return res.status(400).json({
           message:
             'Invalid signal plan ID.',
@@ -2658,45 +3152,58 @@ const updateUserSignal = async (
         });
       }
 
+      const signalPlan =
+        planResult.rows[0];
+
       if (
-        planResult.rows[0].status !==
-        'ACTIVE'
+        normalizeStatus(
+          signalPlan.status
+        ) !== 'ACTIVE'
       ) {
         return res.status(400).json({
           message:
             'Cannot assign an inactive signal plan.',
         });
       }
+
+      planStrength =
+        getSignalStrength(
+          signalPlan.strength
+        );
     }
 
     // --------------------------------------------------------
-    // STRENGTH
+    // SIGNAL STRENGTH
     // --------------------------------------------------------
 
     let signalStrength;
 
     if (strength === undefined) {
-      if (planId) {
-        const planResult =
-          await pool.query(
-            `
-            SELECT strength
-            FROM signal_plans
-            WHERE id = $1
-            `,
-            [planId]
-          );
-
-        signalStrength =
-          getSignalStrength(
-            planResult.rows[0].strength
-          );
-      } else {
-        signalStrength = 50;
-      }
-    } else {
       signalStrength =
-        getSignalStrength(strength);
+        planStrength !== null
+          ? planStrength
+          : 50;
+    } else {
+      const numericStrength =
+        Number(strength);
+
+      if (
+        !Number.isFinite(
+          numericStrength
+        ) ||
+        numericStrength < 0 ||
+        numericStrength > 100
+      ) {
+        return res.status(400).json({
+          message:
+            'Signal strength must be between 0 and 100.',
+        });
+      }
+
+      signalStrength =
+        getSignalStrength(
+          numericStrength
+        );
     }
 
     // --------------------------------------------------------
@@ -2704,9 +3211,10 @@ const updateUserSignal = async (
     // --------------------------------------------------------
 
     const signalEnabled =
-      enabled === undefined
-        ? true
-        : Boolean(enabled);
+      parseBoolean(
+        enabled,
+        true
+      );
 
     // --------------------------------------------------------
     // CREATE OR UPDATE
@@ -2727,7 +3235,9 @@ const updateUserSignal = async (
           $3,
           $4
         )
+
         ON CONFLICT (user_id)
+
         DO UPDATE SET
           signal_plan_id =
             EXCLUDED.signal_plan_id,
@@ -2752,14 +3262,20 @@ const updateUserSignal = async (
         `,
         [
           userId,
+
           planId,
+
           signalStrength,
+
           signalEnabled,
         ]
       );
 
+    const signal =
+      result.rows[0];
+
     logger.info(
-      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}`
+      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}, enabled=${signalEnabled}`
     );
 
     return res.status(200).json({
@@ -2768,27 +3284,29 @@ const updateUserSignal = async (
 
       signal: {
         id:
-          result.rows[0].id,
+          signal.id,
 
         userId:
-          result.rows[0].user_id,
+          signal.user_id,
 
         signalPlanId:
-          result.rows[0].signal_plan_id,
+          signal.signal_plan_id,
 
         strength:
           getSignalStrength(
-            result.rows[0].strength
+            signal.strength
           ),
 
         enabled:
-          result.rows[0].enabled,
+          Boolean(
+            signal.enabled
+          ),
 
         createdAt:
-          result.rows[0].created_at,
+          signal.created_at,
 
         updatedAt:
-          result.rows[0].updated_at,
+          signal.updated_at,
       },
     });
 
