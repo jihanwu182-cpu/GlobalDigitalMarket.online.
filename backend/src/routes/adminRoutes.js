@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 
 const {
+  adminLogin,
   getDashboard,
   getUsers,
   getUser,
@@ -19,7 +20,22 @@ const {
 } = require('../middleware/auth');
 
 // ============================================================
+// ADMIN LOGIN
+// ============================================================
+// IMPORTANT:
+// Login must be PUBLIC because the administrator does not
+// have an authentication token before logging in.
+// ============================================================
+
+router.post(
+  '/login',
+  adminLogin
+);
+
+// ============================================================
 // ADMIN AUTHENTICATION
+// ============================================================
+// Everything BELOW this middleware requires an admin token.
 // ============================================================
 
 router.use(adminMiddleware);
