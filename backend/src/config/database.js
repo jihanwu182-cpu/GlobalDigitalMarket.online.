@@ -2,8 +2,13 @@ const { Pool } = require('pg');
 const logger = require('../utils/logger');
 const { hashPassword } = require('../utils/bcrypt');
 
+// ============================================================
+// POSTGRESQL CONNECTION
+// ============================================================
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || undefined,
+  connectionString:
+    process.env.DATABASE_URL || undefined,
 
   host: process.env.DATABASE_URL
     ? undefined
@@ -34,12 +39,20 @@ const pool = new Pool({
       : false,
 
   max: 10,
+
   idleTimeoutMillis: 30000,
+
   connectionTimeoutMillis: 10000,
 });
 
+// ============================================================
+// DATABASE EVENTS
+// ============================================================
+
 pool.on('connect', () => {
-  logger.info('PostgreSQL connected successfully');
+  logger.info(
+    'PostgreSQL connected successfully'
+  );
 });
 
 pool.on('error', (error) => {
@@ -48,7 +61,6 @@ pool.on('error', (error) => {
     error
   );
 });
-
 
 // ============================================================
 // DATABASE INITIALIZATION
@@ -215,10 +227,6 @@ const initializeDatabase = async () => {
       DEFAULT FALSE;
     `);
 
-    // ========================================================
-    // USERS INDEXES
-    // ========================================================
-
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email
       ON users(email);
@@ -242,7 +250,6 @@ const initializeDatabase = async () => {
     logger.info(
       'Users table is ready'
     );
-
 
     // ========================================================
     // ACCOUNTS
@@ -365,7 +372,6 @@ const initializeDatabase = async () => {
       'Accounts table is ready'
     );
 
-
     // ========================================================
     // PORTFOLIO HOLDINGS
     // ========================================================
@@ -413,7 +419,6 @@ const initializeDatabase = async () => {
     logger.info(
       'Portfolio holdings table is ready'
     );
-
 
     // ========================================================
     // TRANSACTIONS
@@ -505,10 +510,14 @@ const initializeDatabase = async () => {
       ON transactions(created_at DESC);
     `);
 
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_transactions_type
+      ON transactions(transaction_type);
+    `);
+
     logger.info(
       'Transactions table is ready'
     );
-
 
     // ========================================================
     // WITHDRAWAL CODES
@@ -555,7 +564,6 @@ const initializeDatabase = async () => {
     logger.info(
       'Withdrawal codes table is ready'
     );
-
 
     // ========================================================
     // IDENTITY DOCUMENTS
@@ -607,9 +615,531 @@ const initializeDatabase = async () => {
       'Identity documents table is ready'
     );
 
+    // ========================================================
+    // INVESTMENT PLANS
+    // ADMIN CREATES THESE
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS investment_plans (
+        id SERIAL PRIMARY KEY,
+
+        name VARCHAR(150) NOT NULL,
+
+        description TEXT,
+
+        minimum_amount NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        maximum_amount NUMERIC(20, 2),
+
+        roi_percent NUMERIC(10, 4)
+          NOT NULL DEFAULT 0,
+
+        duration_days INTEGER
+          NOT NULL DEFAULT 30,
+
+        status VARCHAR(20)
+          NOT NULL DEFAULT 'ACTIVE',
+
+        created_by INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT investment_plan_status_check
+        CHECK (
+          status IN (
+            'ACTIVE',
+            'INACTIVE'
+          )
+        ),
+
+        CONSTRAINT investment_plan_minimum_check
+        CHECK (
+          minimum_amount >= 0
+        ),
+
+        CONSTRAINT investment_plan_maximum_check
+        CHECK (
+          maximum_amount IS NULL
+          OR maximum_amount >= minimum_amount
+        ),
+
+        CONSTRAINT investment_plan_roi_check
+        CHECK (
+          roi_percent >= 0
+        ),
+
+        CONSTRAINT investment_plan_duration_check
+        CHECK (
+          duration_days > 0
+        )
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE investment_plans
+      ADD COLUMN IF NOT EXISTS created_by INTEGER;
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_investment_plans_status
+      ON investment_plans(status);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_investment_plans_created
+      ON investment_plans(created_at DESC);
+    `);
+
+    logger.info(
+      'Investment plans table is ready'
+    );
 
     // ========================================================
-    // CREATE ACCOUNT FOR USERS WITHOUT ACCOUNTS
+    // USER INVESTMENTS
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_investments (
+        id SERIAL PRIMARY KEY,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE CASCADE,
+
+        account_id INTEGER NOT NULL
+          REFERENCES accounts(id)
+          ON DELETE CASCADE,
+
+        plan_id INTEGER NOT NULL
+          REFERENCES investment_plans(id)
+          ON DELETE RESTRICT,
+
+        amount NUMERIC(20, 2)
+          NOT NULL,
+
+        expected_profit NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        roi_percent NUMERIC(10, 4)
+          NOT NULL DEFAULT 0,
+
+        duration_days INTEGER
+          NOT NULL,
+
+        start_date TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        end_date TIMESTAMP,
+
+        status VARCHAR(30)
+          NOT NULL DEFAULT 'ACTIVE',
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT user_investments_amount_check
+        CHECK (amount > 0),
+
+        CONSTRAINT user_investments_status_check
+        CHECK (
+          status IN (
+            'ACTIVE',
+            'COMPLETED',
+            'CANCELLED'
+          )
+        )
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_investments_user
+      ON user_investments(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_investments_account
+      ON user_investments(account_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_investments_plan
+      ON user_investments(plan_id);
+    `);
+
+    logger.info(
+      'User investments table is ready'
+    );
+
+    // ========================================================
+    // SIGNAL PLANS
+    // ADMIN CREATES THESE
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS signal_plans (
+        id SERIAL PRIMARY KEY,
+
+        name VARCHAR(150) NOT NULL,
+
+        description TEXT,
+
+        strength INTEGER
+          NOT NULL DEFAULT 50,
+
+        accuracy_percent NUMERIC(6, 2)
+          NOT NULL DEFAULT 0,
+
+        duration_days INTEGER
+          NOT NULL DEFAULT 30,
+
+        price NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        currency VARCHAR(10)
+          NOT NULL DEFAULT 'USD',
+
+        status VARCHAR(20)
+          NOT NULL DEFAULT 'ACTIVE',
+
+        created_by INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT signal_plan_strength_check
+        CHECK (
+          strength >= 0
+          AND strength <= 100
+        ),
+
+        CONSTRAINT signal_plan_accuracy_check
+        CHECK (
+          accuracy_percent >= 0
+          AND accuracy_percent <= 100
+        ),
+
+        CONSTRAINT signal_plan_duration_check
+        CHECK (
+          duration_days > 0
+        ),
+
+        CONSTRAINT signal_plan_price_check
+        CHECK (
+          price >= 0
+        ),
+
+        CONSTRAINT signal_plan_status_check
+        CHECK (
+          status IN (
+            'ACTIVE',
+            'INACTIVE'
+          )
+        )
+      );
+    `);
+
+    await pool.query(`
+      ALTER TABLE signal_plans
+      ADD COLUMN IF NOT EXISTS created_by INTEGER;
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_signal_plans_status
+      ON signal_plans(status);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_signal_plans_created
+      ON signal_plans(created_at DESC);
+    `);
+
+    logger.info(
+      'Signal plans table is ready'
+    );
+
+    // ========================================================
+    // USER SIGNAL SETTINGS
+    // ADMIN CAN CONTROL USER SIGNAL STRENGTH
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_signals (
+        id SERIAL PRIMARY KEY,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE CASCADE,
+
+        signal_plan_id INTEGER
+          REFERENCES signal_plans(id)
+          ON DELETE SET NULL,
+
+        strength INTEGER
+          NOT NULL DEFAULT 50,
+
+        status VARCHAR(20)
+          NOT NULL DEFAULT 'ACTIVE',
+
+        note TEXT,
+
+        updated_by INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        UNIQUE(user_id),
+
+        CONSTRAINT user_signal_strength_check
+        CHECK (
+          strength >= 0
+          AND strength <= 100
+        ),
+
+        CONSTRAINT user_signal_status_check
+        CHECK (
+          status IN (
+            'ACTIVE',
+            'INACTIVE'
+          )
+        )
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_signals_user
+      ON user_signals(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_user_signals_plan
+      ON user_signals(signal_plan_id);
+    `);
+
+    logger.info(
+      'User signals table is ready'
+    );
+
+    // ========================================================
+    // NOTIFICATIONS
+    // ADMIN CAN SEND NOTIFICATIONS TO USERS
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE CASCADE,
+
+        title VARCHAR(200) NOT NULL,
+
+        message TEXT NOT NULL,
+
+        type VARCHAR(50)
+          NOT NULL DEFAULT 'INFO',
+
+        is_read BOOLEAN
+          NOT NULL DEFAULT FALSE,
+
+        created_by INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        read_at TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_user
+      ON notifications(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_unread
+      ON notifications(user_id, is_read);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_notifications_created
+      ON notifications(created_at DESC);
+    `);
+
+    logger.info(
+      'Notifications table is ready'
+    );
+
+    // ========================================================
+    // ADMIN FINANCIAL AUDIT LOG
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_financial_actions (
+        id SERIAL PRIMARY KEY,
+
+        admin_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE RESTRICT,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE RESTRICT,
+
+        account_id INTEGER NOT NULL
+          REFERENCES accounts(id)
+          ON DELETE RESTRICT,
+
+        action_type VARCHAR(50) NOT NULL,
+
+        amount NUMERIC(20, 2) NOT NULL,
+
+        balance_before NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        balance_after NUMERIC(20, 2)
+          NOT NULL DEFAULT 0,
+
+        description TEXT,
+
+        transaction_id INTEGER
+          REFERENCES transactions(id)
+          ON DELETE SET NULL,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT admin_financial_amount_check
+        CHECK (
+          amount > 0
+        )
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_admin_financial_admin
+      ON admin_financial_actions(admin_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_admin_financial_user
+      ON admin_financial_actions(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_admin_financial_created
+      ON admin_financial_actions(created_at DESC);
+    `);
+
+    logger.info(
+      'Admin financial audit table is ready'
+    );
+
+    // ========================================================
+    // ADMIN EMAIL LOG
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS email_logs (
+        id SERIAL PRIMARY KEY,
+
+        user_id INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        admin_id INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
+
+        recipient_email VARCHAR(255) NOT NULL,
+
+        subject VARCHAR(255) NOT NULL,
+
+        message TEXT NOT NULL,
+
+        status VARCHAR(30)
+          NOT NULL DEFAULT 'PENDING',
+
+        provider_message_id VARCHAR(255),
+
+        error_message TEXT,
+
+        sent_at TIMESTAMP,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_email_logs_user
+      ON email_logs(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_email_logs_created
+      ON email_logs(created_at DESC);
+    `);
+
+    // ========================================================
+    // ADMIN IMPERSONATION / USER LOGIN AUDIT
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_user_access_logs (
+        id SERIAL PRIMARY KEY,
+
+        admin_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE RESTRICT,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE RESTRICT,
+
+        action VARCHAR(50)
+          NOT NULL DEFAULT 'LOGIN_AS_USER',
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_admin_user_access_admin
+      ON admin_user_access_logs(admin_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_admin_user_access_user
+      ON admin_user_access_logs(user_id);
+    `);
+
+    // ========================================================
+    // CREATE ACCOUNTS FOR USERS WITHOUT ACCOUNTS
     // ========================================================
 
     const usersWithoutAccounts =
@@ -617,17 +1147,24 @@ const initializeDatabase = async () => {
         SELECT
           u.id,
           COALESCE(
-            NULLIF(u.preferred_currency, ''),
+            NULLIF(
+              u.preferred_currency,
+              ''
+            ),
             'USD'
           ) AS currency
+
         FROM users u
+
         LEFT JOIN accounts a
           ON a.user_id = u.id
+
         WHERE a.id IS NULL;
       `);
 
     for (
-      const user of usersWithoutAccounts.rows
+      const user
+      of usersWithoutAccounts.rows
     ) {
       const accountNumber =
         `GDM-${user.id}-${Date.now()}-${Math.floor(
@@ -685,18 +1222,35 @@ const initializeDatabase = async () => {
       );
     }
 
+    // ========================================================
+    // CREATE DEFAULT USER SIGNAL SETTINGS
+    // ========================================================
+
+    await pool.query(`
+      INSERT INTO user_signals (
+        user_id,
+        strength,
+        status
+      )
+
+      SELECT
+        u.id,
+        50,
+        'ACTIVE'
+
+      FROM users u
+
+      LEFT JOIN user_signals us
+        ON us.user_id = u.id
+
+      WHERE us.id IS NULL
+
+      ON CONFLICT (user_id)
+      DO NOTHING;
+    `);
 
     // ========================================================
     // ADMIN ACCOUNT
-    // ========================================================
-    //
-    // The following values come from Render:
-    //
-    // ADMIN_EMAIL
-    // ADMIN_PASSWORD
-    //
-    // The password is NEVER stored as plain text.
-    //
     // ========================================================
 
     const adminEmail =
@@ -727,18 +1281,10 @@ const initializeDatabase = async () => {
         'Checking administrator account...'
       );
 
-      // ------------------------------------------------------
-      // Hash administrator password
-      // ------------------------------------------------------
-
       const adminPasswordHash =
         await hashPassword(
           adminPassword
         );
-
-      // ------------------------------------------------------
-      // Find existing admin/user
-      // ------------------------------------------------------
 
       const existingAdminResult =
         await pool.query(
@@ -749,8 +1295,11 @@ const initializeDatabase = async () => {
             role,
             status,
             username
+
           FROM users
+
           WHERE LOWER(email) = $1
+
           LIMIT 1
           `,
           [adminEmail]
@@ -758,12 +1307,13 @@ const initializeDatabase = async () => {
 
       let adminUserId;
 
-      // ------------------------------------------------------
+      // ======================================================
       // CREATE ADMIN
-      // ------------------------------------------------------
+      // ======================================================
 
       if (
-        existingAdminResult.rows.length === 0
+        existingAdminResult.rows.length ===
+        0
       ) {
         let adminUsername =
           String(
@@ -779,13 +1329,16 @@ const initializeDatabase = async () => {
           adminUsername = 'admin';
         }
 
-        // Make username unique if necessary
         const usernameCheck =
           await pool.query(
             `
             SELECT id
+
             FROM users
-            WHERE LOWER(username) = LOWER($1)
+
+            WHERE LOWER(username)
+              = LOWER($1)
+
             LIMIT 1
             `,
             [adminUsername]
@@ -823,6 +1376,7 @@ const initializeDatabase = async () => {
               email_verified,
               identity_verification_status
             )
+
             VALUES (
               $1,
               $2,
@@ -838,6 +1392,7 @@ const initializeDatabase = async () => {
               TRUE,
               'APPROVED'
             )
+
             RETURNING
               id,
               email,
@@ -862,9 +1417,9 @@ const initializeDatabase = async () => {
           'Administrator account created successfully.'
         );
       } else {
-        // ----------------------------------------------------
-        // EXISTING ACCOUNT
-        // ----------------------------------------------------
+        // ====================================================
+        // UPDATE EXISTING ADMIN
+        // ====================================================
 
         adminUserId =
           existingAdminResult.rows[0].id;
@@ -872,6 +1427,7 @@ const initializeDatabase = async () => {
         await pool.query(
           `
           UPDATE users
+
           SET
             password_hash = $1,
             role = 'admin',
@@ -879,6 +1435,7 @@ const initializeDatabase = async () => {
             email_verified = TRUE,
             identity_verification_status = 'APPROVED',
             updated_at = CURRENT_TIMESTAMP
+
           WHERE id = $2
           `,
           [
@@ -892,9 +1449,9 @@ const initializeDatabase = async () => {
         );
       }
 
-      // ------------------------------------------------------
-      // CREATE ADMIN ACCOUNT WALLET
-      // ------------------------------------------------------
+      // ======================================================
+      // CREATE ADMIN WALLET
+      // ======================================================
 
       const adminAccountResult =
         await pool.query(
@@ -902,15 +1459,19 @@ const initializeDatabase = async () => {
           SELECT
             id,
             account_number
+
           FROM accounts
+
           WHERE user_id = $1
+
           LIMIT 1
           `,
           [adminUserId]
         );
 
       if (
-        adminAccountResult.rows.length === 0
+        adminAccountResult.rows.length ===
+        0
       ) {
         const adminAccountNumber =
           `GDM-ADMIN-${adminUserId}-${Date.now()
@@ -935,6 +1496,7 @@ const initializeDatabase = async () => {
             margin_available,
             status
           )
+
           VALUES (
             $1,
             $2,
@@ -976,7 +1538,6 @@ const initializeDatabase = async () => {
       );
     }
 
-
     // ========================================================
     // COMPLETE
     // ========================================================
@@ -996,7 +1557,6 @@ const initializeDatabase = async () => {
     throw error;
   }
 };
-
 
 // ============================================================
 // EXPORTS
