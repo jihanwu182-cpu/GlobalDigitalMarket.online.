@@ -55,8 +55,6 @@ const isPositiveInteger = (value) => {
 
 // ============================================================
 // SIGNAL DATABASE SETUP
-// IMPORTANT:
-// This matches the database schema in config/database.js.
 // ============================================================
 
 const ensureSignalTables = async () => {
@@ -1219,6 +1217,508 @@ const getWithdrawals = async (
 };
 
 // ============================================================
+// FUND USER ACCOUNT
+// ADMIN ONLY
+// ============================================================
+
+const fundUserAccount = async (
+  req,
+  res,
+  next
+) => {
+  const client =
+    await pool.connect();
+
+  try {
+    const userId =
+      Number(req.params.id);
+
+    const {
+      amount,
+      currency,
+      description,
+    } = req.body || {};
+
+    // --------------------------------------------------------
+    // VALIDATE USER ID
+    // --------------------------------------------------------
+
+    if (!isPositiveInteger(userId)) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // VALIDATE AMOUNT
+    // --------------------------------------------------------
+
+    const fundingAmount =
+      Number(amount);
+
+    if (
+      !Number.isFinite(
+        fundingAmount
+      ) ||
+      fundingAmount <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Funding amount must be greater than zero.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // VALIDATE CURRENCY
+    // --------------------------------------------------------
+
+    const fundingCurrency =
+      String(
+        currency || 'USD'
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      fundingCurrency.length < 3 ||
+      fundingCurrency.length > 10
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid currency.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // START TRANSACTION
+    // --------------------------------------------------------
+
+    await client.query('BEGIN');
+
+    // --------------------------------------------------------
+    // FIND USER ACCOUNT
+    // --------------------------------------------------------
+
+    const accountResult =
+      await client.query(
+        `
+        SELECT
+          u.id AS user_id,
+          u.email,
+          u.first_name,
+          u.last_name,
+
+          a.id AS account_id,
+          a.account_number,
+          a.currency,
+          a.balance,
+          a.deposit,
+          a.available_balance,
+          a.buying_power,
+          a.margin_available
+
+        FROM users u
+
+        INNER JOIN accounts a
+          ON a.user_id = u.id
+
+        WHERE u.id = $1
+
+        LIMIT 1
+
+        FOR UPDATE OF a
+        `,
+        [userId]
+      );
+
+    if (
+      accountResult.rows.length === 0
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const account =
+      accountResult.rows[0];
+
+    // --------------------------------------------------------
+    // CHECK ACCOUNT CURRENCY
+    // --------------------------------------------------------
+
+    const accountCurrency =
+      String(
+        account.currency || 'USD'
+      )
+        .trim()
+        .toUpperCase();
+
+    if (
+      accountCurrency !==
+      fundingCurrency
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(400).json({
+        message:
+          `Account currency is ${accountCurrency}. Funding currency must match the account currency.`,
+
+        accountCurrency,
+
+        requestedCurrency:
+          fundingCurrency,
+      });
+    }
+
+    // --------------------------------------------------------
+    // TRANSACTION REFERENCE
+    // --------------------------------------------------------
+
+    const transactionReference =
+      `ADMIN-FUND-${Date.now()}-${userId}-${Math.floor(
+        Math.random() * 100000
+      )}`;
+
+    // --------------------------------------------------------
+    // CREATE COMPLETED DEPOSIT
+    // --------------------------------------------------------
+
+    const transactionResult =
+      await client.query(
+        `
+        INSERT INTO transactions (
+          account_id,
+          transaction_reference,
+          transaction_type,
+          amount,
+          currency,
+          payment_method,
+          status,
+          description,
+          verified_by,
+          verified_at,
+          admin_note,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          'DEPOSIT',
+          $3,
+          $4,
+          'ADMIN_FUNDING',
+          'COMPLETED',
+          $5,
+          $6,
+          CURRENT_TIMESTAMP,
+          $7,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+
+        RETURNING
+          id,
+          account_id,
+          transaction_reference,
+          transaction_type,
+          amount,
+          currency,
+          payment_method,
+          status,
+          description,
+          verified_by,
+          verified_at,
+          admin_note,
+          created_at,
+          updated_at
+        `,
+        [
+          account.account_id,
+
+          transactionReference,
+
+          fundingAmount,
+
+          fundingCurrency,
+
+          description
+            ? String(
+                description
+              ).trim()
+            : 'Account funded by administrator.',
+
+          req.user.id,
+
+          description
+            ? String(
+                description
+              ).trim()
+            : 'Account funded by administrator.',
+        ]
+      );
+
+    // --------------------------------------------------------
+    // UPDATE ACCOUNT BALANCES
+    // --------------------------------------------------------
+
+    const updatedAccountResult =
+      await client.query(
+        `
+        UPDATE accounts
+
+        SET
+          balance =
+            COALESCE(balance, 0)
+            + $1,
+
+          deposit =
+            COALESCE(deposit, 0)
+            + $1,
+
+          available_balance =
+            COALESCE(available_balance, 0)
+            + $1,
+
+          buying_power =
+            COALESCE(buying_power, 0)
+            + $1,
+
+          margin_available =
+            COALESCE(margin_available, 0)
+            + $1,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $2
+
+        RETURNING
+          id,
+          account_number,
+          account_type,
+          account_name,
+          currency,
+          balance,
+          deposit,
+          profits,
+          available_balance,
+          bonus,
+          referrer_bonus,
+          buying_power,
+          margin_available,
+          status,
+          updated_at
+        `,
+        [
+          fundingAmount,
+          account.account_id,
+        ]
+      );
+
+    // --------------------------------------------------------
+    // COMMIT
+    // --------------------------------------------------------
+
+    await client.query(
+      'COMMIT'
+    );
+
+    const updatedAccount =
+      updatedAccountResult.rows[0];
+
+    const transaction =
+      transactionResult.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} funded user ${userId} account ${account.account_id} with ${fundingAmount} ${fundingCurrency}`
+    );
+
+    // --------------------------------------------------------
+    // RESPONSE
+    // --------------------------------------------------------
+
+    return res.status(200).json({
+      message:
+        'User account funded successfully.',
+
+      funding: {
+        userId:
+          account.user_id,
+
+        email:
+          account.email,
+
+        firstName:
+          account.first_name,
+
+        lastName:
+          account.last_name,
+
+        accountId:
+          account.account_id,
+
+        accountNumber:
+          account.account_number,
+
+        amount:
+          fundingAmount,
+
+        currency:
+          fundingCurrency,
+
+        transactionReference:
+          transaction
+            .transaction_reference,
+
+        status:
+          'COMPLETED',
+      },
+
+      transaction: {
+        id:
+          transaction.id,
+
+        accountId:
+          transaction.account_id,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        transactionType:
+          transaction.transaction_type,
+
+        amount:
+          safeNumber(
+            transaction.amount
+          ),
+
+        currency:
+          transaction.currency,
+
+        paymentMethod:
+          transaction.payment_method,
+
+        status:
+          transaction.status,
+
+        description:
+          transaction.description || '',
+
+        verifiedBy:
+          transaction.verified_by,
+
+        verifiedAt:
+          transaction.verified_at,
+
+        adminNote:
+          transaction.admin_note || '',
+
+        createdAt:
+          transaction.created_at,
+
+        updatedAt:
+          transaction.updated_at,
+      },
+
+      account: {
+        id:
+          updatedAccount.id,
+
+        accountNumber:
+          updatedAccount.account_number,
+
+        accountType:
+          updatedAccount.account_type,
+
+        accountName:
+          updatedAccount.account_name,
+
+        currency:
+          updatedAccount.currency,
+
+        balance:
+          safeNumber(
+            updatedAccount.balance
+          ),
+
+        deposit:
+          safeNumber(
+            updatedAccount.deposit
+          ),
+
+        profits:
+          safeNumber(
+            updatedAccount.profits
+          ),
+
+        availableBalance:
+          safeNumber(
+            updatedAccount.available_balance
+          ),
+
+        bonus:
+          safeNumber(
+            updatedAccount.bonus
+          ),
+
+        referrerBonus:
+          safeNumber(
+            updatedAccount.referrer_bonus
+          ),
+
+        buyingPower:
+          safeNumber(
+            updatedAccount.buying_power
+          ),
+
+        marginAvailable:
+          safeNumber(
+            updatedAccount.margin_available
+          ),
+
+        status:
+          updatedAccount.status,
+
+        updatedAt:
+          updatedAccount.updated_at,
+      },
+    });
+
+  } catch (error) {
+    try {
+      await client.query(
+        'ROLLBACK'
+      );
+    } catch (rollbackError) {
+      logger.error(
+        'Account funding rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin fund user account error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
 // GET KYC REQUESTS
 // ============================================================
 
@@ -1365,6 +1865,7 @@ const updateUserStatus = async (
       return res.status(400).json({
         message:
           'Invalid user status.',
+
         allowedStatuses,
       });
     }
@@ -1373,10 +1874,13 @@ const updateUserStatus = async (
       await pool.query(
         `
         UPDATE users
+
         SET
           status = $1,
           updated_at = CURRENT_TIMESTAMP
+
         WHERE id = $2
+
         RETURNING
           id,
           email,
@@ -1454,8 +1958,6 @@ const updateTransactionStatus = async (
         transactionId
       )
     ) {
-      await client.query('ROLLBACK');
-
       return res.status(400).json({
         message:
           'Invalid transaction ID.',
@@ -1467,16 +1969,17 @@ const updateTransactionStatus = async (
         normalizedStatus
       )
     ) {
-      await client.query('ROLLBACK');
-
       return res.status(400).json({
         message:
           'Invalid transaction status.',
+
         allowedStatuses,
       });
     }
 
-    await client.query('BEGIN');
+    await client.query(
+      'BEGIN'
+    );
 
     // --------------------------------------------------------
     // LOCK TRANSACTION
@@ -1501,7 +2004,9 @@ const updateTransactionStatus = async (
     if (
       transactionResult.rows.length === 0
     ) {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(404).json({
         message:
@@ -1528,14 +2033,16 @@ const updateTransactionStatus = async (
       );
 
     // --------------------------------------------------------
-    // PREVENT CHANGING COMPLETED TRANSACTIONS
+    // PREVENT CHANGING COMPLETED
     // --------------------------------------------------------
 
     if (
       previousStatus === 'COMPLETED' &&
       normalizedStatus !== 'COMPLETED'
     ) {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(400).json({
         message:
@@ -1548,21 +2055,26 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      previousStatus === normalizedStatus
+      previousStatus ===
+      normalizedStatus
     ) {
       const unchangedResult =
         await client.query(
           `
           UPDATE transactions
+
           SET
             admin_note =
               COALESCE(
                 $1,
                 admin_note
               ),
+
             updated_at =
               CURRENT_TIMESTAMP
+
           WHERE id = $2
+
           RETURNING
             id,
             account_id,
@@ -1576,14 +2088,18 @@ const updateTransactionStatus = async (
           `,
           [
             adminNote
-              ? String(adminNote).trim()
+              ? String(
+                  adminNote
+                ).trim()
               : null,
 
             transactionId,
           ]
         );
 
-      await client.query('COMMIT');
+      await client.query(
+        'COMMIT'
+      );
 
       return res.status(200).json({
         message:
@@ -1601,10 +2117,13 @@ const updateTransactionStatus = async (
     let account = null;
 
     if (
-      normalizedStatus === 'COMPLETED' &&
+      normalizedStatus ===
+        'COMPLETED' &&
       (
-        transactionType === 'DEPOSIT' ||
-        transactionType === 'WITHDRAWAL'
+        transactionType ===
+          'DEPOSIT' ||
+        transactionType ===
+          'WITHDRAWAL'
       )
     ) {
       const accountResult =
@@ -1617,8 +2136,11 @@ const updateTransactionStatus = async (
             available_balance,
             buying_power,
             margin_available
+
           FROM accounts
+
           WHERE id = $1
+
           FOR UPDATE
           `,
           [transaction.account_id]
@@ -1627,7 +2149,9 @@ const updateTransactionStatus = async (
       if (
         accountResult.rows.length === 0
       ) {
-        await client.query('ROLLBACK');
+        await client.query(
+          'ROLLBACK'
+        );
 
         return res.status(404).json({
           message:
@@ -1644,13 +2168,18 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      normalizedStatus === 'COMPLETED' &&
+      normalizedStatus ===
+        'COMPLETED' &&
       (
-        !Number.isFinite(amount) ||
+        !Number.isFinite(
+          amount
+        ) ||
         amount <= 0
       )
     ) {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
 
       return res.status(400).json({
         message:
@@ -1663,8 +2192,10 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      normalizedStatus === 'COMPLETED' &&
-      transactionType === 'WITHDRAWAL'
+      normalizedStatus ===
+        'COMPLETED' &&
+      transactionType ===
+        'WITHDRAWAL'
     ) {
       const currentBalance =
         safeNumber(
@@ -1680,7 +2211,9 @@ const updateTransactionStatus = async (
         currentBalance < amount ||
         currentAvailable < amount
       ) {
-        await client.query('ROLLBACK');
+        await client.query(
+          'ROLLBACK'
+        );
 
         return res.status(400).json({
           message:
@@ -1703,6 +2236,7 @@ const updateTransactionStatus = async (
       await client.query(
         `
         UPDATE transactions
+
         SET
           status = $1,
 
@@ -1747,7 +2281,9 @@ const updateTransactionStatus = async (
           normalizedStatus,
 
           adminNote
-            ? String(adminNote).trim()
+            ? String(
+                adminNote
+              ).trim()
             : null,
 
           req.user.id,
@@ -1761,28 +2297,47 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      normalizedStatus === 'COMPLETED' &&
-      previousStatus !== 'COMPLETED' &&
-      transactionType === 'DEPOSIT'
+      normalizedStatus ===
+        'COMPLETED' &&
+      previousStatus !==
+        'COMPLETED' &&
+      transactionType ===
+        'DEPOSIT'
     ) {
       await client.query(
         `
         UPDATE accounts
+
         SET
           balance =
-            COALESCE(balance, 0) + $1,
+            COALESCE(
+              balance,
+              0
+            ) + $1,
 
           deposit =
-            COALESCE(deposit, 0) + $1,
+            COALESCE(
+              deposit,
+              0
+            ) + $1,
 
           available_balance =
-            COALESCE(available_balance, 0) + $1,
+            COALESCE(
+              available_balance,
+              0
+            ) + $1,
 
           buying_power =
-            COALESCE(buying_power, 0) + $1,
+            COALESCE(
+              buying_power,
+              0
+            ) + $1,
 
           margin_available =
-            COALESCE(margin_available, 0) + $1,
+            COALESCE(
+              margin_available,
+              0
+            ) + $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -1802,25 +2357,41 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      normalizedStatus === 'COMPLETED' &&
-      previousStatus !== 'COMPLETED' &&
-      transactionType === 'WITHDRAWAL'
+      normalizedStatus ===
+        'COMPLETED' &&
+      previousStatus !==
+        'COMPLETED' &&
+      transactionType ===
+        'WITHDRAWAL'
     ) {
       await client.query(
         `
         UPDATE accounts
+
         SET
           balance =
-            COALESCE(balance, 0) - $1,
+            COALESCE(
+              balance,
+              0
+            ) - $1,
 
           available_balance =
-            COALESCE(available_balance, 0) - $1,
+            COALESCE(
+              available_balance,
+              0
+            ) - $1,
 
           buying_power =
-            COALESCE(buying_power, 0) - $1,
+            COALESCE(
+              buying_power,
+              0
+            ) - $1,
 
           margin_available =
-            COALESCE(margin_available, 0) - $1,
+            COALESCE(
+              margin_available,
+              0
+            ) - $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -1835,7 +2406,9 @@ const updateTransactionStatus = async (
       );
     }
 
-    await client.query('COMMIT');
+    await client.query(
+      'COMMIT'
+    );
 
     logger.info(
       `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${normalizedStatus}`
@@ -1851,7 +2424,9 @@ const updateTransactionStatus = async (
 
   } catch (error) {
     try {
-      await client.query('ROLLBACK');
+      await client.query(
+        'ROLLBACK'
+      );
     } catch (rollbackError) {
       logger.error(
         'Transaction rollback error:',
@@ -1898,8 +2473,11 @@ const getInvestmentPlans = async (
           status,
           created_at,
           updated_at
+
         FROM investment_plans
-        ORDER BY created_at DESC
+
+        ORDER BY
+          created_at DESC
       `);
 
     const plans =
@@ -1920,7 +2498,8 @@ const getInvestmentPlans = async (
             ),
 
           maximumAmount:
-            plan.maximum_amount === null
+            plan.maximum_amount ===
+              null
               ? null
               : safeNumber(
                   plan.maximum_amount
@@ -1985,7 +2564,9 @@ const createInvestmentPlan = async (
     } = req.body || {};
 
     const planName =
-      String(name || '').trim();
+      String(
+        name || ''
+      ).trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2002,23 +2583,33 @@ const createInvestmentPlan = async (
     }
 
     const minimum =
-      Number(minimumAmount);
+      Number(
+        minimumAmount
+      );
 
     const maximum =
       maximumAmount === '' ||
       maximumAmount === null ||
       maximumAmount === undefined
         ? null
-        : Number(maximumAmount);
+        : Number(
+            maximumAmount
+          );
 
     const roi =
-      Number(roiPercent);
+      Number(
+        roiPercent
+      );
 
     const duration =
-      Number(durationDays);
+      Number(
+        durationDays
+      );
 
     if (
-      !Number.isFinite(minimum) ||
+      !Number.isFinite(
+        minimum
+      ) ||
       minimum < 0
     ) {
       return res.status(400).json({
@@ -2030,7 +2621,9 @@ const createInvestmentPlan = async (
     if (
       maximum !== null &&
       (
-        !Number.isFinite(maximum) ||
+        !Number.isFinite(
+          maximum
+        ) ||
         maximum < minimum
       )
     ) {
@@ -2041,7 +2634,9 @@ const createInvestmentPlan = async (
     }
 
     if (
-      !Number.isFinite(roi) ||
+      !Number.isFinite(
+        roi
+      ) ||
       roi < 0
     ) {
       return res.status(400).json({
@@ -2051,7 +2646,9 @@ const createInvestmentPlan = async (
     }
 
     if (
-      !Number.isInteger(duration) ||
+      !Number.isInteger(
+        duration
+      ) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2066,8 +2663,10 @@ const createInvestmentPlan = async (
       );
 
     if (
-      planStatus !== 'ACTIVE' &&
-      planStatus !== 'INACTIVE'
+      planStatus !==
+        'ACTIVE' &&
+      planStatus !==
+        'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2088,6 +2687,7 @@ const createInvestmentPlan = async (
           status,
           created_by
         )
+
         VALUES (
           $1,
           $2,
@@ -2098,6 +2698,7 @@ const createInvestmentPlan = async (
           $7,
           $8
         )
+
         RETURNING
           id,
           name,
@@ -2114,7 +2715,9 @@ const createInvestmentPlan = async (
           planName,
 
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
 
           minimum,
@@ -2158,7 +2761,8 @@ const createInvestmentPlan = async (
           ),
 
         maximumAmount:
-          plan.maximum_amount === null
+          plan.maximum_amount ===
+            null
             ? null
             : safeNumber(
                 plan.maximum_amount
@@ -2206,7 +2810,9 @@ const updateInvestmentPlan = async (
 ) => {
   try {
     const planId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -2226,7 +2832,9 @@ const updateInvestmentPlan = async (
     } = req.body || {};
 
     const planName =
-      String(name || '').trim();
+      String(
+        name || ''
+      ).trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2236,23 +2844,33 @@ const updateInvestmentPlan = async (
     }
 
     const minimum =
-      Number(minimumAmount);
+      Number(
+        minimumAmount
+      );
 
     const maximum =
       maximumAmount === '' ||
       maximumAmount === null ||
       maximumAmount === undefined
         ? null
-        : Number(maximumAmount);
+        : Number(
+            maximumAmount
+          );
 
     const roi =
-      Number(roiPercent);
+      Number(
+        roiPercent
+      );
 
     const duration =
-      Number(durationDays);
+      Number(
+        durationDays
+      );
 
     if (
-      !Number.isFinite(minimum) ||
+      !Number.isFinite(
+        minimum
+      ) ||
       minimum < 0
     ) {
       return res.status(400).json({
@@ -2264,7 +2882,9 @@ const updateInvestmentPlan = async (
     if (
       maximum !== null &&
       (
-        !Number.isFinite(maximum) ||
+        !Number.isFinite(
+          maximum
+        ) ||
         maximum < minimum
       )
     ) {
@@ -2275,7 +2895,9 @@ const updateInvestmentPlan = async (
     }
 
     if (
-      !Number.isFinite(roi) ||
+      !Number.isFinite(
+        roi
+      ) ||
       roi < 0
     ) {
       return res.status(400).json({
@@ -2285,7 +2907,9 @@ const updateInvestmentPlan = async (
     }
 
     if (
-      !Number.isInteger(duration) ||
+      !Number.isInteger(
+        duration
+      ) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2300,8 +2924,10 @@ const updateInvestmentPlan = async (
       );
 
     if (
-      planStatus !== 'ACTIVE' &&
-      planStatus !== 'INACTIVE'
+      planStatus !==
+        'ACTIVE' &&
+      planStatus !==
+        'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2342,7 +2968,9 @@ const updateInvestmentPlan = async (
           planName,
 
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
 
           minimum,
@@ -2359,7 +2987,9 @@ const updateInvestmentPlan = async (
         ]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -2393,7 +3023,8 @@ const updateInvestmentPlan = async (
           ),
 
         maximumAmount:
-          plan.maximum_amount === null
+          plan.maximum_amount ===
+            null
             ? null
             : safeNumber(
                 plan.maximum_amount
@@ -2441,7 +3072,9 @@ const deleteInvestmentPlan = async (
 ) => {
   try {
     const planId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -2464,7 +3097,9 @@ const deleteInvestmentPlan = async (
         [planId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -2524,8 +3159,11 @@ const getSignalPlans = async (
           created_by,
           created_at,
           updated_at
+
         FROM signal_plans
-        ORDER BY created_at DESC
+
+        ORDER BY
+          created_at DESC
       `);
 
     const plans =
@@ -2552,7 +3190,8 @@ const getSignalPlans = async (
 
           durationDays:
             Number(
-              plan.duration_days || 30
+              plan.duration_days ||
+              30
             ),
 
           price:
@@ -2561,7 +3200,8 @@ const getSignalPlans = async (
             ),
 
           currency:
-            plan.currency || 'USD',
+            plan.currency ||
+            'USD',
 
           status:
             plan.status,
@@ -2618,7 +3258,9 @@ const createSignalPlan = async (
     } = req.body || {};
 
     const planName =
-      String(name || '').trim();
+      String(
+        name || ''
+      ).trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2637,10 +3279,14 @@ const createSignalPlan = async (
     const rawStrength =
       strength === undefined
         ? 50
-        : Number(strength);
+        : Number(
+            strength
+          );
 
     if (
-      !Number.isFinite(rawStrength) ||
+      !Number.isFinite(
+        rawStrength
+      ) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -2656,12 +3302,17 @@ const createSignalPlan = async (
       );
 
     const accuracy =
-      accuracyPercent === undefined
+      accuracyPercent ===
+        undefined
         ? 0
-        : Number(accuracyPercent);
+        : Number(
+            accuracyPercent
+          );
 
     if (
-      !Number.isFinite(accuracy) ||
+      !Number.isFinite(
+        accuracy
+      ) ||
       accuracy < 0 ||
       accuracy > 100
     ) {
@@ -2672,12 +3323,17 @@ const createSignalPlan = async (
     }
 
     const duration =
-      durationDays === undefined
+      durationDays ===
+        undefined
         ? 30
-        : Number(durationDays);
+        : Number(
+            durationDays
+          );
 
     if (
-      !Number.isInteger(duration) ||
+      !Number.isInteger(
+        duration
+      ) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2691,10 +3347,14 @@ const createSignalPlan = async (
       price === '' ||
       price === null
         ? 0
-        : Number(price);
+        : Number(
+            price
+          );
 
     if (
-      !Number.isFinite(signalPrice) ||
+      !Number.isFinite(
+        signalPrice
+      ) ||
       signalPrice < 0
     ) {
       return res.status(400).json({
@@ -2716,8 +3376,10 @@ const createSignalPlan = async (
       );
 
     if (
-      signalStatus !== 'ACTIVE' &&
-      signalStatus !== 'INACTIVE'
+      signalStatus !==
+        'ACTIVE' &&
+      signalStatus !==
+        'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2739,6 +3401,7 @@ const createSignalPlan = async (
           status,
           created_by
         )
+
         VALUES (
           $1,
           $2,
@@ -2750,6 +3413,7 @@ const createSignalPlan = async (
           $8,
           $9
         )
+
         RETURNING
           id,
           name,
@@ -2768,7 +3432,9 @@ const createSignalPlan = async (
           planName,
 
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
 
           signalStrength,
@@ -2868,7 +3534,9 @@ const updateSignalPlan = async (
     await ensureSignalTables();
 
     const planId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -2889,7 +3557,9 @@ const updateSignalPlan = async (
     } = req.body || {};
 
     const planName =
-      String(name || '').trim();
+      String(
+        name || ''
+      ).trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2899,10 +3569,14 @@ const updateSignalPlan = async (
     }
 
     const rawStrength =
-      Number(strength);
+      Number(
+        strength
+      );
 
     if (
-      !Number.isFinite(rawStrength) ||
+      !Number.isFinite(
+        rawStrength
+      ) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -2913,12 +3587,17 @@ const updateSignalPlan = async (
     }
 
     const accuracy =
-      accuracyPercent === undefined
+      accuracyPercent ===
+        undefined
         ? 0
-        : Number(accuracyPercent);
+        : Number(
+            accuracyPercent
+          );
 
     if (
-      !Number.isFinite(accuracy) ||
+      !Number.isFinite(
+        accuracy
+      ) ||
       accuracy < 0 ||
       accuracy > 100
     ) {
@@ -2929,12 +3608,17 @@ const updateSignalPlan = async (
     }
 
     const duration =
-      durationDays === undefined
+      durationDays ===
+        undefined
         ? 30
-        : Number(durationDays);
+        : Number(
+            durationDays
+          );
 
     if (
-      !Number.isInteger(duration) ||
+      !Number.isInteger(
+        duration
+      ) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2948,10 +3632,14 @@ const updateSignalPlan = async (
       price === '' ||
       price === null
         ? 0
-        : Number(price);
+        : Number(
+            price
+          );
 
     if (
-      !Number.isFinite(signalPrice) ||
+      !Number.isFinite(
+        signalPrice
+      ) ||
       signalPrice < 0
     ) {
       return res.status(400).json({
@@ -2973,8 +3661,10 @@ const updateSignalPlan = async (
       );
 
     if (
-      signalStatus !== 'ACTIVE' &&
-      signalStatus !== 'INACTIVE'
+      signalStatus !==
+        'ACTIVE' &&
+      signalStatus !==
+        'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3018,7 +3708,9 @@ const updateSignalPlan = async (
           planName,
 
           description
-            ? String(description).trim()
+            ? String(
+                description
+              ).trim()
             : null,
 
           rawStrength,
@@ -3037,7 +3729,9 @@ const updateSignalPlan = async (
         ]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3125,7 +3819,9 @@ const deleteSignalPlan = async (
     await ensureSignalTables();
 
     const planId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -3148,7 +3844,9 @@ const deleteSignalPlan = async (
         [planId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3190,7 +3888,9 @@ const getUserSignal = async (
     await ensureSignalTables();
 
     const userId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -3242,7 +3942,9 @@ const getUserSignal = async (
         [userId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -3282,12 +3984,15 @@ const getUserSignal = async (
                 ),
 
               status:
-                row.signal_status || 'ACTIVE',
+                row.signal_status ||
+                'ACTIVE',
 
               enabled:
                 String(
-                  row.signal_status || 'ACTIVE'
-                ).toUpperCase() === 'ACTIVE',
+                  row.signal_status ||
+                  'ACTIVE'
+                ).toUpperCase() ===
+                'ACTIVE',
 
               note:
                 row.note || '',
@@ -3311,7 +4016,8 @@ const getUserSignal = async (
                         row.plan_name,
 
                       description:
-                        row.plan_description || '',
+                        row.plan_description ||
+                        '',
 
                       strength:
                         getSignalStrength(
@@ -3325,7 +4031,8 @@ const getUserSignal = async (
 
                       durationDays:
                         Number(
-                          row.plan_duration || 30
+                          row.plan_duration ||
+                          30
                         ),
 
                       price:
@@ -3334,7 +4041,8 @@ const getUserSignal = async (
                         ),
 
                       currency:
-                        row.plan_currency || 'USD',
+                        row.plan_currency ||
+                        'USD',
 
                       status:
                         row.plan_status,
@@ -3367,7 +4075,9 @@ const updateUserSignal = async (
     await ensureSignalTables();
 
     const userId =
-      Number(req.params.id);
+      Number(
+        req.params.id
+      );
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -3397,14 +4107,19 @@ const updateUserSignal = async (
           first_name,
           last_name,
           username
+
         FROM users
+
         WHERE id = $1
+
         LIMIT 1
         `,
         [userId]
       );
 
-    if (userResult.rows.length === 0) {
+    if (
+      userResult.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -3420,12 +4135,17 @@ const updateUserSignal = async (
     let planStrength = null;
 
     if (
-      signalPlanId !== undefined &&
-      signalPlanId !== null &&
-      signalPlanId !== ''
+      signalPlanId !==
+        undefined &&
+      signalPlanId !==
+        null &&
+      signalPlanId !==
+        ''
     ) {
       planId =
-        Number(signalPlanId);
+        Number(
+          signalPlanId
+        );
 
       if (!isPositiveInteger(planId)) {
         return res.status(400).json({
@@ -3442,15 +4162,19 @@ const updateUserSignal = async (
             name,
             status,
             strength
+
           FROM signal_plans
+
           WHERE id = $1
+
           LIMIT 1
           `,
           [planId]
         );
 
       if (
-        planResult.rows.length === 0
+        planResult.rows.length ===
+        0
       ) {
         return res.status(404).json({
           message:
@@ -3484,14 +4208,19 @@ const updateUserSignal = async (
 
     let signalStrength;
 
-    if (strength === undefined) {
+    if (
+      strength ===
+      undefined
+    ) {
       signalStrength =
         planStrength !== null
           ? planStrength
           : 50;
     } else {
       const numericStrength =
-        Number(strength);
+        Number(
+          strength
+        );
 
       if (
         !Number.isFinite(
@@ -3518,13 +4247,20 @@ const updateUserSignal = async (
 
     let signalStatus;
 
-    if (status !== undefined) {
+    if (
+      status !==
+      undefined
+    ) {
       signalStatus =
-        normalizeStatus(status);
+        normalizeStatus(
+          status
+        );
 
       if (
-        signalStatus !== 'ACTIVE' &&
-        signalStatus !== 'INACTIVE'
+        signalStatus !==
+          'ACTIVE' &&
+        signalStatus !==
+          'INACTIVE'
       ) {
         return res.status(400).json({
           message:
@@ -3532,10 +4268,16 @@ const updateUserSignal = async (
         });
       }
 
-    } else if (enabled !== undefined) {
+    } else if (
+      enabled !==
+      undefined
+    ) {
       signalStatus =
         enabled === true ||
-        String(enabled).toLowerCase() === 'true'
+        String(
+          enabled
+        ).toLowerCase() ===
+          'true'
           ? 'ACTIVE'
           : 'INACTIVE';
     } else {
@@ -3551,7 +4293,9 @@ const updateUserSignal = async (
       note === undefined ||
       note === null
         ? null
-        : String(note).trim();
+        : String(
+            note
+          ).trim();
 
     // --------------------------------------------------------
     // CREATE OR UPDATE
@@ -3568,6 +4312,7 @@ const updateUserSignal = async (
           note,
           updated_by
         )
+
         VALUES (
           $1,
           $2,
@@ -3697,6 +4442,9 @@ module.exports = {
   getUsers,
   getUser,
   updateUserStatus,
+
+  // Account funding
+  fundUserAccount,
 
   // Transactions
   getTransactions,
