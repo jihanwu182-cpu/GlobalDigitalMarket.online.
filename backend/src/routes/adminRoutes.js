@@ -18,6 +18,9 @@ const {
   getUser,
   updateUserStatus,
 
+  // Account Funding
+  fundUserAccount,
+
   // Transactions
   getTransactions,
   getDeposits,
@@ -55,31 +58,35 @@ const {
 // ============================================================
 // SAFETY CHECK
 // ============================================================
-//
-// This gives a clear startup error if a controller or
-// middleware is accidentally missing from its export.
-//
 
 const requiredHandlers = {
   adminLogin,
   adminMiddleware,
   getDashboard,
+
   getUsers,
   getUser,
   updateUserStatus,
+
+  fundUserAccount,
+
   getTransactions,
   getDeposits,
   getWithdrawals,
   updateTransactionStatus,
+
   getKycRequests,
+
   getInvestmentPlans,
   createInvestmentPlan,
   updateInvestmentPlan,
   deleteInvestmentPlan,
+
   getSignalPlans,
   createSignalPlan,
   updateSignalPlan,
   deleteSignalPlan,
+
   getUserSignal,
   updateUserSignal,
 };
@@ -98,11 +105,9 @@ for (const [name, handler] of Object.entries(
 // ADMIN LOGIN
 // ============================================================
 //
-// PUBLIC ROUTE
-//
 // POST /api/admin/login
 //
-// Do NOT place adminMiddleware before this route.
+// PUBLIC ROUTE
 //
 
 router.post(
@@ -153,12 +158,32 @@ router.patch(
 );
 
 // ============================================================
-// USER SIGNAL
+// USER ACCOUNT FUNDING
 // ============================================================
 //
-// IMPORTANT:
+// POST /api/admin/users/:id/fund
 //
-// These routes are declared AFTER the normal user routes.
+// Example:
+//
+// POST /api/admin/users/25/fund
+//
+// Body:
+//
+// {
+//   "amount": 500,
+//   "currency": "USD",
+//   "description": "Admin account funding"
+// }
+//
+
+router.post(
+  '/users/:id/fund',
+  fundUserAccount
+);
+
+// ============================================================
+// USER SIGNAL
+// ============================================================
 //
 // GET   /api/admin/users/:id/signal
 // PATCH /api/admin/users/:id/signal
