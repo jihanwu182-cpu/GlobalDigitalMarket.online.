@@ -43,26 +43,26 @@ app.use(
 );
 
 // ============================================================
-// PROJECT ROOT
+// PROJECT PATHS
 // ============================================================
 
-const projectRoot = path.resolve(__dirname, '../..');
+const projectRoot = path.resolve(
+  __dirname,
+  '../..'
+);
+
+const frontendBuildPath = path.join(
+  projectRoot,
+  'frontend',
+  'build'
+);
 
 // ============================================================
-// FRONTEND PAGES
+// API PREFIX
 // ============================================================
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(projectRoot, 'index.html'));
-});
-
-app.get('/signup.html', (req, res) => {
-  res.sendFile(path.join(projectRoot, 'signup.html'));
-});
-
-app.get('/index.html', (req, res) => {
-  res.sendFile(path.join(projectRoot, 'index.html'));
-});
+const API_PREFIX =
+  process.env.API_PREFIX || '/api';
 
 // ============================================================
 // SERVER HEALTH CHECK
@@ -95,12 +95,13 @@ app.get('/health/db', async (req, res) => {
       ) AS users_table_exists
     `);
 
-    res.status(200).json({
+    return res.status(200).json({
       status: 'OK',
       database: 'connected',
       usersTableExists:
         usersTable.rows[0].users_table_exists,
-      databaseTime: result.rows[0].database_time,
+      databaseTime:
+        result.rows[0].database_time,
       message:
         usersTable.rows[0].users_table_exists
           ? 'PostgreSQL connected and users table exists.'
@@ -112,7 +113,7 @@ app.get('/health/db', async (req, res) => {
       error
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       status: 'ERROR',
       database: 'not connected',
       message: error.message,
@@ -120,13 +121,6 @@ app.get('/health/db', async (req, res) => {
     });
   }
 });
-
-// ============================================================
-// API PREFIX
-// ============================================================
-
-const API_PREFIX =
-  process.env.API_PREFIX || '/api';
 
 // ============================================================
 // API ROUTES
@@ -168,23 +162,97 @@ app.use(
   require('./routes/walletRoutes')
 );
 
-// ============================================================
 // ADMIN
-// ============================================================
-//
-// Admin API will be available at:
-//
-// /api/admin
-//
-// IMPORTANT:
-// adminRoutes.js must exist inside:
-// backend/src/routes/adminRoutes.js
-//
-// ============================================================
-
 app.use(
   `${API_PREFIX}/admin`,
   require('./routes/adminRoutes')
+);
+
+// ============================================================
+// REACT FRONTEND
+// ============================================================
+//
+// The new React application is built into:
+//
+// frontend/build
+//
+// Serve that folder instead of the old root index.html.
+//
+
+app.use(
+  express.static(frontendBuildPath)
+);
+
+// ============================================================
+// LEGACY SIGNUP REDIRECT
+// ============================================================
+
+app.get('/signup.html', (req, res) => {
+  res.redirect('/#/register');
+});
+
+// ============================================================
+// LEGACY INDEX REDIRECT
+// ============================================================
+//
+// If somebody opens /index.html, serve the NEW React app.
+//
+
+app.get('/index.html', (req, res, next) => {
+  res.sendFile(
+    path.join(
+      frontendBuildPath,
+      'index.html'
+    ),
+    (error) => {
+      if (error) {
+        logger.error(
+          'Could not serve React index.html:',
+          error
+        );
+
+        next(error);
+      }
+    }
+  );
+});
+
+// ============================================================
+// REACT APPLICATION FALLBACK
+// ============================================================
+//
+// Non-API browser requests receive the React application.
+//
+// Your React app uses HashRouter, so routes such as:
+//
+// /#/login
+// /#/register
+// /#/admin/login
+// /#/admin
+//
+// are handled by React in the browser.
+//
+
+app.get(
+  /^\/(?!api(?:\/|$)).*/,
+  (req, res, next) => {
+    res.sendFile(
+      path.join(
+        frontendBuildPath,
+        'index.html'
+      ),
+      (error) => {
+        if (error) {
+          logger.error(
+            'Could not serve React frontend:',
+            error
+          );
+
+          next(error);
+        }
+      }
+    );
+  }
 );
 
 // ============================================================
@@ -223,6 +291,10 @@ const startServer = async () => {
 
     logger.info(
       'Database initialization completed successfully'
+    );
+
+    logger.info(
+      `React frontend build path: ${frontendBuildPath}`
     );
 
     app.listen(
