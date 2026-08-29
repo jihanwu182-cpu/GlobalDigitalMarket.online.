@@ -18,6 +18,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
 import Trading from './pages/Trading';
 import Market from './pages/Market';
@@ -92,8 +93,7 @@ class ErrorBoundary extends React.Component<
             justifyContent: 'center',
             padding: '20px',
             background: '#f5f5f5',
-            fontFamily:
-              'Arial, sans-serif',
+            fontFamily: 'Arial, sans-serif',
           }}
         >
           <div
@@ -229,6 +229,13 @@ const App: React.FC = () => {
             <Route
               path="/dashboard"
               element={<Dashboard />}
+            />
+
+            {/* ACCOUNT STATEMENT */}
+
+            <Route
+              path="/account-statement"
+              element={<AccountStatement />}
             />
 
             {/* PORTFOLIO */}
