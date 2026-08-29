@@ -7,22 +7,39 @@ const router = express.Router();
 // ============================================================
 
 const {
+  // Authentication
   adminLogin,
+
+  // Dashboard
   getDashboard,
+
+  // Users
   getUsers,
   getUser,
+  updateUserStatus,
+
+  // Transactions
   getTransactions,
   getDeposits,
   getWithdrawals,
-  getKycRequests,
-  updateUserStatus,
   updateTransactionStatus,
 
-  // SIGNAL MANAGEMENT
+  // KYC
+  getKycRequests,
+
+  // Investment Plans
+  getInvestmentPlans,
+  createInvestmentPlan,
+  updateInvestmentPlan,
+  deleteInvestmentPlan,
+
+  // Signal Plans
   getSignalPlans,
   createSignalPlan,
   updateSignalPlan,
   deleteSignalPlan,
+
+  // User Signal
   getUserSignal,
   updateUserSignal,
 } = require('../controllers/adminController');
@@ -36,10 +53,57 @@ const {
 } = require('../middleware/auth');
 
 // ============================================================
+// SAFETY CHECK
+// ============================================================
+//
+// This gives a clear startup error if a controller or
+// middleware is accidentally missing from its export.
+//
+
+const requiredHandlers = {
+  adminLogin,
+  adminMiddleware,
+  getDashboard,
+  getUsers,
+  getUser,
+  updateUserStatus,
+  getTransactions,
+  getDeposits,
+  getWithdrawals,
+  updateTransactionStatus,
+  getKycRequests,
+  getInvestmentPlans,
+  createInvestmentPlan,
+  updateInvestmentPlan,
+  deleteInvestmentPlan,
+  getSignalPlans,
+  createSignalPlan,
+  updateSignalPlan,
+  deleteSignalPlan,
+  getUserSignal,
+  updateUserSignal,
+};
+
+for (const [name, handler] of Object.entries(
+  requiredHandlers
+)) {
+  if (typeof handler !== 'function') {
+    throw new Error(
+      `Admin route configuration error: "${name}" is not exported as a function.`
+    );
+  }
+}
+
+// ============================================================
 // ADMIN LOGIN
 // ============================================================
-// Login must remain PUBLIC.
-// Do not put adminMiddleware before this route.
+//
+// PUBLIC ROUTE
+//
+// POST /api/admin/login
+//
+// Do NOT place adminMiddleware before this route.
+//
 
 router.post(
   '/login',
@@ -47,14 +111,17 @@ router.post(
 );
 
 // ============================================================
-// PROTECT ALL ADMIN ROUTES
+// PROTECT ALL OTHER ADMIN ROUTES
 // ============================================================
 
 router.use(adminMiddleware);
 
 // ============================================================
-// ADMIN DASHBOARD
+// DASHBOARD
 // ============================================================
+//
+// GET /api/admin/dashboard
+//
 
 router.get(
   '/dashboard',
@@ -64,6 +131,11 @@ router.get(
 // ============================================================
 // USERS
 // ============================================================
+//
+// GET   /api/admin/users
+// GET   /api/admin/users/:id
+// PATCH /api/admin/users/:id/status
+//
 
 router.get(
   '/users',
@@ -81,17 +153,51 @@ router.patch(
 );
 
 // ============================================================
+// USER SIGNAL
+// ============================================================
+//
+// IMPORTANT:
+//
+// These routes are declared AFTER the normal user routes.
+//
+// GET   /api/admin/users/:id/signal
+// PATCH /api/admin/users/:id/signal
+//
+
+router.get(
+  '/users/:id/signal',
+  getUserSignal
+);
+
+router.patch(
+  '/users/:id/signal',
+  updateUserSignal
+);
+
+// ============================================================
 // TRANSACTIONS
 // ============================================================
+//
+// GET   /api/admin/transactions
+// PATCH /api/admin/transactions/:id/status
+//
 
 router.get(
   '/transactions',
   getTransactions
 );
 
+router.patch(
+  '/transactions/:id/status',
+  updateTransactionStatus
+);
+
 // ============================================================
 // DEPOSITS
 // ============================================================
+//
+// GET /api/admin/deposits
+//
 
 router.get(
   '/deposits',
@@ -101,6 +207,9 @@ router.get(
 // ============================================================
 // WITHDRAWALS
 // ============================================================
+//
+// GET /api/admin/withdrawals
+//
 
 router.get(
   '/withdrawals',
@@ -110,6 +219,9 @@ router.get(
 // ============================================================
 // KYC
 // ============================================================
+//
+// GET /api/admin/kyc
+//
 
 router.get(
   '/kyc',
@@ -117,19 +229,38 @@ router.get(
 );
 
 // ============================================================
-// TRANSACTION STATUS
+// INVESTMENT PLANS
 // ============================================================
+//
+// GET    /api/admin/investment-plans
+// POST   /api/admin/investment-plans
+// PATCH  /api/admin/investment-plans/:id
+// DELETE /api/admin/investment-plans/:id
+//
+
+router.get(
+  '/investment-plans',
+  getInvestmentPlans
+);
+
+router.post(
+  '/investment-plans',
+  createInvestmentPlan
+);
 
 router.patch(
-  '/transactions/:id/status',
-  updateTransactionStatus
+  '/investment-plans/:id',
+  updateInvestmentPlan
+);
+
+router.delete(
+  '/investment-plans/:id',
+  deleteInvestmentPlan
 );
 
 // ============================================================
 // SIGNAL PLANS
 // ============================================================
-//
-// Admin creates and manages the available signal plans.
 //
 // GET    /api/admin/signal-plans
 // POST   /api/admin/signal-plans
@@ -155,27 +286,6 @@ router.patch(
 router.delete(
   '/signal-plans/:id',
   deleteSignalPlan
-);
-
-// ============================================================
-// USER SIGNAL MANAGEMENT
-// ============================================================
-//
-// Admin can view and update the signal settings assigned
-// to a particular user.
-//
-// GET   /api/admin/users/:id/signal
-// PATCH /api/admin/users/:id/signal
-//
-
-router.get(
-  '/users/:id/signal',
-  getUserSignal
-);
-
-router.patch(
-  '/users/:id/signal',
-  updateUserSignal
 );
 
 // ============================================================
