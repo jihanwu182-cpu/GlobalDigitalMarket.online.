@@ -16,7 +16,7 @@ const {
 
 const {
   adminMiddleware,
-} = require('../middleware/authMiddleware');
+} = require('../middleware/auth');
 
 // ============================================================
 // ADMIN AUTHENTICATION
@@ -89,7 +89,7 @@ router.get(
 );
 
 // ============================================================
-// UPDATE TRANSACTION
+// UPDATE TRANSACTION STATUS
 // ============================================================
 
 router.patch(
