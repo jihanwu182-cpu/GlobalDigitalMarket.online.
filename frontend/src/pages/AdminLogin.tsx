@@ -1,311 +1,380 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
-  HashRouter,
-  Routes,
-  Route,
-  Navigate,
-} from 'react-router-dom';
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CircularProgress,
+  Container,
+  IconButton,
+  InputAdornment,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 
-import {
-  ThemeProvider,
-  createTheme,
-} from '@mui/material/styles';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
-import CssBaseline from '@mui/material/CssBaseline';
+import { useNavigate } from 'react-router-dom';
 
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import AccountStatement from './pages/AccountStatement';
-import Portfolio from './pages/Portfolio';
-import Trading from './pages/Trading';
-import Market from './pages/Market';
-import Wallet from './pages/Wallet';
-import ContactSupport from './pages/ContactSupport';
-import AdminLogin from './pages/AdminLogin';
+import apiClient from '../services/apiClient';
 
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
-}
+const AdminLogin: React.FC = () => {
+  const navigate = useNavigate();
 
-interface ErrorBoundaryState {
-  hasError: boolean;
-  errorMessage: string;
-}
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
-class ErrorBoundary extends React.Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
-  constructor(
-    props: ErrorBoundaryProps
-  ) {
-    super(props);
+  const [showPassword, setShowPassword] =
+    useState(false);
 
-    this.state = {
-      hasError: false,
-      errorMessage: '',
-    };
-  }
+  const [loading, setLoading] =
+    useState(false);
 
-  static getDerivedStateFromError(
-    error: Error
-  ): ErrorBoundaryState {
-    return {
-      hasError: true,
-      errorMessage:
-        error?.message ||
-        'An unexpected application error occurred.',
-    };
-  }
+  const [error, setError] =
+    useState('');
 
-  componentDidCatch(
-    error: Error,
-    errorInfo: React.ErrorInfo
-  ) {
-    console.error(
-      'GLOBAL REACT ERROR:',
-      error
-    );
+  const handleLogin = async (
+    event: React.FormEvent
+  ) => {
+    event.preventDefault();
 
-    console.error(
-      'REACT ERROR INFO:',
-      errorInfo
-    );
-  }
+    setError('');
 
-  handleReload = () => {
-    window.location.reload();
-  };
-
-  handleHome = () => {
-    window.location.hash = '#/';
-    window.location.reload();
-  };
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            minHeight: '100vh',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            background: '#f5f5f5',
-            fontFamily:
-              'Arial, sans-serif',
-          }}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '600px',
-              background: '#ffffff',
-              padding: '30px',
-              borderRadius: '12px',
-              boxShadow:
-                '0 4px 20px rgba(0,0,0,0.15)',
-            }}
-          >
-            <h1
-              style={{
-                marginTop: 0,
-                color: '#d32f2f',
-              }}
-            >
-              Application Error
-            </h1>
-
-            <p>
-              The application encountered an
-              unexpected error.
-            </p>
-
-            <div
-              style={{
-                background: '#f5f5f5',
-                padding: '15px',
-                borderRadius: '8px',
-                marginTop: '20px',
-                marginBottom: '20px',
-                wordBreak: 'break-word',
-              }}
-            >
-              <strong>Error:</strong>
-              <br />
-              {this.state.errorMessage}
-            </div>
-
-            <button
-              onClick={
-                this.handleReload
-              }
-              style={{
-                padding: '12px 20px',
-                marginRight: '10px',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                background: '#1976d2',
-                color: '#ffffff',
-                fontSize: '16px',
-              }}
-            >
-              Reload
-            </button>
-
-            <button
-              onClick={this.handleHome}
-              style={{
-                padding: '12px 20px',
-                border:
-                  '1px solid #1976d2',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                background: '#ffffff',
-                color: '#1976d2',
-                fontSize: '16px',
-              }}
-            >
-              Go Home
-            </button>
-          </div>
-        </div>
-      );
+    if (!email.trim()) {
+      setError('Please enter your admin email.');
+      return;
     }
 
-    return this.props.children;
-  }
-}
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
+    try {
+      setLoading(true);
 
-    secondary: {
-      main: '#dc004e',
-    },
+      const response = await apiClient.post(
+        '/admin/login',
+        {
+          email: email.trim(),
+          password,
+        }
+      );
 
-    background: {
-      default: '#f5f5f5',
-    },
-  },
+      const data = response.data || {};
 
-  typography: {
-    fontFamily:
-      'Roboto, Arial, sans-serif',
-  },
-});
+      /*
+       * Save the authentication token if
+       * the backend returns one.
+       */
+      const token =
+        data.token ||
+        data.accessToken ||
+        data.access_token;
 
-const App: React.FC = () => {
+      if (token) {
+        localStorage.setItem(
+          'adminToken',
+          token
+        );
+      }
+
+      /*
+       * Save admin information if supplied.
+       */
+      if (data.admin) {
+        localStorage.setItem(
+          'admin',
+          JSON.stringify(data.admin)
+        );
+      }
+
+      /*
+       * Go to the admin dashboard if the
+       * login succeeds.
+       */
+      navigate('/admin');
+    } catch (requestError: any) {
+      console.error(
+        'Admin login error:',
+        requestError
+      );
+
+      const message =
+        requestError?.response?.data?.message ||
+        requestError?.response?.data?.error ||
+        'Admin login failed. Please check your credentials.';
+
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <ErrorBoundary>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-
-        <HashRouter>
-          <Routes>
-
-            {/* =========================================
-                PUBLIC WEBSITE
-            ========================================= */}
-
-            <Route
-              path="/"
-              element={<Home />}
-            />
-
-            {/* =========================================
-                USER AUTHENTICATION
-            ========================================= */}
-
-            <Route
-              path="/login"
-              element={<Login />}
-            />
-
-            <Route
-              path="/register"
-              element={<Register />}
-            />
-
-            {/* =========================================
-                USER DASHBOARD
-            ========================================= */}
-
-            <Route
-              path="/dashboard"
-              element={<Dashboard />}
-            />
-
-            <Route
-              path="/account-statement"
-              element={
-                <AccountStatement />
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background:
+          'radial-gradient(circle at top right, rgba(25,84,199,0.35), transparent 35%), linear-gradient(180deg,#020817 0%,#071453 100%)',
+        px: 2,
+        py: 4,
+      }}
+    >
+      <Container
+        maxWidth="sm"
+      >
+        <Card
+          sx={{
+            borderRadius: 4,
+            background:
+              'linear-gradient(145deg,#101f63,#08143f)',
+            border:
+              '1px solid rgba(100,150,255,0.22)',
+            color: '#fff',
+            boxShadow:
+              '0 25px 70px rgba(0,0,0,0.45)',
+          }}
+        >
+          <CardContent
+            sx={{
+              p: {
+                xs: 3,
+                sm: 5,
+              },
+            }}
+          >
+            <IconButton
+              onClick={() =>
+                navigate('/')
               }
-            />
+              sx={{
+                color: '#fff',
+                background:
+                  'rgba(255,255,255,0.07)',
+                mb: 3,
+              }}
+            >
+              <ArrowBackIcon />
+            </IconButton>
 
-            <Route
-              path="/portfolio"
-              element={<Portfolio />}
-            />
-
-            <Route
-              path="/trading"
-              element={<Trading />}
-            />
-
-            <Route
-              path="/market"
-              element={<Market />}
-            />
-
-            <Route
-              path="/wallet"
-              element={<Wallet />}
-            />
-
-            <Route
-              path="/support"
-              element={
-                <ContactSupport />
-              }
-            />
-
-            {/* =========================================
-                ADMIN LOGIN
-            ========================================= */}
-
-            <Route
-              path="/admin/login"
-              element={<AdminLogin />}
-            />
-
-            {/* =========================================
-                UNKNOWN ROUTES
-            ========================================= */}
-
-            <Route
-              path="*"
-              element={
-                <Navigate
-                  to="/"
-                  replace
+            <Stack
+              alignItems="center"
+              spacing={1}
+              sx={{ mb: 4 }}
+            >
+              <Box
+                sx={{
+                  width: 70,
+                  height: 70,
+                  borderRadius: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background:
+                    'rgba(92,232,255,0.10)',
+                  border:
+                    '1px solid rgba(92,232,255,0.20)',
+                }}
+              >
+                <AdminPanelSettingsIcon
+                  sx={{
+                    fontSize: 40,
+                    color: '#5ce8ff',
+                  }}
                 />
-              }
-            />
+              </Box>
 
-          </Routes>
-        </HashRouter>
-      </ThemeProvider>
-    </ErrorBoundary>
+              <Typography
+                sx={{
+                  fontSize: 30,
+                  fontWeight: 900,
+                  textAlign: 'center',
+                }}
+              >
+                Admin Login
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#8198df',
+                  fontSize: 12,
+                  textAlign: 'center',
+                }}
+              >
+                Secure administration portal
+              </Typography>
+            </Stack>
+
+            {error && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 3,
+                }}
+              >
+                {error}
+              </Alert>
+            )}
+
+            <Box
+              component="form"
+              onSubmit={handleLogin}
+            >
+              <Stack spacing={2.5}>
+                <TextField
+                  fullWidth
+                  label="Admin Email"
+                  type="email"
+                  value={email}
+                  onChange={(event) =>
+                    setEmail(
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                  autoComplete="email"
+                  InputLabelProps={{
+                    sx: {
+                      color: '#91a4d8',
+                    },
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#fff',
+                      '& fieldset': {
+                        borderColor:
+                          'rgba(145,164,216,0.35)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+                    },
+                  }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Password"
+                  type={
+                    showPassword
+                      ? 'text'
+                      : 'password'
+                  }
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(
+                      event.target.value
+                    )
+                  }
+                  disabled={loading}
+                  autoComplete="current-password"
+                  InputLabelProps={{
+                    sx: {
+                      color: '#91a4d8',
+                    },
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() =>
+                            setShowPassword(
+                              !showPassword
+                            )
+                          }
+                          edge="end"
+                          sx={{
+                            color:
+                              '#91a4d8',
+                          }}
+                        >
+                          {showPassword ? (
+                            <VisibilityOffIcon />
+                          ) : (
+                            <VisibilityIcon />
+                          )}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      color: '#fff',
+                      '& fieldset': {
+                        borderColor:
+                          'rgba(145,164,216,0.35)',
+                      },
+                      '&:hover fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+                    },
+                  }}
+                />
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  disabled={loading}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    background:
+                      'linear-gradient(135deg,#1768ff,#168fff)',
+                    textTransform: 'none',
+                    fontWeight: 900,
+                    fontSize: 15,
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress
+                      size={24}
+                      sx={{
+                        color: '#fff',
+                      }}
+                    />
+                  ) : (
+                    'Sign In as Administrator'
+                  )}
+                </Button>
+              </Stack>
+            </Box>
+
+            <Typography
+              sx={{
+                color: '#6278b5',
+                fontSize: 10,
+                textAlign: 'center',
+                mt: 3,
+              }}
+            >
+              Authorized administrators only
+            </Typography>
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
   );
 };
 
-export default App;
+export default AdminLogin;
