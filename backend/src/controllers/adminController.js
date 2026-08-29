@@ -27,6 +27,96 @@ const normalizeStatus = (value) => {
     .toUpperCase();
 };
 
+const normalizeUserStatus = (value) => {
+  return String(value || '')
+    .trim()
+    .toLowerCase();
+};
+
+const getSignalStrength = (value) => {
+  const strength = Number(value);
+
+  if (!Number.isFinite(strength)) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.min(100, strength)
+  );
+};
+
+// ============================================================
+// SIGNAL DATABASE SETUP
+// ============================================================
+//
+// These tables are created automatically if they do not exist.
+// This prevents the admin API from crashing when signal
+// management is first deployed.
+// ============================================================
+
+const ensureSignalTables = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS signal_plans (
+      id SERIAL PRIMARY KEY,
+
+      name VARCHAR(150) NOT NULL,
+
+      description TEXT,
+
+      strength NUMERIC(5, 2)
+        NOT NULL DEFAULT 50,
+
+      status VARCHAR(30)
+        NOT NULL DEFAULT 'ACTIVE',
+
+      created_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_signals (
+      id SERIAL PRIMARY KEY,
+
+      user_id INTEGER NOT NULL
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+      signal_plan_id INTEGER
+        REFERENCES signal_plans(id)
+        ON DELETE SET NULL,
+
+      strength NUMERIC(5, 2)
+        NOT NULL DEFAULT 50,
+
+      enabled BOOLEAN
+        NOT NULL DEFAULT TRUE,
+
+      created_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      UNIQUE(user_id)
+    );
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_signals_user_id
+    ON user_signals(user_id);
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_user_signals_plan_id
+    ON user_signals(signal_plan_id);
+  `);
+};
+
 // ============================================================
 // ADMIN LOGIN
 // ============================================================
@@ -111,10 +201,6 @@ const adminLogin = async (
       role !== 'administrator' &&
       role !== 'superadmin'
     ) {
-      logger.warn(
-        `Non-admin login attempt for ${normalizedEmail}`
-      );
-
       return res.status(403).json({
         message:
           'Administrator access required.',
@@ -228,10 +314,7 @@ const getDashboard = async (
     const depositsResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(amount),
-            0
-          ) AS total
+          COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'DEPOSIT'
         AND status = 'COMPLETED'
@@ -240,10 +323,7 @@ const getDashboard = async (
     const withdrawalsResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(amount),
-            0
-          ) AS total
+          COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'WITHDRAWAL'
         AND status = 'COMPLETED'
@@ -281,10 +361,7 @@ const getDashboard = async (
     const balanceResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(balance),
-            0
-          ) AS total
+          COALESCE(SUM(balance), 0) AS total
         FROM accounts
       `);
 
@@ -566,52 +643,67 @@ const getUser = async (
           user.email_verified,
         identityVerificationStatus:
           user.identity_verification_status,
-        createdAt: user.created_at,
+        createdAt:
+          user.created_at,
 
         account:
           user.account_id
             ? {
-                id: user.account_id,
+                id:
+                  user.account_id,
+
                 accountNumber:
                   user.account_number,
+
                 accountType:
                   user.account_type,
+
                 accountName:
                   user.account_name,
+
                 currency:
                   user.account_currency,
+
                 balance:
                   safeNumber(
                     user.balance
                   ),
+
                 deposit:
                   safeNumber(
                     user.deposit
                   ),
+
                 profits:
                   safeNumber(
                     user.profits
                   ),
+
                 availableBalance:
                   safeNumber(
                     user.available_balance
                   ),
+
                 bonus:
                   safeNumber(
                     user.bonus
                   ),
+
                 referrerBonus:
                   safeNumber(
                     user.referrer_bonus
                   ),
+
                 buyingPower:
                   safeNumber(
                     user.buying_power
                   ),
+
                 marginAvailable:
                   safeNumber(
                     user.margin_available
                   ),
+
                 status:
                   user.account_status,
               }
@@ -1097,388 +1189,374 @@ const getKycRequests = async (
 // UPDATE USER STATUS
 // ============================================================
 
-const updateUserStatus =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const userId =
-        Number(req.params.id);
+const updateUserStatus = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const userId =
+      Number(req.params.id);
 
-      const {
-        status,
-      } = req.body;
-
-      const allowedStatuses = [
-        'active',
-        'blocked',
-        'suspended',
-        'disabled',
-      ];
-
-      const normalizedStatus =
-        String(status || '')
-          .toLowerCase();
-
-      if (
-        !Number.isInteger(userId) ||
-        userId <= 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Invalid user ID.',
-        });
-      }
-
-      if (
-        !allowedStatuses.includes(
-          normalizedStatus
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            'Invalid user status.',
-          allowedStatuses,
-        });
-      }
-
-      const result =
-        await pool.query(
-          `
-          UPDATE users
-
-          SET
-            status = $1,
-            updated_at =
-              CURRENT_TIMESTAMP
-
-          WHERE id = $2
-
-          RETURNING
-            id,
-            email,
-            status
-          `,
-          [
-            normalizedStatus,
-            userId,
-          ]
-        );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message:
-            'User not found.',
-        });
-      }
-
-      logger.info(
-        `Admin ${req.user.id} changed user ${userId} status to ${normalizedStatus}`
+    const normalizedStatus =
+      normalizeUserStatus(
+        req.body.status
       );
 
-      return res.status(200).json({
+    const allowedStatuses = [
+      'active',
+      'blocked',
+      'suspended',
+      'disabled',
+    ];
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      return res.status(400).json({
         message:
-          'User status updated successfully.',
-
-        user:
-          result.rows[0],
+          'Invalid user ID.',
       });
+    }
 
-    } catch (error) {
-      logger.error(
-        'Admin update user status error:',
-        error
+    if (
+      !allowedStatuses.includes(
+        normalizedStatus
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid user status.',
+        allowedStatuses,
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        UPDATE users
+        SET
+          status = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING
+          id,
+          email,
+          status
+        `,
+        [
+          normalizedStatus,
+          userId,
+        ]
       );
 
-      return next(error);
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User not found.',
+      });
     }
-  };
+
+    logger.info(
+      `Admin ${req.user.id} changed user ${userId} status to ${normalizedStatus}`
+    );
+
+    return res.status(200).json({
+      message:
+        'User status updated successfully.',
+      user:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin update user status error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 
 // ============================================================
 // UPDATE TRANSACTION STATUS
 // ============================================================
 
-const updateTransactionStatus =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    const client =
-      await pool.connect();
+const updateTransactionStatus = async (
+  req,
+  res,
+  next
+) => {
+  const client =
+    await pool.connect();
 
-    try {
-      const transactionId =
-        Number(req.params.id);
+  try {
+    const transactionId =
+      Number(req.params.id);
 
-      const {
-        status,
-        adminNote,
-      } = req.body;
+    const {
+      status,
+      adminNote,
+    } = req.body;
 
-      const allowedStatuses = [
-        'PENDING',
-        'PROCESSING',
-        'COMPLETED',
-        'FAILED',
-        'CANCELLED',
-      ];
+    const allowedStatuses = [
+      'PENDING',
+      'PROCESSING',
+      'COMPLETED',
+      'FAILED',
+      'CANCELLED',
+    ];
 
-      const normalizedStatus =
-        String(status || '')
-          .toUpperCase();
+    const normalizedStatus =
+      normalizeStatus(status);
 
-      if (
-        !Number.isInteger(
-          transactionId
-        ) ||
-        transactionId <= 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Invalid transaction ID.',
-        });
-      }
-
-      if (
-        !allowedStatuses.includes(
-          normalizedStatus
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            'Invalid transaction status.',
-          allowedStatuses,
-        });
-      }
-
-      await client.query('BEGIN');
-
-      const transactionResult =
-        await client.query(
-          `
-          SELECT
-            id,
-            account_id,
-            transaction_type,
-            amount,
-            status
-
-          FROM transactions
-
-          WHERE id = $1
-
-          FOR UPDATE
-          `,
-          [transactionId]
-        );
-
-      if (
-        transactionResult.rows.length ===
-        0
-      ) {
-        await client.query('ROLLBACK');
-
-        return res.status(404).json({
-          message:
-            'Transaction not found.',
-        });
-      }
-
-      const transaction =
-        transactionResult.rows[0];
-
-      const previousStatus =
-        transaction.status;
-
-      const updatedResult =
-        await client.query(
-          `
-          UPDATE transactions
-
-          SET
-            status = $1,
-
-            admin_note =
-              COALESCE(
-                $2,
-                admin_note
-              ),
-
-            verified_by =
-              CASE
-                WHEN $1 = 'COMPLETED'
-                THEN $3
-                ELSE verified_by
-              END,
-
-            verified_at =
-              CASE
-                WHEN $1 = 'COMPLETED'
-                THEN CURRENT_TIMESTAMP
-                ELSE verified_at
-              END,
-
-            updated_at =
-              CURRENT_TIMESTAMP
-
-          WHERE id = $4
-
-          RETURNING
-            id,
-            account_id,
-            transaction_type,
-            amount,
-            currency,
-            status,
-            admin_note,
-            verified_by,
-            verified_at
-          `,
-          [
-            normalizedStatus,
-            adminNote || null,
-            req.user.id,
-            transactionId,
-          ]
-        );
-
-      if (
-        normalizedStatus === 'COMPLETED' &&
-        previousStatus !== 'COMPLETED'
-      ) {
-        const amount =
-          safeNumber(
-            transaction.amount
-          );
-
-        if (
-          transaction.transaction_type ===
-          'DEPOSIT'
-        ) {
-          await client.query(
-            `
-            UPDATE accounts
-
-            SET
-              balance =
-                balance + $1,
-
-              deposit =
-                deposit + $1,
-
-              available_balance =
-                available_balance + $1,
-
-              buying_power =
-                buying_power + $1,
-
-              margin_available =
-                margin_available + $1,
-
-              updated_at =
-                CURRENT_TIMESTAMP
-
-            WHERE id = $2
-            `,
-            [
-              amount,
-              transaction.account_id,
-            ]
-          );
-        }
-
-        if (
-          transaction.transaction_type ===
-          'WITHDRAWAL'
-        ) {
-          await client.query(
-            `
-            UPDATE accounts
-
-            SET
-              balance =
-                GREATEST(
-                  0,
-                  balance - $1
-                ),
-
-              available_balance =
-                GREATEST(
-                  0,
-                  available_balance - $1
-                ),
-
-              buying_power =
-                GREATEST(
-                  0,
-                  buying_power - $1
-                ),
-
-              margin_available =
-                GREATEST(
-                  0,
-                  margin_available - $1
-                ),
-
-              updated_at =
-                CURRENT_TIMESTAMP
-
-            WHERE id = $2
-            `,
-            [
-              amount,
-              transaction.account_id,
-            ]
-          );
-        }
-      }
-
-      await client.query('COMMIT');
-
-      logger.info(
-        `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${normalizedStatus}`
-      );
-
-      return res.status(200).json({
+    if (
+      !Number.isInteger(
+        transactionId
+      ) ||
+      transactionId <= 0
+    ) {
+      return res.status(400).json({
         message:
-          'Transaction status updated successfully.',
-
-        transaction:
-          updatedResult.rows[0],
+          'Invalid transaction ID.',
       });
+    }
 
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        logger.error(
-          'Admin transaction rollback error:',
-          rollbackError
-        );
-      }
+    if (
+      !allowedStatuses.includes(
+        normalizedStatus
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid transaction status.',
+        allowedStatuses,
+      });
+    }
 
-      logger.error(
-        'Admin update transaction error:',
-        error
+    await client.query('BEGIN');
+
+    const transactionResult =
+      await client.query(
+        `
+        SELECT
+          id,
+          account_id,
+          transaction_type,
+          amount,
+          status
+        FROM transactions
+        WHERE id = $1
+        FOR UPDATE
+        `,
+        [transactionId]
       );
 
-      return next(error);
+    if (
+      transactionResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
 
-    } finally {
-      client.release();
+      return res.status(404).json({
+        message:
+          'Transaction not found.',
+      });
     }
-  };
+
+    const transaction =
+      transactionResult.rows[0];
+
+    const previousStatus =
+      normalizeStatus(
+        transaction.status
+      );
+
+    const updatedResult =
+      await client.query(
+        `
+        UPDATE transactions
+        SET
+          status = $1,
+
+          admin_note =
+            COALESCE(
+              $2,
+              admin_note
+            ),
+
+          verified_by =
+            CASE
+              WHEN $1 = 'COMPLETED'
+              THEN $3
+              ELSE verified_by
+            END,
+
+          verified_at =
+            CASE
+              WHEN $1 = 'COMPLETED'
+              THEN CURRENT_TIMESTAMP
+              ELSE verified_at
+            END,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $4
+
+        RETURNING
+          id,
+          account_id,
+          transaction_type,
+          amount,
+          currency,
+          status,
+          admin_note,
+          verified_by,
+          verified_at
+        `,
+        [
+          normalizedStatus,
+          adminNote || null,
+          req.user.id,
+          transactionId,
+        ]
+      );
+
+    // --------------------------------------------------------
+    // CREDIT DEPOSIT
+    // --------------------------------------------------------
+
+    if (
+      normalizedStatus === 'COMPLETED' &&
+      previousStatus !== 'COMPLETED' &&
+      transaction.transaction_type ===
+        'DEPOSIT'
+    ) {
+      const amount =
+        safeNumber(
+          transaction.amount
+        );
+
+      await client.query(
+        `
+        UPDATE accounts
+        SET
+          balance =
+            balance + $1,
+
+          deposit =
+            deposit + $1,
+
+          available_balance =
+            available_balance + $1,
+
+          buying_power =
+            buying_power + $1,
+
+          margin_available =
+            margin_available + $1,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $2
+        `,
+        [
+          amount,
+          transaction.account_id,
+        ]
+      );
+    }
+
+    // --------------------------------------------------------
+    // DEBIT WITHDRAWAL
+    // --------------------------------------------------------
+
+    if (
+      normalizedStatus === 'COMPLETED' &&
+      previousStatus !== 'COMPLETED' &&
+      transaction.transaction_type ===
+        'WITHDRAWAL'
+    ) {
+      const amount =
+        safeNumber(
+          transaction.amount
+        );
+
+      await client.query(
+        `
+        UPDATE accounts
+        SET
+          balance =
+            GREATEST(
+              0,
+              balance - $1
+            ),
+
+          available_balance =
+            GREATEST(
+              0,
+              available_balance - $1
+            ),
+
+          buying_power =
+            GREATEST(
+              0,
+              buying_power - $1
+            ),
+
+          margin_available =
+            GREATEST(
+              0,
+              margin_available - $1
+            ),
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $2
+        `,
+        [
+          amount,
+          transaction.account_id,
+        ]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    return res.status(200).json({
+      message:
+        'Transaction status updated successfully.',
+      transaction:
+        updatedResult.rows[0],
+    });
+
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Transaction rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin transaction update error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
 
 // ============================================================
 // INVESTMENT PLANS
-// ADMIN ONLY
-// ============================================================
-
-// ============================================================
-// GET ALL INVESTMENT PLANS
 // ============================================================
 
 const getInvestmentPlans = async (
@@ -1568,416 +1646,418 @@ const getInvestmentPlans = async (
 // CREATE INVESTMENT PLAN
 // ============================================================
 
-const createInvestmentPlan =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const {
-        name,
-        description,
-        minimumAmount,
-        maximumAmount,
-        roiPercent,
-        durationDays,
-        status,
-      } = req.body;
+const createInvestmentPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      name,
+      description,
+      minimumAmount,
+      maximumAmount,
+      roiPercent,
+      durationDays,
+      status,
+    } = req.body;
 
-      // ------------------------------------------------------
-      // REQUIRED PLAN NAME
-      // ------------------------------------------------------
+    const planName =
+      String(name || '').trim();
 
-      const planName =
-        String(name || '').trim();
-
-      if (!planName) {
-        return res.status(400).json({
-          message:
-            'Investment plan name is required.',
-        });
-      }
-
-      if (planName.length > 150) {
-        return res.status(400).json({
-          message:
-            'Investment plan name is too long.',
-        });
-      }
-
-      // ------------------------------------------------------
-      // NUMBERS
-      // ------------------------------------------------------
-
-      const minimum =
-        Number(minimumAmount);
-
-      const maximum =
-        maximumAmount === '' ||
-        maximumAmount === null ||
-        maximumAmount === undefined
-          ? null
-          : Number(maximumAmount);
-
-      const roi =
-        Number(roiPercent);
-
-      const duration =
-        Number(durationDays);
-
-      if (
-        !Number.isFinite(minimum) ||
-        minimum < 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Minimum investment amount is invalid.',
-        });
-      }
-
-      if (
-        maximum !== null &&
-        (
-          !Number.isFinite(maximum) ||
-          maximum < minimum
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            'Maximum investment must be greater than or equal to minimum investment.',
-        });
-      }
-
-      if (
-        !Number.isFinite(roi) ||
-        roi < 0
-      ) {
-        return res.status(400).json({
-          message:
-            'ROI percentage is invalid.',
-        });
-      }
-
-      if (
-        !Number.isInteger(duration) ||
-        duration <= 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Duration must be a positive number of days.',
-        });
-      }
-
-      const planStatus =
-        normalizeStatus(
-          status || 'ACTIVE'
-        );
-
-      if (
-        planStatus !== 'ACTIVE' &&
-        planStatus !== 'INACTIVE'
-      ) {
-        return res.status(400).json({
-          message:
-            'Plan status must be ACTIVE or INACTIVE.',
-        });
-      }
-
-      // ------------------------------------------------------
-      // CREATE
-      // ------------------------------------------------------
-
-      const result =
-        await pool.query(
-          `
-          INSERT INTO investment_plans (
-            name,
-            description,
-            minimum_amount,
-            maximum_amount,
-            roi_percent,
-            duration_days,
-            status
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            $6,
-            $7
-          )
-          RETURNING
-            id,
-            name,
-            description,
-            minimum_amount,
-            maximum_amount,
-            roi_percent,
-            duration_days,
-            status,
-            created_at,
-            updated_at
-          `,
-          [
-            planName,
-            description
-              ? String(description).trim()
-              : null,
-            minimum,
-            maximum,
-            roi,
-            duration,
-            planStatus,
-          ]
-        );
-
-      const plan =
-        result.rows[0];
-
-      logger.info(
-        `Admin ${req.user.id} created investment plan ${plan.id}: ${plan.name}`
-      );
-
-      return res.status(201).json({
+    if (!planName) {
+      return res.status(400).json({
         message:
-          'Investment plan created successfully.',
-
-        plan: {
-          id:
-            plan.id,
-
-          name:
-            plan.name,
-
-          description:
-            plan.description || '',
-
-          minimumAmount:
-            safeNumber(
-              plan.minimum_amount
-            ),
-
-          maximumAmount:
-            plan.maximum_amount === null
-              ? null
-              : safeNumber(
-                  plan.maximum_amount
-                ),
-
-          roiPercent:
-            safeNumber(
-              plan.roi_percent
-            ),
-
-          durationDays:
-            Number(
-              plan.duration_days
-            ),
-
-          status:
-            plan.status,
-
-          createdAt:
-            plan.created_at,
-
-          updatedAt:
-            plan.updated_at,
-        },
+          'Investment plan name is required.',
       });
+    }
 
-    } catch (error) {
-      logger.error(
-        'Admin create investment plan error:',
-        error
+    const minimum =
+      Number(minimumAmount);
+
+    const maximum =
+      maximumAmount === '' ||
+      maximumAmount === null ||
+      maximumAmount === undefined
+        ? null
+        : Number(maximumAmount);
+
+    const roi =
+      Number(roiPercent);
+
+    const duration =
+      Number(durationDays);
+
+    if (
+      !Number.isFinite(minimum) ||
+      minimum < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Minimum investment amount is invalid.',
+      });
+    }
+
+    if (
+      maximum !== null &&
+      (
+        !Number.isFinite(maximum) ||
+        maximum < minimum
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          'Maximum investment must be greater than or equal to minimum investment.',
+      });
+    }
+
+    if (
+      !Number.isFinite(roi) ||
+      roi < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'ROI percentage is invalid.',
+      });
+    }
+
+    if (
+      !Number.isInteger(duration) ||
+      duration <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Duration must be a positive number of days.',
+      });
+    }
+
+    const planStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
       );
 
-      return next(error);
+    if (
+      planStatus !== 'ACTIVE' &&
+      planStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Plan status must be ACTIVE or INACTIVE.',
+      });
     }
-  };
+
+    const result =
+      await pool.query(
+        `
+        INSERT INTO investment_plans (
+          name,
+          description,
+          minimum_amount,
+          maximum_amount,
+          roi_percent,
+          duration_days,
+          status
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7
+        )
+        RETURNING *
+        `,
+        [
+          planName,
+          description
+            ? String(description).trim()
+            : null,
+          minimum,
+          maximum,
+          roi,
+          duration,
+          planStatus,
+        ]
+      );
+
+    return res.status(201).json({
+      message:
+        'Investment plan created successfully.',
+      plan:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin create investment plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 
 // ============================================================
 // UPDATE INVESTMENT PLAN
 // ============================================================
 
-const updateInvestmentPlan =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const planId =
-        Number(req.params.id);
+const updateInvestmentPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const planId =
+      Number(req.params.id);
 
-      if (
-        !Number.isInteger(planId) ||
-        planId <= 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Invalid investment plan ID.',
-        });
-      }
+    if (
+      !Number.isInteger(planId) ||
+      planId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid investment plan ID.',
+      });
+    }
 
-      const {
-        name,
-        description,
-        minimumAmount,
-        maximumAmount,
-        roiPercent,
-        durationDays,
-        status,
-      } = req.body;
+    const {
+      name,
+      description,
+      minimumAmount,
+      maximumAmount,
+      roiPercent,
+      durationDays,
+      status,
+    } = req.body;
 
-      const planName =
-        String(name || '').trim();
+    const planName =
+      String(name || '').trim();
 
-      if (!planName) {
-        return res.status(400).json({
-          message:
-            'Investment plan name is required.',
-        });
-      }
+    if (!planName) {
+      return res.status(400).json({
+        message:
+          'Investment plan name is required.',
+      });
+    }
 
-      const minimum =
-        Number(minimumAmount);
+    const minimum =
+      Number(minimumAmount);
 
-      const maximum =
-        maximumAmount === '' ||
-        maximumAmount === null ||
-        maximumAmount === undefined
-          ? null
-          : Number(maximumAmount);
+    const maximum =
+      maximumAmount === '' ||
+      maximumAmount === null ||
+      maximumAmount === undefined
+        ? null
+        : Number(maximumAmount);
 
-      const roi =
-        Number(roiPercent);
+    const roi =
+      Number(roiPercent);
 
-      const duration =
-        Number(durationDays);
+    const duration =
+      Number(durationDays);
 
-      if (
-        !Number.isFinite(minimum) ||
-        minimum < 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Minimum investment amount is invalid.',
-        });
-      }
+    if (
+      !Number.isFinite(minimum) ||
+      minimum < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Minimum investment amount is invalid.',
+      });
+    }
 
-      if (
-        maximum !== null &&
-        (
-          !Number.isFinite(maximum) ||
-          maximum < minimum
-        )
-      ) {
-        return res.status(400).json({
-          message:
-            'Maximum investment must be greater than or equal to minimum investment.',
-        });
-      }
+    if (
+      maximum !== null &&
+      (
+        !Number.isFinite(maximum) ||
+        maximum < minimum
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          'Maximum investment must be greater than or equal to minimum investment.',
+      });
+    }
 
-      if (
-        !Number.isFinite(roi) ||
-        roi < 0
-      ) {
-        return res.status(400).json({
-          message:
-            'ROI percentage is invalid.',
-        });
-      }
+    if (
+      !Number.isFinite(roi) ||
+      roi < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'ROI percentage is invalid.',
+      });
+    }
 
-      if (
-        !Number.isInteger(duration) ||
-        duration <= 0
-      ) {
-        return res.status(400).json({
-          message:
-            'Duration must be a positive number of days.',
-        });
-      }
+    if (
+      !Number.isInteger(duration) ||
+      duration <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Duration must be a positive number of days.',
+      });
+    }
 
-      const planStatus =
-        normalizeStatus(
-          status || 'ACTIVE'
-        );
-
-      if (
-        planStatus !== 'ACTIVE' &&
-        planStatus !== 'INACTIVE'
-      ) {
-        return res.status(400).json({
-          message:
-            'Plan status must be ACTIVE or INACTIVE.',
-        });
-      }
-
-      const result =
-        await pool.query(
-          `
-          UPDATE investment_plans
-
-          SET
-            name = $1,
-            description = $2,
-            minimum_amount = $3,
-            maximum_amount = $4,
-            roi_percent = $5,
-            duration_days = $6,
-            status = $7,
-            updated_at = CURRENT_TIMESTAMP
-
-          WHERE id = $8
-
-          RETURNING
-            id,
-            name,
-            description,
-            minimum_amount,
-            maximum_amount,
-            roi_percent,
-            duration_days,
-            status,
-            created_at,
-            updated_at
-          `,
-          [
-            planName,
-            description
-              ? String(description).trim()
-              : null,
-            minimum,
-            maximum,
-            roi,
-            duration,
-            planStatus,
-            planId,
-          ]
-        );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message:
-            'Investment plan not found.',
-        });
-      }
-
-      const plan =
-        result.rows[0];
-
-      logger.info(
-        `Admin ${req.user.id} updated investment plan ${planId}`
+    const planStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
       );
 
-      return res.status(200).json({
+    if (
+      planStatus !== 'ACTIVE' &&
+      planStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
         message:
-          'Investment plan updated successfully.',
+          'Plan status must be ACTIVE or INACTIVE.',
+      });
+    }
 
-        plan: {
+    const result =
+      await pool.query(
+        `
+        UPDATE investment_plans
+        SET
+          name = $1,
+          description = $2,
+          minimum_amount = $3,
+          maximum_amount = $4,
+          roi_percent = $5,
+          duration_days = $6,
+          status = $7,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $8
+        RETURNING *
+        `,
+        [
+          planName,
+          description
+            ? String(description).trim()
+            : null,
+          minimum,
+          maximum,
+          roi,
+          duration,
+          planStatus,
+          planId,
+        ]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Investment plan not found.',
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        'Investment plan updated successfully.',
+      plan:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin update investment plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// DELETE INVESTMENT PLAN
+// ============================================================
+
+const deleteInvestmentPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const planId =
+      Number(req.params.id);
+
+    if (
+      !Number.isInteger(planId) ||
+      planId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid investment plan ID.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        DELETE FROM investment_plans
+        WHERE id = $1
+        RETURNING id, name
+        `,
+        [planId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Investment plan not found.',
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        'Investment plan deleted successfully.',
+      plan:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin delete investment plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// SIGNAL PLANS
+// ============================================================
+
+// GET ALL SIGNAL PLANS
+
+const getSignalPlans = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const result =
+      await pool.query(`
+        SELECT
+          id,
+          name,
+          description,
+          strength,
+          status,
+          created_at,
+          updated_at
+        FROM signal_plans
+        ORDER BY created_at DESC
+      `);
+
+    const plans =
+      result.rows.map(
+        (plan) => ({
           id:
             plan.id,
 
@@ -1987,26 +2067,9 @@ const updateInvestmentPlan =
           description:
             plan.description || '',
 
-          minimumAmount:
-            safeNumber(
-              plan.minimum_amount
-            ),
-
-          maximumAmount:
-            plan.maximum_amount === null
-              ? null
-              : safeNumber(
-                  plan.maximum_amount
-                ),
-
-          roiPercent:
-            safeNumber(
-              plan.roi_percent
-            ),
-
-          durationDays:
-            Number(
-              plan.duration_days
+          strength:
+            getSignalStrength(
+              plan.strength
             ),
 
           status:
@@ -2017,32 +2080,549 @@ const updateInvestmentPlan =
 
           updatedAt:
             plan.updated_at,
-        },
-      });
-
-    } catch (error) {
-      logger.error(
-        'Admin update investment plan error:',
-        error
+        })
       );
 
-      return next(error);
+    return res.status(200).json({
+      plans,
+      count: plans.length,
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin signal plans error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// CREATE SIGNAL PLAN
+
+const createSignalPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const {
+      name,
+      description,
+      strength,
+      status,
+    } = req.body;
+
+    const planName =
+      String(name || '').trim();
+
+    if (!planName) {
+      return res.status(400).json({
+        message:
+          'Signal plan name is required.',
+      });
     }
-  };
+
+    if (planName.length > 150) {
+      return res.status(400).json({
+        message:
+          'Signal plan name is too long.',
+      });
+    }
+
+    const signalStrength =
+      getSignalStrength(
+        strength === undefined
+          ? 50
+          : strength
+      );
+
+    const signalStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
+      );
+
+    if (
+      signalStatus !== 'ACTIVE' &&
+      signalStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal plan status must be ACTIVE or INACTIVE.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        INSERT INTO signal_plans (
+          name,
+          description,
+          strength,
+          status
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4
+        )
+        RETURNING *
+        `,
+        [
+          planName,
+          description
+            ? String(description).trim()
+            : null,
+          signalStrength,
+          signalStatus,
+        ]
+      );
+
+    logger.info(
+      `Admin ${req.user.id} created signal plan ${result.rows[0].id}`
+    );
+
+    return res.status(201).json({
+      message:
+        'Signal plan created successfully.',
+
+      plan: {
+        id:
+          result.rows[0].id,
+
+        name:
+          result.rows[0].name,
+
+        description:
+          result.rows[0].description || '',
+
+        strength:
+          getSignalStrength(
+            result.rows[0].strength
+          ),
+
+        status:
+          result.rows[0].status,
+
+        createdAt:
+          result.rows[0].created_at,
+
+        updatedAt:
+          result.rows[0].updated_at,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin create signal plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// UPDATE SIGNAL PLAN
+
+const updateSignalPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const planId =
+      Number(req.params.id);
+
+    if (
+      !Number.isInteger(planId) ||
+      planId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid signal plan ID.',
+      });
+    }
+
+    const {
+      name,
+      description,
+      strength,
+      status,
+    } = req.body;
+
+    const planName =
+      String(name || '').trim();
+
+    if (!planName) {
+      return res.status(400).json({
+        message:
+          'Signal plan name is required.',
+      });
+    }
+
+    const signalStrength =
+      getSignalStrength(
+        strength
+      );
+
+    const signalStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
+      );
+
+    if (
+      signalStatus !== 'ACTIVE' &&
+      signalStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal plan status must be ACTIVE or INACTIVE.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        UPDATE signal_plans
+        SET
+          name = $1,
+          description = $2,
+          strength = $3,
+          status = $4,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $5
+        RETURNING *
+        `,
+        [
+          planName,
+          description
+            ? String(description).trim()
+            : null,
+          signalStrength,
+          signalStatus,
+          planId,
+        ]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Signal plan not found.',
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        'Signal plan updated successfully.',
+
+      plan: {
+        id:
+          result.rows[0].id,
+
+        name:
+          result.rows[0].name,
+
+        description:
+          result.rows[0].description || '',
+
+        strength:
+          getSignalStrength(
+            result.rows[0].strength
+          ),
+
+        status:
+          result.rows[0].status,
+
+        createdAt:
+          result.rows[0].created_at,
+
+        updatedAt:
+          result.rows[0].updated_at,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin update signal plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// DELETE SIGNAL PLAN
+
+const deleteSignalPlan = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const planId =
+      Number(req.params.id);
+
+    if (
+      !Number.isInteger(planId) ||
+      planId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid signal plan ID.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        DELETE FROM signal_plans
+        WHERE id = $1
+        RETURNING id, name
+        `,
+        [planId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Signal plan not found.',
+      });
+    }
+
+    return res.status(200).json({
+      message:
+        'Signal plan deleted successfully.',
+
+      plan:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin delete signal plan error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 
 // ============================================================
-// DELETE INVESTMENT PLAN
+// GET USER SIGNAL
 // ============================================================
 
-const deleteInvestmentPlan =
-  async (
-    req,
-    res,
-    next
-  ) => {
-    try {
-      const planId =
-        Number(req.params.id);
+const getUserSignal = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const userId =
+      Number(req.params.id);
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          u.id AS user_id,
+          u.email,
+          u.first_name,
+          u.last_name,
+          u.username,
+
+          us.id AS user_signal_id,
+          us.strength,
+          us.enabled,
+
+          sp.id AS plan_id,
+          sp.name AS plan_name,
+          sp.description AS plan_description,
+          sp.strength AS plan_strength,
+          sp.status AS plan_status
+
+        FROM users u
+
+        LEFT JOIN user_signals us
+          ON us.user_id = u.id
+
+        LEFT JOIN signal_plans sp
+          ON sp.id = us.signal_plan_id
+
+        WHERE u.id = $1
+
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User not found.',
+      });
+    }
+
+    const row =
+      result.rows[0];
+
+    return res.status(200).json({
+      user: {
+        id:
+          row.user_id,
+
+        email:
+          row.email,
+
+        firstName:
+          row.first_name,
+
+        lastName:
+          row.last_name,
+
+        username:
+          row.username,
+      },
+
+      signal:
+        row.user_signal_id
+          ? {
+              id:
+                row.user_signal_id,
+
+              strength:
+                getSignalStrength(
+                  row.strength
+                ),
+
+              enabled:
+                row.enabled,
+
+              plan:
+                row.plan_id
+                  ? {
+                      id:
+                        row.plan_id,
+
+                      name:
+                        row.plan_name,
+
+                      description:
+                        row.plan_description ||
+                        '',
+
+                      strength:
+                        getSignalStrength(
+                          row.plan_strength
+                        ),
+
+                      status:
+                        row.plan_status,
+                    }
+                  : null,
+            }
+          : null,
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin get user signal error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// UPDATE USER SIGNAL
+// ============================================================
+
+const updateUserSignal = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensureSignalTables();
+
+    const userId =
+      Number(req.params.id);
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    const {
+      signalPlanId,
+      strength,
+      enabled,
+    } = req.body;
+
+    // --------------------------------------------------------
+    // VERIFY USER
+    // --------------------------------------------------------
+
+    const userResult =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          first_name,
+          last_name,
+          username
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User not found.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // SIGNAL PLAN
+    // --------------------------------------------------------
+
+    let planId = null;
+
+    if (
+      signalPlanId !== undefined &&
+      signalPlanId !== null &&
+      signalPlanId !== ''
+    ) {
+      planId =
+        Number(signalPlanId);
 
       if (
         !Number.isInteger(planId) ||
@@ -2050,84 +2630,216 @@ const deleteInvestmentPlan =
       ) {
         return res.status(400).json({
           message:
-            'Invalid investment plan ID.',
+            'Invalid signal plan ID.',
         });
       }
 
-      const result =
+      const planResult =
         await pool.query(
           `
-          DELETE FROM investment_plans
-
-          WHERE id = $1
-
-          RETURNING
+          SELECT
             id,
-            name
+            name,
+            status,
+            strength
+          FROM signal_plans
+          WHERE id = $1
+          LIMIT 1
           `,
           [planId]
         );
 
-      if (result.rows.length === 0) {
+      if (
+        planResult.rows.length === 0
+      ) {
         return res.status(404).json({
           message:
-            'Investment plan not found.',
+            'Signal plan not found.',
         });
       }
 
-      logger.info(
-        `Admin ${req.user.id} deleted investment plan ${planId}`
-      );
-
-      return res.status(200).json({
-        message:
-          'Investment plan deleted successfully.',
-
-        plan:
-          result.rows[0],
-      });
-
-    } catch (error) {
-      logger.error(
-        'Admin delete investment plan error:',
-        error
-      );
-
-      return next(error);
+      if (
+        planResult.rows[0].status !==
+        'ACTIVE'
+      ) {
+        return res.status(400).json({
+          message:
+            'Cannot assign an inactive signal plan.',
+        });
+      }
     }
-  };
+
+    // --------------------------------------------------------
+    // STRENGTH
+    // --------------------------------------------------------
+
+    let signalStrength;
+
+    if (strength === undefined) {
+      if (planId) {
+        const planResult =
+          await pool.query(
+            `
+            SELECT strength
+            FROM signal_plans
+            WHERE id = $1
+            `,
+            [planId]
+          );
+
+        signalStrength =
+          getSignalStrength(
+            planResult.rows[0].strength
+          );
+      } else {
+        signalStrength = 50;
+      }
+    } else {
+      signalStrength =
+        getSignalStrength(strength);
+    }
+
+    // --------------------------------------------------------
+    // ENABLED
+    // --------------------------------------------------------
+
+    const signalEnabled =
+      enabled === undefined
+        ? true
+        : Boolean(enabled);
+
+    // --------------------------------------------------------
+    // CREATE OR UPDATE
+    // --------------------------------------------------------
+
+    const result =
+      await pool.query(
+        `
+        INSERT INTO user_signals (
+          user_id,
+          signal_plan_id,
+          strength,
+          enabled
+        )
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4
+        )
+        ON CONFLICT (user_id)
+        DO UPDATE SET
+          signal_plan_id =
+            EXCLUDED.signal_plan_id,
+
+          strength =
+            EXCLUDED.strength,
+
+          enabled =
+            EXCLUDED.enabled,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        RETURNING
+          id,
+          user_id,
+          signal_plan_id,
+          strength,
+          enabled,
+          created_at,
+          updated_at
+        `,
+        [
+          userId,
+          planId,
+          signalStrength,
+          signalEnabled,
+        ]
+      );
+
+    logger.info(
+      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'User signal updated successfully.',
+
+      signal: {
+        id:
+          result.rows[0].id,
+
+        userId:
+          result.rows[0].user_id,
+
+        signalPlanId:
+          result.rows[0].signal_plan_id,
+
+        strength:
+          getSignalStrength(
+            result.rows[0].strength
+          ),
+
+        enabled:
+          result.rows[0].enabled,
+
+        createdAt:
+          result.rows[0].created_at,
+
+        updatedAt:
+          result.rows[0].updated_at,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin update user signal error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 
 // ============================================================
 // EXPORTS
 // ============================================================
 
 module.exports = {
+  // Authentication
   adminLogin,
 
+  // Dashboard
   getDashboard,
 
+  // Users
   getUsers,
-
   getUser,
-
-  getTransactions,
-
-  getDeposits,
-
-  getWithdrawals,
-
-  getKycRequests,
-
   updateUserStatus,
 
+  // Transactions
+  getTransactions,
+  getDeposits,
+  getWithdrawals,
   updateTransactionStatus,
+
+  // KYC
+  getKycRequests,
 
   // Investment plans
   getInvestmentPlans,
-
   createInvestmentPlan,
-
   updateInvestmentPlan,
-
   deleteInvestmentPlan,
+
+  // Signal plans
+  getSignalPlans,
+  createSignalPlan,
+  updateSignalPlan,
+  deleteSignalPlan,
+
+  // User signal
+  getUserSignal,
+  updateUserSignal,
 };
