@@ -14,9 +14,14 @@ import {
 
 import CssBaseline from '@mui/material/CssBaseline';
 
+// ============================================================
+// PAGES
+// ============================================================
+
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminLogin from './pages/AdminLogin';
 import Dashboard from './pages/Dashboard';
 import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
@@ -24,6 +29,10 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 import ContactSupport from './pages/ContactSupport';
+
+// ============================================================
+// ERROR BOUNDARY
+// ============================================================
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -93,7 +102,8 @@ class ErrorBoundary extends React.Component<
             justifyContent: 'center',
             padding: '20px',
             background: '#f5f5f5',
-            fontFamily: 'Arial, sans-serif',
+            fontFamily:
+              'Arial, sans-serif',
           }}
         >
           <div
@@ -131,7 +141,9 @@ class ErrorBoundary extends React.Component<
                 wordBreak: 'break-word',
               }}
             >
-              <strong>Error:</strong>
+              <strong>
+                Error:
+              </strong>
 
               <br />
 
@@ -139,14 +151,18 @@ class ErrorBoundary extends React.Component<
             </div>
 
             <button
-              onClick={this.handleReload}
+              onClick={
+                this.handleReload
+              }
               style={{
-                padding: '12px 20px',
+                padding:
+                  '12px 20px',
                 marginRight: '10px',
                 border: 'none',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                background: '#1976d2',
+                background:
+                  '#1976d2',
                 color: '#ffffff',
                 fontSize: '16px',
               }}
@@ -155,14 +171,20 @@ class ErrorBoundary extends React.Component<
             </button>
 
             <button
-              onClick={this.handleHome}
+              onClick={
+                this.handleHome
+              }
               style={{
-                padding: '12px 20px',
-                border: '1px solid #1976d2',
+                padding:
+                  '12px 20px',
+                border:
+                  '1px solid #1976d2',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                background: '#ffffff',
-                color: '#1976d2',
+                background:
+                  '#ffffff',
+                color:
+                  '#1976d2',
                 fontSize: '16px',
               }}
             >
@@ -177,14 +199,20 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+// ============================================================
+// THEME
+// ============================================================
+
 const theme = createTheme({
   palette: {
     primary: {
       main: '#1976d2',
     },
+
     secondary: {
       main: '#dc004e',
     },
+
     background: {
       default: '#f5f5f5',
     },
@@ -196,6 +224,10 @@ const theme = createTheme({
   },
 });
 
+// ============================================================
+// APP
+// ============================================================
+
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
@@ -205,14 +237,18 @@ const App: React.FC = () => {
         <HashRouter>
           <Routes>
 
-            {/* HOME */}
+            {/* ==================================================
+                PUBLIC HOME
+            ================================================== */}
 
             <Route
               path="/"
               element={<Home />}
             />
 
-            {/* AUTHENTICATION */}
+            {/* ==================================================
+                USER AUTHENTICATION
+            ================================================== */}
 
             <Route
               path="/login"
@@ -224,56 +260,85 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
-            {/* MAIN DASHBOARD */}
+            {/* ==================================================
+                ADMIN LOGIN
+            ================================================== */}
+
+            <Route
+              path="/admin/login"
+              element={<AdminLogin />}
+            />
+
+            {/* ==================================================
+                USER DASHBOARD
+            ================================================== */}
 
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
 
-            {/* ACCOUNT STATEMENT */}
+            {/* ==================================================
+                ACCOUNT STATEMENT
+            ================================================== */}
 
             <Route
               path="/account-statement"
-              element={<AccountStatement />}
+              element={
+                <AccountStatement />
+              }
             />
 
-            {/* PORTFOLIO */}
+            {/* ==================================================
+                PORTFOLIO
+            ================================================== */}
 
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
 
-            {/* TRADING */}
+            {/* ==================================================
+                TRADING
+            ================================================== */}
 
             <Route
               path="/trading"
               element={<Trading />}
             />
 
-            {/* MARKETS */}
+            {/* ==================================================
+                MARKETS
+            ================================================== */}
 
             <Route
               path="/market"
               element={<Market />}
             />
 
-            {/* WALLET */}
+            {/* ==================================================
+                WALLET
+            ================================================== */}
 
             <Route
               path="/wallet"
               element={<Wallet />}
             />
 
-            {/* CONTACT SUPPORT */}
+            {/* ==================================================
+                SUPPORT
+            ================================================== */}
 
             <Route
               path="/support"
-              element={<ContactSupport />}
+              element={
+                <ContactSupport />
+              }
             />
 
-            {/* UNKNOWN ROUTES */}
+            {/* ==================================================
+                UNKNOWN ROUTES
+            ================================================== */}
 
             <Route
               path="*"
