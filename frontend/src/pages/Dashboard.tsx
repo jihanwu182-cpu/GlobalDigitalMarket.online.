@@ -757,6 +757,11 @@ const Dashboard: React.FC = () => {
     navigate('/trading');
   };
 
+  const goAccountStatement = () => {
+    setMenuOpen(false);
+    navigate('/account-statement');
+  };
+
   const goSupport = () => {
     setMenuOpen(false);
     navigate('/support');
@@ -883,12 +888,7 @@ const Dashboard: React.FC = () => {
           <MenuItem
             icon={<ReceiptLongIcon />}
             text="Account Statement"
-            onClick={() => {
-              setMenuOpen(false);
-              setError(
-                'Account Statement is not connected yet.'
-              );
-            }}
+            onClick={goAccountStatement}
           />
 
           {/* PORTFOLIO */}
@@ -1716,9 +1716,7 @@ const Dashboard: React.FC = () => {
                 </Box>
               ) : (
                 <TableContainer>
-                  <Table
-                    size="small"
-                  >
+                  <Table size="small">
                     <TableHead>
                       <TableRow>
                         <TableCell
