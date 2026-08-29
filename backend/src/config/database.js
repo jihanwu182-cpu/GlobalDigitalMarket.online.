@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const logger = require('../utils/logger');
+const { hashPassword } = require('../utils/bcrypt');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || undefined,
@@ -42,7 +43,10 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (error) => {
-  logger.error('Unexpected PostgreSQL pool error:', error);
+  logger.error(
+    'Unexpected PostgreSQL pool error:',
+    error
+  );
 });
 
 
@@ -52,7 +56,9 @@ pool.on('error', (error) => {
 
 const initializeDatabase = async () => {
   try {
-    logger.info('Initializing PostgreSQL database...');
+    logger.info(
+      'Initializing PostgreSQL database...'
+    );
 
     // ========================================================
     // USERS
@@ -233,7 +239,9 @@ const initializeDatabase = async () => {
       ON users(preferred_currency);
     `);
 
-    logger.info('Users table is ready');
+    logger.info(
+      'Users table is ready'
+    );
 
 
     // ========================================================
@@ -296,6 +304,10 @@ const initializeDatabase = async () => {
       );
     `);
 
+    // ========================================================
+    // ACCOUNTS - SAFE MIGRATIONS
+    // ========================================================
+
     await pool.query(`
       ALTER TABLE accounts
       ADD COLUMN IF NOT EXISTS currency VARCHAR(10)
@@ -316,6 +328,12 @@ const initializeDatabase = async () => {
 
     await pool.query(`
       ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS available_balance NUMERIC(20, 2)
+      DEFAULT 0;
+    `);
+
+    await pool.query(`
+      ALTER TABLE accounts
       ADD COLUMN IF NOT EXISTS bonus NUMERIC(20, 2)
       DEFAULT 0;
     `);
@@ -327,11 +345,25 @@ const initializeDatabase = async () => {
     `);
 
     await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS buying_power NUMERIC(20, 2)
+      DEFAULT 0;
+    `);
+
+    await pool.query(`
+      ALTER TABLE accounts
+      ADD COLUMN IF NOT EXISTS margin_available NUMERIC(20, 2)
+      DEFAULT 0;
+    `);
+
+    await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_accounts_user_id
       ON accounts(user_id);
     `);
 
-    logger.info('Accounts table is ready');
+    logger.info(
+      'Accounts table is ready'
+    );
 
 
     // ========================================================
@@ -378,7 +410,9 @@ const initializeDatabase = async () => {
       ON portfolio_holdings(account_id);
     `);
 
-    logger.info('Portfolio holdings table is ready');
+    logger.info(
+      'Portfolio holdings table is ready'
+    );
 
 
     // ========================================================
@@ -471,7 +505,9 @@ const initializeDatabase = async () => {
       ON transactions(created_at DESC);
     `);
 
-    logger.info('Transactions table is ready');
+    logger.info(
+      'Transactions table is ready'
+    );
 
 
     // ========================================================
@@ -516,7 +552,9 @@ const initializeDatabase = async () => {
       ON withdrawal_codes(user_id);
     `);
 
-    logger.info('Withdrawal codes table is ready');
+    logger.info(
+      'Withdrawal codes table is ready'
+    );
 
 
     // ========================================================
@@ -565,29 +603,36 @@ const initializeDatabase = async () => {
       ON identity_documents(status);
     `);
 
-    logger.info('Identity documents table is ready');
+    logger.info(
+      'Identity documents table is ready'
+    );
 
 
     // ========================================================
-    // CREATE ACCOUNT FOR USERS WHO DO NOT HAVE ONE
+    // CREATE ACCOUNT FOR USERS WITHOUT ACCOUNTS
     // ========================================================
 
-    const usersWithoutAccounts = await pool.query(`
-      SELECT
-        u.id,
-        COALESCE(
-          NULLIF(u.preferred_currency, ''),
-          'USD'
-        ) AS currency
-      FROM users u
-      LEFT JOIN accounts a
-        ON a.user_id = u.id
-      WHERE a.id IS NULL;
-    `);
+    const usersWithoutAccounts =
+      await pool.query(`
+        SELECT
+          u.id,
+          COALESCE(
+            NULLIF(u.preferred_currency, ''),
+            'USD'
+          ) AS currency
+        FROM users u
+        LEFT JOIN accounts a
+          ON a.user_id = u.id
+        WHERE a.id IS NULL;
+      `);
 
-    for (const user of usersWithoutAccounts.rows) {
+    for (
+      const user of usersWithoutAccounts.rows
+    ) {
       const accountNumber =
-        `GDM-${user.id}-${Date.now()}`;
+        `GDM-${user.id}-${Date.now()}-${Math.floor(
+          Math.random() * 10000
+        )}`;
 
       await pool.query(
         `
@@ -632,9 +677,302 @@ const initializeDatabase = async () => {
       );
     }
 
-    if (usersWithoutAccounts.rows.length > 0) {
+    if (
+      usersWithoutAccounts.rows.length > 0
+    ) {
       logger.info(
         `Created ${usersWithoutAccounts.rows.length} default account(s)`
+      );
+    }
+
+
+    // ========================================================
+    // ADMIN ACCOUNT
+    // ========================================================
+    //
+    // The following values come from Render:
+    //
+    // ADMIN_EMAIL
+    // ADMIN_PASSWORD
+    //
+    // The password is NEVER stored as plain text.
+    //
+    // ========================================================
+
+    const adminEmail =
+      String(
+        process.env.ADMIN_EMAIL || ''
+      )
+        .trim()
+        .toLowerCase();
+
+    const adminPassword =
+      String(
+        process.env.ADMIN_PASSWORD || ''
+      ).trim();
+
+    if (
+      adminEmail &&
+      adminPassword
+    ) {
+      if (
+        adminPassword.length < 8
+      ) {
+        throw new Error(
+          'ADMIN_PASSWORD must contain at least 8 characters.'
+        );
+      }
+
+      logger.info(
+        'Checking administrator account...'
+      );
+
+      // ------------------------------------------------------
+      // Hash administrator password
+      // ------------------------------------------------------
+
+      const adminPasswordHash =
+        await hashPassword(
+          adminPassword
+        );
+
+      // ------------------------------------------------------
+      // Find existing admin/user
+      // ------------------------------------------------------
+
+      const existingAdminResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            email,
+            role,
+            status,
+            username
+          FROM users
+          WHERE LOWER(email) = $1
+          LIMIT 1
+          `,
+          [adminEmail]
+        );
+
+      let adminUserId;
+
+      // ------------------------------------------------------
+      // CREATE ADMIN
+      // ------------------------------------------------------
+
+      if (
+        existingAdminResult.rows.length === 0
+      ) {
+        let adminUsername =
+          String(
+            process.env.ADMIN_USERNAME ||
+              'admin'
+          )
+            .trim()
+            .toLowerCase();
+
+        if (
+          !adminUsername
+        ) {
+          adminUsername = 'admin';
+        }
+
+        // Make username unique if necessary
+        const usernameCheck =
+          await pool.query(
+            `
+            SELECT id
+            FROM users
+            WHERE LOWER(username) = LOWER($1)
+            LIMIT 1
+            `,
+            [adminUsername]
+          );
+
+        if (
+          usernameCheck.rows.length > 0
+        ) {
+          adminUsername =
+            `admin_${Date.now()
+              .toString()
+              .slice(-6)}`;
+        }
+
+        const referralCode =
+          `GDMADMIN${Date.now()
+            .toString()
+            .slice(-8)}`;
+
+        const adminResult =
+          await pool.query(
+            `
+            INSERT INTO users (
+              email,
+              password_hash,
+              first_name,
+              last_name,
+              username,
+              phone,
+              country,
+              preferred_currency,
+              referral_code,
+              role,
+              status,
+              email_verified,
+              identity_verification_status
+            )
+            VALUES (
+              $1,
+              $2,
+              'Global',
+              'Administrator',
+              $3,
+              $4,
+              'Global',
+              'USD',
+              $5,
+              'admin',
+              'active',
+              TRUE,
+              'APPROVED'
+            )
+            RETURNING
+              id,
+              email,
+              role,
+              status,
+              username
+            `,
+            [
+              adminEmail,
+              adminPasswordHash,
+              adminUsername,
+              process.env.ADMIN_PHONE ||
+                '0000000000',
+              referralCode,
+            ]
+          );
+
+        adminUserId =
+          adminResult.rows[0].id;
+
+        logger.info(
+          'Administrator account created successfully.'
+        );
+      } else {
+        // ----------------------------------------------------
+        // EXISTING ACCOUNT
+        // ----------------------------------------------------
+
+        adminUserId =
+          existingAdminResult.rows[0].id;
+
+        await pool.query(
+          `
+          UPDATE users
+          SET
+            password_hash = $1,
+            role = 'admin',
+            status = 'active',
+            email_verified = TRUE,
+            identity_verification_status = 'APPROVED',
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+          `,
+          [
+            adminPasswordHash,
+            adminUserId,
+          ]
+        );
+
+        logger.info(
+          'Existing administrator account updated successfully.'
+        );
+      }
+
+      // ------------------------------------------------------
+      // CREATE ADMIN ACCOUNT WALLET
+      // ------------------------------------------------------
+
+      const adminAccountResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            account_number
+          FROM accounts
+          WHERE user_id = $1
+          LIMIT 1
+          `,
+          [adminUserId]
+        );
+
+      if (
+        adminAccountResult.rows.length === 0
+      ) {
+        const adminAccountNumber =
+          `GDM-ADMIN-${adminUserId}-${Date.now()
+            .toString()
+            .slice(-8)}`;
+
+        await pool.query(
+          `
+          INSERT INTO accounts (
+            user_id,
+            account_number,
+            account_type,
+            account_name,
+            currency,
+            balance,
+            deposit,
+            profits,
+            available_balance,
+            bonus,
+            referrer_bonus,
+            buying_power,
+            margin_available,
+            status
+          )
+          VALUES (
+            $1,
+            $2,
+            'admin',
+            'Global Digital Market Admin Account',
+            'USD',
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            'active'
+          )
+          `,
+          [
+            adminUserId,
+            adminAccountNumber,
+          ]
+        );
+
+        logger.info(
+          'Administrator account wallet created successfully.'
+        );
+      } else {
+        logger.info(
+          'Administrator already has an account wallet.'
+        );
+      }
+
+      logger.info(
+        'Administrator provisioning completed successfully.'
+      );
+    } else {
+      logger.warn(
+        'ADMIN_EMAIL or ADMIN_PASSWORD is not configured. Administrator provisioning skipped.'
       );
     }
 
@@ -644,7 +982,7 @@ const initializeDatabase = async () => {
     // ========================================================
 
     logger.info(
-      'PostgreSQL database initialization completed successfully'
+      'PostgreSQL database initialization completed successfully.'
     );
 
     return true;
