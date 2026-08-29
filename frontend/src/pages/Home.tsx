@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+
 import {
   Alert,
   Box,
@@ -21,15 +22,12 @@ import SpeedIcon from '@mui/icons-material/Speed';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import BusinessIcon from '@mui/icons-material/Business';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import LanguageIcon from '@mui/icons-material/Language';
 import SecurityIcon from '@mui/icons-material/Security';
-import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -38,16 +36,6 @@ import apiClient from '../services/apiClient';
 /* ============================================================
    TYPES
 ============================================================ */
-
-interface ActivityItem {
-  id: string | number;
-  type: 'Deposit' | 'Withdrawal' | 'Profit';
-  amount: number;
-  country: string;
-  flag: string;
-  initials: string;
-  time: string;
-}
 
 interface MarketItem {
   symbol: string;
@@ -58,74 +46,14 @@ interface MarketItem {
 }
 
 /* ============================================================
-   LOGO
+   SUPPORT EMAIL
 ============================================================ */
 
-const CompanyLogo: React.FC<{
-  compact?: boolean;
-}> = ({ compact = false }) => {
-  return (
-    <Stack
-      direction="row"
-      spacing={1.2}
-      alignItems="center"
-    >
-      <Box
-        sx={{
-          width: compact ? 38 : 46,
-          height: compact ? 38 : 46,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'hidden',
-          background:
-            'radial-gradient(circle at 30% 25%, #61e9ff 0%, #176cff 45%, #071b62 100%)',
-          border:
-            '1px solid rgba(112,220,255,0.65)',
-          boxShadow:
-            '0 0 24px rgba(45,139,255,0.35)',
-        }}
-      >
-        <PublicIcon
-          sx={{
-            fontSize: compact ? 25 : 31,
-            color: '#fff',
-          }}
-        />
-      </Box>
-
-      <Box>
-        <Typography
-          sx={{
-            fontSize: compact ? 16 : 19,
-            fontWeight: 950,
-            lineHeight: 1,
-            letterSpacing: 0.8,
-          }}
-        >
-          GLOBAL
-        </Typography>
-
-        <Typography
-          sx={{
-            fontSize: compact ? 7 : 8,
-            color: '#8da9ef',
-            letterSpacing: 1.3,
-            fontWeight: 800,
-            mt: 0.4,
-          }}
-        >
-          DIGITAL MARKET
-        </Typography>
-      </Box>
-    </Stack>
-  );
-};
+const SUPPORT_EMAIL =
+  'support@globaldigitalmarket.online';
 
 /* ============================================================
-   MARKET DATA
+   DEFAULT MARKET DATA
 ============================================================ */
 
 const defaultMarkets: MarketItem[] = [
@@ -160,71 +88,243 @@ const defaultMarkets: MarketItem[] = [
 ];
 
 /* ============================================================
-   ACTIVITY DATA
+   LOGO
 ============================================================ */
 
-const demoActivity: ActivityItem[] = [
-  {
-    id: 1,
-    type: 'Withdrawal',
-    amount: 2850,
-    country: 'United Kingdom',
-    flag: '🇬🇧',
-    initials: 'A•••• J.',
-    time: '2 min ago',
-  },
-  {
-    id: 2,
-    type: 'Deposit',
-    amount: 1420,
-    country: 'Germany',
-    flag: '🇩🇪',
-    initials: 'M•••• K.',
-    time: '3 min ago',
-  },
-  {
-    id: 3,
-    type: 'Profit',
-    amount: 5320,
-    country: 'Canada',
-    flag: '🇨🇦',
-    initials: 'T•••• S.',
-    time: '5 min ago',
-  },
-  {
-    id: 4,
-    type: 'Withdrawal',
-    amount: 980,
-    country: 'India',
-    flag: '🇮🇳',
-    initials: 'R•••• P.',
-    time: '6 min ago',
-  },
-  {
-    id: 5,
-    type: 'Deposit',
-    amount: 3600,
-    country: 'Brazil',
-    flag: '🇧🇷',
-    initials: 'L•••• M.',
-    time: '2 min ago',
-  },
-];
+const CompanyLogo: React.FC<{
+  compact?: boolean;
+}> = ({ compact = false }) => {
+  return (
+    <Stack
+      direction="row"
+      spacing={1.2}
+      alignItems="center"
+    >
+      <Box
+        sx={{
+          width: compact ? 38 : 46,
+          height: compact ? 38 : 46,
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background:
+            'radial-gradient(circle at 30% 25%, #61e9ff 0%, #176cff 45%, #071b62 100%)',
+          border:
+            '1px solid rgba(112,220,255,0.65)',
+          boxShadow:
+            '0 0 24px rgba(45,139,255,0.35)',
+        }}
+      >
+        <PublicIcon
+          sx={{
+            fontSize: compact ? 25 : 31,
+            color: '#fff',
+          }}
+        />
+      </Box>
+
+      <Box>
+        <Typography
+          sx={{
+            fontSize: compact ? 16 : 19,
+            fontWeight: 900,
+            lineHeight: 1,
+            letterSpacing: 0.8,
+          }}
+        >
+          GLOBAL
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: compact ? 7 : 8,
+            color: '#8da9ef',
+            letterSpacing: 1.3,
+            fontWeight: 800,
+            mt: 0.4,
+          }}
+        >
+          DIGITAL MARKET
+        </Typography>
+      </Box>
+    </Stack>
+  );
+};
 
 /* ============================================================
-   FORMAT MONEY
+   MOVING MARKET TICKER
 ============================================================ */
 
-const money = (
-  value: number
-): string => {
-  return `$${Number(value || 0).toLocaleString(
-    'en-US',
-    {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }
-  )}`;
+const MarketTicker: React.FC<{
+  markets: MarketItem[];
+}> = ({ markets }) => {
+  const tickerItems = [...markets, ...markets];
+
+  return (
+    <Box
+      sx={{
+        overflow: 'hidden',
+        background:
+          'linear-gradient(90deg,#06132f,#071b42,#06132f)',
+        borderTop:
+          '1px solid rgba(91,149,255,0.12)',
+        borderBottom:
+          '1px solid rgba(91,149,255,0.12)',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          width: 'max-content',
+          animation:
+            'globalMarketTicker 32s linear infinite',
+          '@keyframes globalMarketTicker': {
+            from: {
+              transform: 'translateX(0)',
+            },
+            to: {
+              transform: 'translateX(-50%)',
+            },
+          },
+        }}
+      >
+        {tickerItems.map(
+          (market, index) => (
+            <Stack
+              key={`${market.symbol}-${index}`}
+              direction="row"
+              alignItems="center"
+              spacing={1.2}
+              sx={{
+                minWidth: {
+                  xs: 220,
+                  sm: 270,
+                },
+                px: 2.5,
+                py: 1.1,
+                borderRight:
+                  '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <Typography
+                sx={{
+                  color: '#5ce8ff',
+                  fontSize: 11,
+                  fontWeight: 900,
+                }}
+              >
+                {market.symbol}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {market.price}
+              </Typography>
+
+              <Typography
+                sx={{
+                  color: market.positive
+                    ? '#45df91'
+                    : '#ff7188',
+                  fontSize: 10,
+                  fontWeight: 900,
+                }}
+              >
+                {market.change}
+              </Typography>
+
+              {market.positive ? (
+                <TrendingUpIcon
+                  sx={{
+                    fontSize: 16,
+                    color: '#45df91',
+                  }}
+                />
+              ) : null}
+            </Stack>
+          )
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+/* ============================================================
+   MARKET CARD
+============================================================ */
+
+const MarketCard: React.FC<{
+  market: MarketItem;
+}> = ({ market }) => {
+  return (
+    <Card
+      sx={{
+        borderRadius: 2.5,
+        p: 1.7,
+        color: '#fff',
+        background:
+          'rgba(7,21,53,0.92)',
+        border:
+          '1px solid rgba(91,149,255,0.20)',
+      }}
+    >
+      <Typography
+        sx={{
+          color: '#5ce8ff',
+          fontSize: 11,
+          fontWeight: 900,
+        }}
+      >
+        {market.symbol}
+      </Typography>
+
+      <Typography
+        sx={{
+          color: '#7086bc',
+          fontSize: 9,
+          mt: 0.4,
+        }}
+      >
+        {market.name}
+      </Typography>
+
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{
+          mt: 1.2,
+        }}
+      >
+        <Typography
+          sx={{
+            fontSize: 14,
+            fontWeight: 900,
+          }}
+        >
+          {market.price}
+        </Typography>
+
+        <Typography
+          sx={{
+            color: market.positive
+              ? '#39dd91'
+              : '#ff6e85',
+            fontSize: 10,
+            fontWeight: 900,
+          }}
+        >
+          {market.change}
+        </Typography>
+      </Stack>
+    </Card>
+  );
 };
 
 /* ============================================================
@@ -277,20 +377,18 @@ const TradingChart: React.FC = () => {
       sx={{
         width: '100%',
         height: {
-          xs: 300,
-          md: 340,
+          xs: 270,
+          md: 330,
         },
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 3,
         background:
-          'linear-gradient(180deg,rgba(4,17,48,0.98),rgba(4,12,36,0.98))',
+          'linear-gradient(180deg,#041532,#020b20)',
         border:
           '1px solid rgba(105,145,230,0.15)',
       }}
     >
-      {/* GRID */}
-
       <Box
         sx={{
           position: 'absolute',
@@ -302,14 +400,12 @@ const TradingChart: React.FC = () => {
         }}
       />
 
-      {/* PRICE LABELS */}
-
       <Stack
         sx={{
           position: 'absolute',
           right: 8,
-          top: 55,
-          bottom: 38,
+          top: 35,
+          bottom: 35,
           justifyContent:
             'space-between',
           zIndex: 2,
@@ -341,14 +437,16 @@ const TradingChart: React.FC = () => {
         style={{
           position: 'absolute',
           left: 0,
-          top: 45,
-          width: 'calc(100% - 55px)',
-          height: 'calc(100% - 75px)',
+          top: 30,
+          width:
+            'calc(100% - 55px)',
+          height:
+            'calc(100% - 65px)',
         }}
       >
         <defs>
           <linearGradient
-            id="chartArea"
+            id="chartAreaHome"
             x1="0"
             y1="0"
             x2="0"
@@ -357,8 +455,9 @@ const TradingChart: React.FC = () => {
             <stop
               offset="0%"
               stopColor="#168fff"
-              stopOpacity="0.28"
+              stopOpacity="0.30"
             />
+
             <stop
               offset="100%"
               stopColor="#168fff"
@@ -369,7 +468,7 @@ const TradingChart: React.FC = () => {
 
         <polygon
           points={areaPoints}
-          fill="url(#chartArea)"
+          fill="url(#chartAreaHome)"
         />
 
         <polyline
@@ -379,30 +478,24 @@ const TradingChart: React.FC = () => {
           strokeWidth="2.5"
           vectorEffect="non-scaling-stroke"
         />
-
-        {points
-          .filter(
-            (_, index) =>
-              index % 2 === 0
-          )
-          .map(
-            ([x, y], index) => (
-              <line
-                key={index}
-                x1={x}
-                x2={x}
-                y1={y - 12}
-                y2={y + 12}
-                stroke={
-                  index % 3 === 0
-                    ? '#36d98b'
-                    : '#ff536d'
-                }
-                strokeWidth="1.5"
-              />
-            )
-          )}
       </svg>
+
+      <Box
+        sx={{
+          position: 'absolute',
+          right: 55,
+          top: '42%',
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          background: '#16a66a',
+          color: '#fff',
+          fontSize: 10,
+          fontWeight: 900,
+        }}
+      >
+        1.08472
+      </Box>
 
       <Box
         sx={{
@@ -433,213 +526,7 @@ const TradingChart: React.FC = () => {
           </Typography>
         ))}
       </Box>
-
-      <Box
-        sx={{
-          position: 'absolute',
-          right: 55,
-          top: '42%',
-          px: 1,
-          py: 0.5,
-          borderRadius: 1,
-          background: '#16a66a',
-          color: '#fff',
-          fontSize: 10,
-          fontWeight: 900,
-        }}
-      >
-        1.08472
-      </Box>
     </Box>
-  );
-};
-
-/* ============================================================
-   MARKET CARD
-============================================================ */
-
-const MarketCard: React.FC<{
-  market: MarketItem;
-}> = ({ market }) => {
-  return (
-    <Card
-      sx={{
-        minWidth: 0,
-        borderRadius: 2.5,
-        p: 1.4,
-        background:
-          'rgba(7,21,53,0.92)',
-        border:
-          '1px solid rgba(91,149,255,0.20)',
-        color: '#fff',
-      }}
-    >
-      <Typography
-        sx={{
-          fontSize: 11,
-          color: '#5ce8ff',
-          fontWeight: 900,
-        }}
-      >
-        {market.symbol}
-      </Typography>
-
-      <Typography
-        sx={{
-          fontSize: 9,
-          color: '#7086bc',
-          mt: 0.4,
-        }}
-      >
-        {market.name}
-      </Typography>
-
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="center"
-        sx={{
-          mt: 1,
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: 13,
-            fontWeight: 900,
-          }}
-        >
-          {market.price}
-        </Typography>
-
-        <Typography
-          sx={{
-            color: market.positive
-              ? '#39dd91'
-              : '#ff6e85',
-            fontSize: 10,
-            fontWeight: 900,
-          }}
-        >
-          {market.change}
-        </Typography>
-      </Stack>
-    </Card>
-  );
-};
-
-/* ============================================================
-   ACTIVITY CARD
-============================================================ */
-
-const ActivityCard: React.FC<{
-  item: ActivityItem;
-}> = ({ item }) => {
-  const isDeposit =
-    item.type === 'Deposit';
-
-  const isProfit =
-    item.type === 'Profit';
-
-  return (
-    <Card
-      sx={{
-        minWidth: {
-          xs: 220,
-          sm: 0,
-        },
-        borderRadius: 2.5,
-        p: 1.6,
-        background:
-          'rgba(7,21,53,0.82)',
-        border:
-          '1px solid rgba(91,149,255,0.17)',
-        color: '#fff',
-      }}
-    >
-      <Stack
-        direction="row"
-        spacing={1.2}
-        alignItems="center"
-      >
-        <Box
-          sx={{
-            width: 34,
-            height: 34,
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background:
-              isProfit
-                ? 'rgba(37,108,255,0.25)'
-                : isDeposit
-                ? 'rgba(38,211,132,0.20)'
-                : 'rgba(245,171,28,0.20)',
-            color:
-              isProfit
-                ? '#5c9dff'
-                : isDeposit
-                ? '#3ce18c'
-                : '#f5ad27',
-          }}
-        >
-          {isProfit ? (
-            <TrendingUpIcon
-              sx={{ fontSize: 20 }}
-            />
-          ) : isDeposit ? (
-            <TrendingUpIcon
-              sx={{ fontSize: 20 }}
-            />
-          ) : (
-            <TrendingDownIcon
-              sx={{ fontSize: 20 }}
-            />
-          )}
-        </Box>
-
-        <Box>
-          <Typography
-            sx={{
-              fontSize: 10,
-              color: '#9cb0dd',
-            }}
-          >
-            {item.type}
-          </Typography>
-
-          <Typography
-            sx={{
-              fontSize: 15,
-              fontWeight: 950,
-            }}
-          >
-            {money(item.amount)}
-          </Typography>
-        </Box>
-      </Stack>
-
-      <Typography
-        sx={{
-          color: '#6479ad',
-          fontSize: 9,
-          mt: 1.5,
-        }}
-      >
-        {item.time}
-      </Typography>
-
-      <Typography
-        sx={{
-          color: '#c5d1ef',
-          fontSize: 10,
-          mt: 0.4,
-        }}
-      >
-        {item.initials} · {item.flag}{' '}
-        {item.country}
-      </Typography>
-    </Card>
   );
 };
 
@@ -712,59 +599,58 @@ const Home: React.FC = () => {
   ] = useState(false);
 
   const [
-    activity,
-    setActivity,
-  ] = useState<ActivityItem[]>(
-    demoActivity
-  );
-
-  const [
     markets,
     setMarkets,
   ] = useState<MarketItem[]>(
     defaultMarkets
   );
 
-  const [activityNotice, setActivityNotice] =
-    useState('');
+  const [
+    marketNotice,
+    setMarketNotice,
+  ] = useState('');
 
   /* ==========================================================
-     LOAD OPTIONAL PUBLIC DATA
+     LOAD PUBLIC MARKET DATA
   ========================================================== */
 
   useEffect(() => {
     let active = true;
 
-    const loadPublicData =
-      async () => {
-        try {
-          const response =
-            await apiClient.get(
-              '/public/market-summary'
-            );
+    const loadMarkets = async () => {
+      try {
+        const response =
+          await apiClient.get(
+            '/public/market-summary'
+          );
 
-          if (!active) return;
-
-          const data =
-            response.data || {};
-
-          if (
-            Array.isArray(
-              data.markets
-            ) &&
-            data.markets.length > 0
-          ) {
-            setMarkets(
-              data.markets
-            );
-          }
-        } catch {
-          // The professionally designed
-          // default market display remains.
+        if (!active) {
+          return;
         }
-      };
 
-    loadPublicData();
+        const data =
+          response.data || {};
+
+        if (
+          Array.isArray(
+            data.markets
+          ) &&
+          data.markets.length > 0
+        ) {
+          setMarkets(
+            data.markets
+          );
+        }
+      } catch {
+        /*
+         * If the public endpoint is not
+         * available, the default market
+         * display remains visible.
+         */
+      }
+    };
+
+    loadMarkets();
 
     return () => {
       active = false;
@@ -795,38 +681,27 @@ const Home: React.FC = () => {
     navigate('/trading');
   };
 
-  /* ==========================================================
-     RANDOM ACTIVITY ANIMATION
-     
-     NOTE:
-     This does NOT claim to be real customer activity.
-     It simply cycles through the visual presentation.
-     Connect it to a real backend endpoint before calling
-     it "live".
-  ========================================================== */
+  const goSupport = () => {
+    setMobileMenu(false);
+    navigate('/support');
+  };
 
-  useEffect(() => {
-    const timer =
-      window.setInterval(() => {
-        setActivityNotice(
-          'Platform activity updated'
-        );
+  const openEmail = () => {
+    window.location.href =
+      `mailto:${SUPPORT_EMAIL}?subject=Global Digital Market Support`;
+  };
 
-        window.setTimeout(() => {
-          setActivityNotice('');
-        }, 2500);
-      }, 15000);
+  const scrollToSection = (
+    id: string
+  ) => {
+    setMobileMenu(false);
 
-    return () => {
-      window.clearInterval(
-        timer
-      );
-    };
-  }, []);
-
-  /* ==========================================================
-     MEMO
-  ========================================================== */
+    document
+      .getElementById(id)
+      ?.scrollIntoView({
+        behavior: 'smooth',
+      });
+  };
 
   const displayedMarkets =
     useMemo(
@@ -834,6 +709,27 @@ const Home: React.FC = () => {
         markets.slice(0, 4),
       [markets]
     );
+
+  /*
+   * Small status message showing
+   * that the market display can refresh.
+   */
+  useEffect(() => {
+    const timer =
+      window.setInterval(() => {
+        setMarketNotice(
+          'Market display refreshed'
+        );
+
+        window.setTimeout(() => {
+          setMarketNotice('');
+        }, 2200);
+      }, 30000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
 
   return (
     <Box
@@ -854,7 +750,7 @@ const Home: React.FC = () => {
           top: 0,
           zIndex: 100,
           background:
-            'rgba(1,7,22,0.94)',
+            'rgba(1,7,22,0.96)',
           backdropFilter:
             'blur(18px)',
           borderBottom:
@@ -864,11 +760,12 @@ const Home: React.FC = () => {
         <Container
           maxWidth="xl"
           sx={{
-            height: 68,
+            minHeight: 68,
             display: 'flex',
             alignItems: 'center',
             justifyContent:
               'space-between',
+            gap: 2,
           }}
         >
           <CompanyLogo />
@@ -877,107 +774,81 @@ const Home: React.FC = () => {
 
           <Stack
             direction="row"
-            spacing={3.2}
+            spacing={2.5}
             alignItems="center"
             sx={{
               display: {
                 xs: 'none',
-                md: 'flex',
+                lg: 'flex',
               },
             }}
           >
-            {[
-              ['Home', () => window.scrollTo({ top: 0, behavior: 'smooth' })],
-              ['Markets', goMarkets],
-              ['Trading', goTrading],
-              [
-                'About Us',
-                () =>
-                  document
-                    .getElementById(
-                      'about'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Company',
-                () =>
-                  document
-                    .getElementById(
-                      'company'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Education',
-                () =>
-                  document
-                    .getElementById(
-                      'education'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Contact',
-                () =>
-                  document
-                    .getElementById(
-                      'contact'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-            ].map(
-              ([label, action]) => (
-                <Button
-                  key={label as string}
-                  onClick={
-                    action as () => void
-                  }
-                  sx={{
-                    color:
-                      label ===
-                      'Home'
-                        ? '#fff'
-                        : '#b9c7e8',
-                    textTransform:
-                      'none',
-                    fontSize: 12,
-                    minWidth: 0,
-                    px: 0,
-                    fontWeight:
-                      label ===
-                      'Home'
-                        ? 800
-                        : 500,
-                    '&:hover': {
-                      color:
-                        '#4da9ff',
-                      background:
-                        'transparent',
-                    },
-                  }}
-                >
-                  {label as string}
-                </Button>
-              )
-            )}
+            <Button
+              onClick={() =>
+                window.scrollTo({
+                  top: 0,
+                  behavior: 'smooth',
+                })
+              }
+              sx={navButtonSx}
+            >
+              Home
+            </Button>
+
+            <Button
+              onClick={goMarkets}
+              sx={navButtonSx}
+            >
+              Markets
+            </Button>
+
+            <Button
+              onClick={goTrading}
+              sx={navButtonSx}
+            >
+              Trading
+            </Button>
+
+            <Button
+              onClick={() =>
+                scrollToSection('about')
+              }
+              sx={navButtonSx}
+            >
+              About Us
+            </Button>
+
+            <Button
+              onClick={() =>
+                scrollToSection('company')
+              }
+              sx={navButtonSx}
+            >
+              Company
+            </Button>
+
+            <Button
+              onClick={() =>
+                scrollToSection('education')
+              }
+              sx={navButtonSx}
+            >
+              Education
+            </Button>
+
+            <Button
+              onClick={() =>
+                scrollToSection('contact')
+              }
+              sx={navButtonSx}
+            >
+              Contact
+            </Button>
           </Stack>
 
           <Stack
             direction="row"
-            spacing={1.2}
+            spacing={1}
             alignItems="center"
           >
             <Button
@@ -991,10 +862,8 @@ const Home: React.FC = () => {
                 color: '#fff',
                 borderColor:
                   'rgba(255,255,255,0.35)',
-                textTransform:
-                  'none',
+                textTransform: 'none',
                 fontSize: 12,
-                px: 2,
               }}
             >
               Login
@@ -1006,13 +875,9 @@ const Home: React.FC = () => {
               sx={{
                 background:
                   'linear-gradient(135deg,#1768ff,#168fff)',
-                textTransform:
-                  'none',
+                textTransform: 'none',
                 fontWeight: 900,
                 fontSize: 12,
-                px: 2,
-                boxShadow:
-                  '0 8px 24px rgba(20,100,255,0.25)',
               }}
             >
               Open Account
@@ -1027,7 +892,7 @@ const Home: React.FC = () => {
               sx={{
                 display: {
                   xs: 'flex',
-                  md: 'none',
+                  lg: 'none',
                 },
                 color: '#fff',
               }}
@@ -1048,7 +913,7 @@ const Home: React.FC = () => {
             sx={{
               display: {
                 xs: 'block',
-                md: 'none',
+                lg: 'none',
               },
               px: 2,
               pb: 2,
@@ -1058,88 +923,86 @@ const Home: React.FC = () => {
                 '1px solid rgba(255,255,255,0.07)',
             }}
           >
-            {[
-              ['Markets', goMarkets],
-              ['Trading', goTrading],
-              [
-                'About Us',
-                () =>
-                  document
-                    .getElementById(
-                      'about'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Company',
-                () =>
-                  document
-                    .getElementById(
-                      'company'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Education',
-                () =>
-                  document
-                    .getElementById(
-                      'education'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-              [
-                'Contact',
-                () =>
-                  document
-                    .getElementById(
-                      'contact'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    }),
-              ],
-            ].map(
-              ([label, action]) => (
-                <Button
-                  key={
-                    label as string
-                  }
-                  fullWidth
-                  onClick={() => {
-                    (
-                      action as () => void
-                    )();
-                    setMobileMenu(
-                      false
-                    );
-                  }}
-                  sx={{
-                    justifyContent:
-                      'flex-start',
-                    color: '#fff',
-                    textTransform:
-                      'none',
-                    py: 1.3,
-                  }}
-                >
-                  {label as string}
-                </Button>
-              )
-            )}
+            <Button
+              fullWidth
+              onClick={() => {
+                setMobileMenu(false);
+                window.scrollTo({
+                  top: 0,
+                  behavior: 'smooth',
+                });
+              }}
+              sx={mobileNavButtonSx}
+            >
+              Home
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={goMarkets}
+              sx={mobileNavButtonSx}
+            >
+              Markets
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={goTrading}
+              sx={mobileNavButtonSx}
+            >
+              Trading
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={() =>
+                scrollToSection('about')
+              }
+              sx={mobileNavButtonSx}
+            >
+              About Us
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={() =>
+                scrollToSection('company')
+              }
+              sx={mobileNavButtonSx}
+            >
+              Company
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={() =>
+                scrollToSection('education')
+              }
+              sx={mobileNavButtonSx}
+            >
+              Education
+            </Button>
+
+            <Button
+              fullWidth
+              onClick={() =>
+                scrollToSection('contact')
+              }
+              sx={mobileNavButtonSx}
+            >
+              Contact
+            </Button>
           </Box>
         )}
       </Box>
+
+      {/* ====================================================
+          MOVING MARKET VALUE BAR
+      ==================================================== */}
+
+      <MarketTicker
+        markets={markets}
+      />
 
       {/* ====================================================
           HERO
@@ -1158,7 +1021,7 @@ const Home: React.FC = () => {
           sx={{
             py: {
               xs: 5,
-              md: 7,
+              md: 8,
             },
           }}
         >
@@ -1167,48 +1030,59 @@ const Home: React.FC = () => {
               display: 'grid',
               gridTemplateColumns: {
                 xs: '1fr',
-                lg: '0.92fr 1.08fr',
+                lg: '0.95fr 1.05fr',
               },
-              gap: {
-                xs: 4,
-                lg: 5,
-              },
+              gap: 5,
               alignItems: 'center',
             }}
           >
-            {/* LEFT */}
+            {/* LEFT HERO */}
 
             <Box>
-              <Typography
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
                 sx={{
-                  color: '#2d9dff',
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: 1.1,
                   mb: 2,
                 }}
               >
-                GLOBAL ACCESS. SMARTER
-                TRADING.
-              </Typography>
+                <Chip
+                  icon={
+                    <TrendingUpIcon />
+                  }
+                  label="GLOBAL MARKETS"
+                  size="small"
+                  sx={{
+                    color: '#67e9ff',
+                    background:
+                      'rgba(35,135,255,0.12)',
+                    border:
+                      '1px solid rgba(92,232,255,0.18)',
+                    fontWeight: 900,
+                  }}
+                />
+              </Stack>
 
               <Typography
                 component="h1"
                 sx={{
                   fontSize: {
-                    xs: 40,
-                    sm: 52,
-                    md: 62,
+                    xs: 39,
+                    sm: 51,
+                    md: 64,
                   },
-                  lineHeight: 1.03,
+                  lineHeight: 1.02,
                   fontWeight: 950,
-                  letterSpacing: -2,
-                  maxWidth: 620,
+                  letterSpacing: -2.3,
+                  maxWidth: 650,
                 }}
               >
-                Trade Global Markets
+                A Broker Built
                 <br />
-                Invest in Your Future
+                for Traders
+                <br />
+                and Investors
               </Typography>
 
               <Typography
@@ -1219,18 +1093,64 @@ const Home: React.FC = () => {
                     xs: 14,
                     md: 15,
                   },
-                  lineHeight: 1.8,
-                  maxWidth: 570,
+                  lineHeight: 1.85,
+                  maxWidth: 610,
                 }}
               >
-                Global Digital Market is
-                designed to provide a
-                modern environment for
-                accessing financial
-                markets, monitoring
-                positions and managing
-                your trading account.
+                GlobalDigitalMarket.online
+                provides access to global
+                financial markets through
+                contracts for difference
+                (CFDs) on forex, indices,
+                commodities and shares.
               </Typography>
+
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  color: '#b4c0dc',
+                  fontSize: {
+                    xs: 14,
+                    md: 15,
+                  },
+                  lineHeight: 1.85,
+                  maxWidth: 610,
+                }}
+              >
+                We exist to give traders a
+                transparent,
+                technology-driven
+                environment where pricing
+                is clear, execution is
+                reliable and support is
+                genuinely responsive — so
+                you can focus on the markets,
+                not the mechanics of your
+                broker.
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 1.5,
+                  color: '#b4c0dc',
+                  fontSize: {
+                    xs: 14,
+                    md: 15,
+                  },
+                  lineHeight: 1.85,
+                  maxWidth: 610,
+                }}
+              >
+                We are committed to long-term
+                relationships, not one-off
+                trades. That means investing
+                in the infrastructure,
+                education and service that
+                help clients trade with
+                confidence over time.
+              </Typography>
+
+              {/* HERO BUTTONS */}
 
               <Stack
                 direction={{
@@ -1240,10 +1160,6 @@ const Home: React.FC = () => {
                 spacing={1.5}
                 sx={{
                   mt: 3,
-                  width: {
-                    xs: '100%',
-                    sm: 'auto',
-                  },
                 }}
               >
                 <Button
@@ -1256,13 +1172,10 @@ const Home: React.FC = () => {
                     background:
                       'linear-gradient(135deg,#1768ff,#168fff)',
                     color: '#fff',
-                    textTransform:
-                      'none',
+                    textTransform: 'none',
                     fontWeight: 900,
-                    py: 1.35,
+                    py: 1.45,
                     px: 2.8,
-                    boxShadow:
-                      '0 12px 35px rgba(20,100,255,0.28)',
                   }}
                 >
                   Open Live Account
@@ -1278,10 +1191,9 @@ const Home: React.FC = () => {
                     color: '#fff',
                     borderColor:
                       'rgba(255,255,255,0.35)',
-                    textTransform:
-                      'none',
+                    textTransform: 'none',
                     fontWeight: 800,
-                    py: 1.35,
+                    py: 1.45,
                     px: 2.8,
                   }}
                 >
@@ -1314,65 +1226,9 @@ const Home: React.FC = () => {
                   infrastructure
                 </Typography>
               </Stack>
-
-              {/* HERO STATS */}
-
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(4,1fr)',
-                  gap: 0,
-                  mt: 4,
-                  maxWidth: 620,
-                }}
-              >
-                {[
-                  ['100K+', 'Active Accounts'],
-                  ['150+', 'Market Instruments'],
-                  ['24/7', 'Platform Access'],
-                  ['99.9%', 'Platform Reliability'],
-                ].map(
-                  ([value, label]) => (
-                    <Box
-                      key={label}
-                      sx={{
-                        pl: 1.5,
-                        borderLeft:
-                          '1px solid rgba(104,145,225,0.18)',
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          color:
-                            '#168cff',
-                          fontSize: {
-                            xs: 18,
-                            md: 22,
-                          },
-                          fontWeight: 950,
-                        }}
-                      >
-                        {value}
-                      </Typography>
-
-                      <Typography
-                        sx={{
-                          color:
-                            '#7d90ba',
-                          fontSize: 8,
-                          mt: 0.5,
-                        }}
-                      >
-                        {label}
-                      </Typography>
-                    </Box>
-                  )
-                )}
-              </Box>
             </Box>
 
-            {/* RIGHT TRADING TERMINAL */}
+            {/* RIGHT MARKET TERMINAL */}
 
             <Box>
               <Card
@@ -1389,11 +1245,11 @@ const Home: React.FC = () => {
               >
                 <Stack
                   direction="row"
-                  alignItems="center"
                   justifyContent="space-between"
+                  alignItems="center"
                   sx={{
                     px: 1,
-                    py: 0.8,
+                    py: 1,
                   }}
                 >
                   <Stack
@@ -1403,23 +1259,19 @@ const Home: React.FC = () => {
                   >
                     <Box
                       sx={{
-                        width: 32,
-                        height: 32,
+                        width: 36,
+                        height: 36,
                         borderRadius: 2,
-                        display:
-                          'flex',
-                        alignItems:
-                          'center',
-                        justifyContent:
-                          'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                         background:
                           'rgba(255,255,255,0.06)',
                       }}
                     >
                       <CandlestickChartIcon
                         sx={{
-                          color:
-                            '#7ea9ff',
+                          color: '#7ea9ff',
                         }}
                       />
                     </Box>
@@ -1437,25 +1289,22 @@ const Home: React.FC = () => {
                       <Typography
                         sx={{
                           fontSize: 9,
-                          color:
-                            '#6f83ae',
+                          color: '#6f83ae',
                         }}
                       >
-                        Euro / U.S.
-                        Dollar
+                        Euro / U.S. Dollar
                       </Typography>
                     </Box>
                   </Stack>
 
                   <Box
                     sx={{
-                      textAlign:
-                        'right',
+                      textAlign: 'right',
                     }}
                   >
                     <Typography
                       sx={{
-                        fontSize: 17,
+                        fontSize: 19,
                         fontWeight: 950,
                       }}
                     >
@@ -1464,27 +1313,23 @@ const Home: React.FC = () => {
 
                     <Typography
                       sx={{
-                        color:
-                          '#39db8c',
-                        fontSize: 9,
+                        color: '#39db8c',
+                        fontSize: 10,
                         fontWeight: 800,
                       }}
                     >
-                      +0.00321
-                      {' '}
-                      (+0.30%)
+                      +0.00321 (+0.30%)
                     </Typography>
                   </Box>
                 </Stack>
 
                 <Stack
                   direction="row"
-                  spacing={0.6}
+                  spacing={0.5}
                   sx={{
                     px: 1,
                     py: 1,
-                    overflowX:
-                      'auto',
+                    overflowX: 'auto',
                   }}
                 >
                   {[
@@ -1494,46 +1339,27 @@ const Home: React.FC = () => {
                     '1h',
                     '4h',
                     '1D',
-                  ].map(
-                    (period) => (
-                      <Button
-                        key={period}
-                        size="small"
-                        sx={{
-                          minWidth: 38,
-                          color:
-                            period ===
-                            '5m'
-                              ? '#fff'
-                              : '#7890bf',
-                          background:
-                            period ===
-                            '5m'
-                              ? 'rgba(56,116,255,0.25)'
-                              : 'transparent',
-                          fontSize: 9,
-                          textTransform:
-                            'none',
-                          borderRadius: 1,
-                        }}
-                      >
-                        {period}
-                      </Button>
-                    )
-                  )}
-
-                  <Button
-                    size="small"
-                    sx={{
-                      color:
-                        '#7890bf',
-                      fontSize: 9,
-                      textTransform:
-                        'none',
-                    }}
-                  >
-                    + Indicators
-                  </Button>
+                  ].map((period) => (
+                    <Button
+                      key={period}
+                      size="small"
+                      sx={{
+                        minWidth: 38,
+                        color:
+                          period === '5m'
+                            ? '#fff'
+                            : '#7890bf',
+                        background:
+                          period === '5m'
+                            ? 'rgba(56,116,255,0.25)'
+                            : 'transparent',
+                        fontSize: 9,
+                        textTransform: 'none',
+                      }}
+                    >
+                      {period}
+                    </Button>
+                  ))}
                 </Stack>
 
                 <TradingChart />
@@ -1541,8 +1367,10 @@ const Home: React.FC = () => {
                 <Box
                   sx={{
                     display: 'grid',
-                    gridTemplateColumns:
-                      'repeat(4,1fr)',
+                    gridTemplateColumns: {
+                      xs: 'repeat(2,1fr)',
+                      sm: 'repeat(4,1fr)',
+                    },
                     gap: 1,
                     mt: 1,
                   }}
@@ -1553,9 +1381,7 @@ const Home: React.FC = () => {
                         key={
                           market.symbol
                         }
-                        market={
-                          market
-                        }
+                        market={market}
                       />
                     )
                   )}
@@ -1567,14 +1393,42 @@ const Home: React.FC = () => {
       </Box>
 
       {/* ====================================================
-          GLOBAL ACTIVITY
+          MARKET STATUS
+      ==================================================== */}
+
+      {marketNotice && (
+        <Container
+          maxWidth="xl"
+          sx={{
+            mt: 2,
+          }}
+        >
+          <Alert
+            severity="info"
+            sx={{
+              background:
+                'rgba(22,120,255,0.08)',
+              color: '#a9c4ff',
+            }}
+          >
+            {marketNotice}
+          </Alert>
+        </Container>
+      )}
+
+      {/* ====================================================
+          SUPPORT STRIP
       ==================================================== */}
 
       <Box
         sx={{
           background:
-            '#031027',
+            'linear-gradient(135deg,#06204d,#071b42)',
           py: 2.5,
+          borderTop:
+            '1px solid rgba(100,150,255,0.12)',
+          borderBottom:
+            '1px solid rgba(100,150,255,0.12)',
         }}
       >
         <Container maxWidth="xl">
@@ -1583,161 +1437,106 @@ const Home: React.FC = () => {
               xs: 'column',
               md: 'row',
             }}
-            justifyContent="space-between"
             alignItems={{
               xs: 'flex-start',
               md: 'center',
             }}
+            justifyContent="space-between"
             spacing={2}
-            sx={{
-              mb: 1.8,
-            }}
           >
             <Stack
               direction="row"
-              spacing={1}
+              spacing={1.5}
               alignItems="center"
             >
               <Box
                 sx={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
+                  width: 46,
+                  height: 46,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                   background:
-                    '#36dc89',
-                  boxShadow:
-                    '0 0 12px rgba(54,220,137,0.8)',
-                }}
-              />
-
-              <Typography
-                sx={{
-                  fontSize: 11,
-                  fontWeight: 900,
-                  letterSpacing: 0.6,
+                    'rgba(92,232,255,0.10)',
                 }}
               >
-                GLOBAL PLATFORM
-                ACTIVITY
-              </Typography>
-            </Stack>
-
-            <Typography
-              sx={{
-                color: '#748ab9',
-                fontSize: 10,
-              }}
-            >
-              Recent activity display
-              • connect to verified
-              backend data for live
-              reporting
-            </Typography>
-          </Stack>
-
-          {activityNotice && (
-            <Alert
-              severity="info"
-              sx={{
-                mb: 2,
-                py: 0,
-                background:
-                  'rgba(22,120,255,0.08)',
-                color: '#a9c4ff',
-              }}
-            >
-              {activityNotice}
-            </Alert>
-          )}
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'repeat(5, minmax(220px, 1fr))',
-                md: 'repeat(5, 1fr)',
-              },
-              gap: 1.5,
-              overflowX: {
-                xs: 'auto',
-                md: 'visible',
-              },
-              pb: {
-                xs: 1,
-                md: 0,
-              },
-            }}
-          >
-            {activity.map(
-              (item) => (
-                <ActivityCard
-                  key={item.id}
-                  item={item}
-                />
-              )
-            )}
-          </Box>
-        </Container>
-      </Box>
-
-      {/* ====================================================
-          PARTNERS / TECHNOLOGY
-      ==================================================== */}
-
-      <Box
-        sx={{
-          py: 2.2,
-          background:
-            '#061532',
-          borderTop:
-            '1px solid rgba(100,145,230,0.10)',
-          borderBottom:
-            '1px solid rgba(100,145,230,0.10)',
-        }}
-      >
-        <Container maxWidth="xl">
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: 'repeat(2,1fr)',
-                sm: 'repeat(3,1fr)',
-                md: 'repeat(6,1fr)',
-              },
-              gap: 1,
-            }}
-          >
-            {[
-              'TradingView',
-              'Market Data',
-              'Dow Jones',
-              'pricefeed',
-              'cTrader',
-              'PrimeXM',
-            ].map(
-              (name) => (
-                <Box
-                  key={name}
+                <SupportAgentIcon
                   sx={{
-                    py: 1.3,
-                    textAlign:
-                      'center',
-                    color:
-                      '#9bacce',
+                    color: '#5ce8ff',
+                  }}
+                />
+              </Box>
+
+              <Box>
+                <Typography
+                  sx={{
+                    fontSize: 16,
                     fontWeight: 900,
-                    fontSize: {
-                      xs: 10,
-                      md: 13,
-                    },
-                    borderRight:
-                      '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
-                  {name}
-                </Box>
-              )
-            )}
-          </Box>
+                  Need Help?
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color: '#8298c9',
+                    fontSize: 11,
+                  }}
+                >
+                  Our support team is here to
+                  help with your account.
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack
+              direction={{
+                xs: 'column',
+                sm: 'row',
+              }}
+              spacing={1}
+              sx={{
+                width: {
+                  xs: '100%',
+                  sm: 'auto',
+                },
+              }}
+            >
+              <Button
+                onClick={goSupport}
+                variant="contained"
+                startIcon={
+                  <SupportAgentIcon />
+                }
+                sx={{
+                  background:
+                    'linear-gradient(135deg,#1768ff,#168fff)',
+                  textTransform: 'none',
+                  fontWeight: 900,
+                }}
+              >
+                Live Chat Support
+              </Button>
+
+              <Button
+                onClick={openEmail}
+                variant="outlined"
+                startIcon={
+                  <EmailOutlinedIcon />
+                }
+                sx={{
+                  color: '#fff',
+                  borderColor:
+                    'rgba(255,255,255,0.30)',
+                  textTransform: 'none',
+                  fontWeight: 800,
+                }}
+              >
+                Email Support
+              </Button>
+            </Stack>
+          </Stack>
         </Container>
       </Box>
 
@@ -1766,15 +1565,12 @@ const Home: React.FC = () => {
                 sm: 'repeat(2,1fr)',
                 md: 'repeat(5,1fr)',
               },
-              gap: 0,
             }}
           >
             <Benefit
               icon={
                 <SecurityIcon
-                  sx={{
-                    fontSize: 31,
-                  }}
+                  sx={{ fontSize: 31 }}
                 />
               }
               title="Secure Platform"
@@ -1784,9 +1580,7 @@ const Home: React.FC = () => {
             <Benefit
               icon={
                 <SpeedIcon
-                  sx={{
-                    fontSize: 31,
-                  }}
+                  sx={{ fontSize: 31 }}
                 />
               }
               title="Fast Execution"
@@ -1796,9 +1590,7 @@ const Home: React.FC = () => {
             <Benefit
               icon={
                 <PublicIcon
-                  sx={{
-                    fontSize: 31,
-                  }}
+                  sx={{ fontSize: 31 }}
                 />
               }
               title="Global Markets"
@@ -1808,21 +1600,17 @@ const Home: React.FC = () => {
             <Benefit
               icon={
                 <SupportAgentIcon
-                  sx={{
-                    fontSize: 31,
-                  }}
+                  sx={{ fontSize: 31 }}
                 />
               }
-              title="Customer Support"
-              text="Support resources are available to help with your account."
+              title="Responsive Support"
+              text="Get assistance through live chat and email support."
             />
 
             <Benefit
               icon={
                 <SchoolOutlinedIcon
-                  sx={{
-                    fontSize: 31,
-                  }}
+                  sx={{ fontSize: 31 }}
                 />
               }
               title="Education"
@@ -1833,7 +1621,7 @@ const Home: React.FC = () => {
       </Box>
 
       {/* ====================================================
-          COMPANY PROFILE
+          ABOUT US
       ==================================================== */}
 
       <Box
@@ -1852,276 +1640,129 @@ const Home: React.FC = () => {
             },
           }}
         >
-          <Box
+          <Typography
             sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                md: '0.8fr 1.2fr',
-              },
-              gap: 4,
-              alignItems: 'stretch',
+              color: '#168cff',
+              fontSize: 10,
+              fontWeight: 900,
+              letterSpacing: 1,
             }}
           >
-            <Box
+            ABOUT GLOBAL DIGITAL MARKET
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: {
+                xs: 30,
+                md: 42,
+              },
+              lineHeight: 1.1,
+              fontWeight: 950,
+              mt: 1.5,
+              maxWidth: 750,
+            }}
+          >
+            Built for traders and
+            investors who expect more.
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#9eafd1',
+              fontSize: 14,
+              lineHeight: 1.9,
+              mt: 2,
+              maxWidth: 760,
+            }}
+          >
+            GlobalDigitalMarket.online
+            provides access to global
+            financial markets through
+            contracts for difference
+            (CFDs) on forex, indices,
+            commodities and shares.
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#9eafd1',
+              fontSize: 14,
+              lineHeight: 1.9,
+              mt: 1.5,
+              maxWidth: 760,
+            }}
+          >
+            We exist to give traders a
+            transparent,
+            technology-driven environment
+            where pricing is clear,
+            execution is reliable and
+            support is genuinely
+            responsive.
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#9eafd1',
+              fontSize: 14,
+              lineHeight: 1.9,
+              mt: 1.5,
+              maxWidth: 760,
+            }}
+          >
+            We are committed to long-term
+            relationships, not one-off
+            trades. That means investing
+            in infrastructure, education
+            and service that help clients
+            trade with confidence over
+            time.
+          </Typography>
+
+          <Stack
+            direction={{
+              xs: 'column',
+              sm: 'row',
+            }}
+            spacing={1.5}
+            sx={{
+              mt: 3,
+            }}
+          >
+            <Button
+              onClick={goRegister}
+              variant="contained"
+              endIcon={
+                <ArrowForwardIcon />
+              }
               sx={{
-                display: 'flex',
-                flexDirection:
-                  'column',
-                justifyContent:
-                  'center',
-              }}
-            >
-              <Typography
-                sx={{
-                  color: '#168cff',
-                  fontSize: 10,
-                  fontWeight: 900,
-                  letterSpacing: 1,
-                }}
-              >
-                ABOUT GLOBAL DIGITAL
-                MARKET
-              </Typography>
-
-              <Typography
-                sx={{
-                  fontSize: {
-                    xs: 30,
-                    md: 40,
-                  },
-                  lineHeight: 1.1,
-                  fontWeight: 950,
-                  mt: 1.5,
-                }}
-              >
-                Empowering Traders
-                <br />
-                Worldwide
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#9eafd1',
-                  fontSize: 13,
-                  lineHeight: 1.8,
-                  mt: 2,
-                  maxWidth: 540,
-                }}
-              >
-                Global Digital Market is
-                a digital financial
-                platform focused on
-                providing a professional
-                environment for market
-                access, account
-                management and trading
-                technology.
-              </Typography>
-
-              <Typography
-                sx={{
-                  color: '#9eafd1',
-                  fontSize: 13,
-                  lineHeight: 1.8,
-                  mt: 1.5,
-                  maxWidth: 540,
-                }}
-              >
-                Our platform brings
-                together market
-                information, portfolio
-                tools and account
-                services in one
-                streamlined experience
-                designed for users
-                around the world.
-              </Typography>
-
-              <Button
-                onClick={() =>
-                  document
-                    .getElementById(
-                      'company'
-                    )
-                    ?.scrollIntoView({
-                      behavior:
-                        'smooth',
-                    })
-                }
-                endIcon={
-                  <ArrowForwardIcon />
-                }
-                sx={{
-                  alignSelf:
-                    'flex-start',
-                  mt: 2.5,
-                  color: '#fff',
-                  background:
-                    'linear-gradient(135deg,#1768ff,#168fff)',
-                  textTransform:
-                    'none',
-                  fontWeight: 900,
-                  px: 2.5,
-                }}
-              >
-                Learn More About Us
-              </Button>
-            </Box>
-
-            {/* GLOBAL VISUAL */}
-
-            <Box
-              sx={{
-                minHeight: {
-                  xs: 300,
-                  md: 420,
-                },
-                borderRadius: 4,
-                overflow: 'hidden',
-                position: 'relative',
                 background:
-                  'radial-gradient(circle at 50% 45%,rgba(24,129,255,0.35),transparent 28%), linear-gradient(135deg,#051b43,#020817)',
-                border:
-                  '1px solid rgba(71,146,255,0.18)',
+                  'linear-gradient(135deg,#1768ff,#168fff)',
+                textTransform: 'none',
+                fontWeight: 900,
               }}
             >
-              {/* WORLD GRID */}
+              Open an Account
+            </Button>
 
-              <Box
-                sx={{
-                  position:
-                    'absolute',
-                  inset: 0,
-                  opacity: 0.55,
-                  backgroundImage:
-                    'radial-gradient(circle,rgba(69,151,255,0.45) 1px,transparent 1px)',
-                  backgroundSize:
-                    '18px 18px',
-                  maskImage:
-                    'radial-gradient(ellipse at center,black 15%,transparent 70%)',
-                }}
-              />
-
-              <Box
-                sx={{
-                  position:
-                    'absolute',
-                  width: 300,
-                  height: 300,
-                  borderRadius:
-                    '50%',
-                  left: '50%',
-                  top: '50%',
-                  transform:
-                    'translate(-50%,-50%)',
-                  border:
-                    '1px solid rgba(56,156,255,0.35)',
-                  boxShadow:
-                    'inset 0 0 80px rgba(20,105,255,0.20), 0 0 80px rgba(20,105,255,0.12)',
-                }}
-              />
-
-              {[
-                [
-                  'London',
-                  '18%',
-                  '20%',
-                ],
-                [
-                  'New York',
-                  '13%',
-                  '48%',
-                ],
-                [
-                  'Dubai',
-                  '57%',
-                  '32%',
-                ],
-                [
-                  'Singapore',
-                  '72%',
-                  '62%',
-                ],
-                [
-                  'Sydney',
-                  '79%',
-                  '78%',
-                ],
-              ].map(
-                ([city, left, top]) => (
-                  <Box
-                    key={city}
-                    sx={{
-                      position:
-                        'absolute',
-                      left,
-                      top,
-                      display:
-                        'flex',
-                      alignItems:
-                        'center',
-                      gap: 0.7,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 9,
-                        height: 9,
-                        borderRadius:
-                          '50%',
-                        background:
-                          '#238dff',
-                        boxShadow:
-                          '0 0 12px rgba(35,141,255,0.9)',
-                      }}
-                    />
-
-                    <Typography
-                      sx={{
-                        fontSize: 9,
-                        color:
-                          '#d0e1ff',
-                        fontWeight: 800,
-                      }}
-                    >
-                      {city}
-                    </Typography>
-                  </Box>
-                )
-              )}
-
-              <Stack
-                sx={{
-                  position:
-                    'absolute',
-                  bottom: 22,
-                  left: 22,
-                }}
-              >
-                <Typography
-                  sx={{
-                    color:
-                      '#6f8bc6',
-                    fontSize: 9,
-                    letterSpacing: 1,
-                  }}
-                >
-                  GLOBAL NETWORK
-                </Typography>
-
-                <Typography
-                  sx={{
-                    fontSize: 22,
-                    fontWeight: 950,
-                    mt: 0.4,
-                  }}
-                >
-                  Connected Markets
-                </Typography>
-              </Stack>
-            </Box>
-          </Box>
+            <Button
+              onClick={goSupport}
+              variant="outlined"
+              startIcon={
+                <SupportAgentIcon />
+              }
+              sx={{
+                color: '#fff',
+                borderColor:
+                  'rgba(255,255,255,0.30)',
+                textTransform: 'none',
+                fontWeight: 800,
+              }}
+            >
+              Contact Support
+            </Button>
+          </Stack>
         </Container>
       </Box>
 
@@ -2166,8 +1807,8 @@ const Home: React.FC = () => {
               mt: 1,
             }}
           >
-            Built around transparency,
-            technology and access
+            Transparency,
+            technology and access.
           </Typography>
 
           <Box
@@ -2181,217 +1822,139 @@ const Home: React.FC = () => {
               mt: 3,
             }}
           >
-            {[
-              {
-                icon: (
-                  <BusinessIcon />
-                ),
-                title:
-                  'Our Mission',
-                text:
-                  'To create a professional digital environment where users can access market information and manage their trading activities.',
-              },
-              {
-                icon: (
-                  <LanguageIcon />
-                ),
-                title:
-                  'Global Reach',
-                text:
-                  'Our platform is designed with international users in mind, bringing global markets and digital financial tools together.',
-              },
-              {
-                icon: (
-                  <AccountBalanceIcon />
-                ),
-                title:
-                  'Professional Infrastructure',
-                text:
-                  'We focus on dependable platform architecture, account management tools and a clear user experience.',
-              },
-            ].map(
-              (item) => (
-                <Card
-                  key={item.title}
-                  sx={{
-                    p: 2.5,
-                    borderRadius: 3,
-                    background:
-                      '#f7f9fd',
-                    border:
-                      '1px solid #e3e8f2',
-                    boxShadow:
-                      'none',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      color:
-                        '#1269ff',
-                      mb: 1.5,
-                    }}
-                  >
-                    {item.icon}
-                  </Box>
+            <CompanyCard
+              icon={<BusinessIcon />}
+              title="Our Mission"
+              text="To provide a professional environment where traders and investors can access market information and manage their trading activities."
+            />
 
-                  <Typography
-                    sx={{
-                      fontSize: 17,
-                      fontWeight: 950,
-                    }}
-                  >
-                    {item.title}
-                  </Typography>
+            <CompanyCard
+              icon={<LanguageIcon />}
+              title="Global Access"
+              text="Our platform is designed for users who want access to global financial markets through modern digital technology."
+            />
 
-                  <Typography
-                    sx={{
-                      color:
-                        '#68758e',
-                      fontSize: 12,
-                      lineHeight: 1.7,
-                      mt: 1,
-                    }}
-                  >
-                    {item.text}
-                  </Typography>
-                </Card>
-              )
-            )}
+            <CompanyCard
+              icon={<AccountBalanceWalletIcon />}
+              title="Long-Term Service"
+              text="We focus on infrastructure, education and responsive support designed around lasting client relationships."
+            />
           </Box>
         </Container>
       </Box>
 
       {/* ====================================================
-          CTA
+          SUPPORT
       ==================================================== */}
 
       <Box
         sx={{
           background:
             'linear-gradient(135deg,#062b6b,#084bb3,#061c4c)',
-          borderTop:
-            '1px solid rgba(91,169,255,0.25)',
-          borderBottom:
-            '1px solid rgba(91,169,255,0.25)',
+          py: {
+            xs: 5,
+            md: 6,
+          },
         }}
       >
-        <Container
-          maxWidth="xl"
-          sx={{
-            py: {
-              xs: 4,
-              md: 5,
-            },
-          }}
-        >
-          <Stack
-            direction={{
-              xs: 'column',
-              md: 'row',
+        <Container maxWidth="md">
+          <Box
+            sx={{
+              textAlign: 'center',
             }}
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={3}
           >
-            <Stack
-              direction="row"
-              spacing={2}
-              alignItems="center"
+            <SupportAgentIcon
+              sx={{
+                fontSize: 48,
+                color: '#5ce8ff',
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: {
+                  xs: 28,
+                  md: 38,
+                },
+                fontWeight: 950,
+                mt: 1,
+              }}
             >
-              <Box
-                sx={{
-                  width: 58,
-                  height: 58,
-                  borderRadius:
-                    '50%',
-                  display: 'flex',
-                  alignItems:
-                    'center',
-                  justifyContent:
-                    'center',
-                  background:
-                    'rgba(255,255,255,0.10)',
-                  border:
-                    '1px solid rgba(255,255,255,0.25)',
-                }}
-              >
-                <TrendingUpIcon
-                  sx={{
-                    fontSize: 30,
-                  }}
-                />
-              </Box>
+              We're Here to Help
+            </Typography>
 
-              <Box>
-                <Typography
-                  sx={{
-                    fontSize: {
-                      xs: 21,
-                      md: 25,
-                    },
-                    fontWeight: 950,
-                  }}
-                >
-                  Ready to Start Your
-                  Trading Journey?
-                </Typography>
+            <Typography
+              sx={{
+                color: '#b7cdf8',
+                fontSize: 14,
+                lineHeight: 1.8,
+                mt: 1.5,
+              }}
+            >
+              Have a question about your
+              account, trading or the
+              platform? Contact our support
+              team.
+            </Typography>
 
-                <Typography
-                  sx={{
-                    color:
-                      '#aec9f8',
-                    fontSize: 12,
-                    mt: 0.5,
-                  }}
-                >
-                  Create your account and
-                  explore the Global Digital
-                  Market platform.
-                </Typography>
-              </Box>
-            </Stack>
+            <Typography
+              sx={{
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 800,
+                mt: 2,
+              }}
+            >
+              {SUPPORT_EMAIL}
+            </Typography>
 
             <Stack
               direction={{
                 xs: 'column',
                 sm: 'row',
               }}
-              spacing={1.2}
+              justifyContent="center"
+              spacing={1.5}
+              sx={{
+                mt: 3,
+              }}
             >
               <Button
-                onClick={goRegister}
+                onClick={goSupport}
                 variant="contained"
+                startIcon={
+                  <SupportAgentIcon />
+                }
                 sx={{
-                  background:
-                    '#fff',
-                  color:
-                    '#0750b9',
-                  textTransform:
-                    'none',
+                  background: '#fff',
+                  color: '#0750b9',
+                  textTransform: 'none',
                   fontWeight: 950,
                   px: 3,
                 }}
               >
-                Open Account
+                Start Live Chat
               </Button>
 
               <Button
-                onClick={goLogin}
+                onClick={openEmail}
                 variant="outlined"
+                startIcon={
+                  <EmailOutlinedIcon />
+                }
                 sx={{
                   color: '#fff',
                   borderColor:
                     'rgba(255,255,255,0.45)',
-                  textTransform:
-                    'none',
-                  fontWeight: 800,
+                  textTransform: 'none',
+                  fontWeight: 900,
                   px: 3,
                 }}
               >
-                Login
+                Email Support
               </Button>
             </Stack>
-          </Stack>
+          </Box>
         </Container>
       </Box>
 
@@ -2402,28 +1965,23 @@ const Home: React.FC = () => {
       <Box
         id="contact"
         sx={{
-          background:
-            '#020817',
+          background: '#020817',
           pt: 5,
           pb: 2,
         }}
       >
-        <Container
-          maxWidth="xl"
-        >
+        <Container maxWidth="xl">
           <Box
             sx={{
               display: 'grid',
               gridTemplateColumns: {
                 xs: '1fr',
                 sm: '1.5fr repeat(2,1fr)',
-                md: '1.5fr repeat(4,1fr)',
+                md: '1.5fr repeat(3,1fr)',
               },
               gap: 4,
             }}
           >
-            {/* BRAND */}
-
             <Box>
               <CompanyLogo />
 
@@ -2433,126 +1991,39 @@ const Home: React.FC = () => {
                   fontSize: 11,
                   lineHeight: 1.8,
                   mt: 2,
-                  maxWidth: 300,
+                  maxWidth: 330,
                 }}
               >
-                Global Digital Market provides
-                a modern digital platform for
-                market access, trading tools,
-                account management and
-                financial education.
+                GlobalDigitalMarket.online
+                provides access to global
+                financial markets through a
+                modern technology-driven
+                environment for traders and
+                investors.
               </Typography>
             </Box>
 
-            {/* MARKETS */}
-
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  mb: 1.5,
-                }}
-              >
-                Markets
-              </Typography>
-
-              {[
+            <FooterColumn
+              title="Markets"
+              items={[
                 'Forex',
                 'Commodities',
                 'Indices',
-                'Stocks',
-                'Digital Assets',
-              ].map(
-                (item) => (
-                  <Typography
-                    key={item}
-                    sx={{
-                      color:
-                        '#7284aa',
-                      fontSize: 10,
-                      mb: 1,
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                )
-              )}
-            </Box>
+                'Shares',
+                'CFDs',
+              ]}
+            />
 
-            {/* TRADING */}
-
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  mb: 1.5,
-                }}
-              >
-                Trading
-              </Typography>
-
-              {[
-                'Platform Overview',
-                'Account Types',
-                'Spreads & Fees',
+            <FooterColumn
+              title="Trading"
+              items={[
+                'Trading Platform',
+                'Market Information',
                 'Trading Tools',
-                'Market Analysis',
-              ].map(
-                (item) => (
-                  <Typography
-                    key={item}
-                    sx={{
-                      color:
-                        '#7284aa',
-                      fontSize: 10,
-                      mb: 1,
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                )
-              )}
-            </Box>
-
-            {/* COMPANY */}
-
-            <Box>
-              <Typography
-                sx={{
-                  fontSize: 12,
-                  fontWeight: 900,
-                  mb: 1.5,
-                }}
-              >
-                Company
-              </Typography>
-
-              {[
-                'About Us',
-                'Our Mission',
-                'Partnerships',
-                'Careers',
-                'News',
-              ].map(
-                (item) => (
-                  <Typography
-                    key={item}
-                    sx={{
-                      color:
-                        '#7284aa',
-                      fontSize: 10,
-                      mb: 1,
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                )
-              )}
-            </Box>
-
-            {/* SUPPORT */}
+                'Account Management',
+                'Risk Management',
+              ]}
+            />
 
             <Box>
               <Typography
@@ -2565,27 +2036,37 @@ const Home: React.FC = () => {
                 Support
               </Typography>
 
-              {[
-                'Help Center',
-                'Contact Us',
-                'Account Support',
-                'Deposit & Withdrawal',
-                'FAQ',
-              ].map(
-                (item) => (
-                  <Typography
-                    key={item}
-                    sx={{
-                      color:
-                        '#7284aa',
-                      fontSize: 10,
-                      mb: 1,
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                )
-              )}
+              <Button
+                onClick={goSupport}
+                startIcon={
+                  <SupportAgentIcon />
+                }
+                sx={footerButtonSx}
+              >
+                Live Chat Support
+              </Button>
+
+              <Button
+                onClick={openEmail}
+                startIcon={
+                  <EmailOutlinedIcon />
+                }
+                sx={footerButtonSx}
+              >
+                Email Support
+              </Button>
+
+              <Typography
+                sx={{
+                  color: '#7284aa',
+                  fontSize: 10,
+                  mt: 1,
+                  wordBreak:
+                    'break-word',
+                }}
+              >
+                {SUPPORT_EMAIL}
+              </Typography>
             </Box>
           </Box>
 
@@ -2616,30 +2097,14 @@ const Home: React.FC = () => {
               rights reserved.
             </Typography>
 
-            <Stack
-              direction="row"
-              spacing={2}
+            <Typography
+              sx={{
+                color: '#596b92',
+                fontSize: 9,
+              }}
             >
-              {[
-                'Terms & Conditions',
-                'Privacy Policy',
-                'Risk Disclosure',
-                'AML Policy',
-              ].map(
-                (item) => (
-                  <Typography
-                    key={item}
-                    sx={{
-                      color:
-                        '#596b92',
-                      fontSize: 9,
-                    }}
-                  >
-                    {item}
-                  </Typography>
-                )
-              )}
-            </Stack>
+              GlobalDigitalMarket.online
+            </Typography>
 
             <Typography
               sx={{
@@ -2654,6 +2119,139 @@ const Home: React.FC = () => {
       </Box>
     </Box>
   );
+};
+
+/* ============================================================
+   COMPANY CARD
+============================================================ */
+
+const CompanyCard: React.FC<{
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}> = ({
+  icon,
+  title,
+  text,
+}) => {
+  return (
+    <Card
+      sx={{
+        p: 2.5,
+        borderRadius: 3,
+        background: '#f7f9fd',
+        border:
+          '1px solid #e3e8f2',
+        boxShadow: 'none',
+      }}
+    >
+      <Box
+        sx={{
+          color: '#1269ff',
+          mb: 1.5,
+        }}
+      >
+        {icon}
+      </Box>
+
+      <Typography
+        sx={{
+          fontSize: 17,
+          fontWeight: 950,
+        }}
+      >
+        {title}
+      </Typography>
+
+      <Typography
+        sx={{
+          color: '#68758e',
+          fontSize: 12,
+          lineHeight: 1.7,
+          mt: 1,
+        }}
+      >
+        {text}
+      </Typography>
+    </Card>
+  );
+};
+
+/* ============================================================
+   FOOTER COLUMN
+============================================================ */
+
+const FooterColumn: React.FC<{
+  title: string;
+  items: string[];
+}> = ({
+  title,
+  items,
+}) => {
+  return (
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 12,
+          fontWeight: 900,
+          mb: 1.5,
+        }}
+      >
+        {title}
+      </Typography>
+
+      {items.map((item) => (
+        <Typography
+          key={item}
+          sx={{
+            color: '#7284aa',
+            fontSize: 10,
+            mb: 1,
+          }}
+        >
+          {item}
+        </Typography>
+      ))}
+    </Box>
+  );
+};
+
+/* ============================================================
+   STYLES
+============================================================ */
+
+const navButtonSx = {
+  color: '#b9c7e8',
+  textTransform: 'none',
+  fontSize: 12,
+  minWidth: 0,
+  px: 0,
+  fontWeight: 600,
+  '&:hover': {
+    color: '#4da9ff',
+    background: 'transparent',
+  },
+};
+
+const mobileNavButtonSx = {
+  justifyContent: 'flex-start',
+  color: '#fff',
+  textTransform: 'none',
+  py: 1.3,
+};
+
+const footerButtonSx = {
+  display: 'flex',
+  justifyContent: 'flex-start',
+  color: '#7284aa',
+  textTransform: 'none',
+  fontSize: 10,
+  px: 0,
+  mb: 0.5,
+  '&:hover': {
+    color: '#5ce8ff',
+    background: 'transparent',
+  },
 };
 
 export default Home;
