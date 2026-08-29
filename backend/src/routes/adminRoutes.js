@@ -23,8 +23,8 @@ const {
 // ADMIN LOGIN
 // ============================================================
 // IMPORTANT:
-// Login must be PUBLIC because the administrator does not
-// have an authentication token before logging in.
+// Login must come BEFORE adminMiddleware because the user
+// does not have an admin token yet.
 // ============================================================
 
 router.post(
@@ -35,7 +35,7 @@ router.post(
 // ============================================================
 // ADMIN AUTHENTICATION
 // ============================================================
-// Everything BELOW this middleware requires an admin token.
+// Everything below this line requires a valid admin token.
 // ============================================================
 
 router.use(adminMiddleware);
