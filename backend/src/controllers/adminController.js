@@ -33,37 +33,6 @@ const normalizeUserStatus = (value) => {
     .toLowerCase();
 };
 
-const parseBoolean = (
-  value,
-  defaultValue = true
-) => {
-  if (
-    value === undefined ||
-    value === null
-  ) {
-    return defaultValue;
-  }
-
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'string') {
-    const normalized =
-      value.trim().toLowerCase();
-
-    if (normalized === 'true') {
-      return true;
-    }
-
-    if (normalized === 'false') {
-      return false;
-    }
-  }
-
-  return defaultValue;
-};
-
 const getSignalStrength = (value) => {
   const strength = Number(value);
 
@@ -86,6 +55,8 @@ const isPositiveInteger = (value) => {
 
 // ============================================================
 // SIGNAL DATABASE SETUP
+// IMPORTANT:
+// This matches the database schema in config/database.js.
 // ============================================================
 
 const ensureSignalTables = async () => {
@@ -97,11 +68,25 @@ const ensureSignalTables = async () => {
 
       description TEXT,
 
-      strength NUMERIC(5, 2)
+      strength INTEGER
         NOT NULL DEFAULT 50,
 
-      status VARCHAR(30)
+      accuracy_percent NUMERIC(6, 2)
+        NOT NULL DEFAULT 0,
+
+      duration_days INTEGER
+        NOT NULL DEFAULT 30,
+
+      price NUMERIC(20, 2)
+        NOT NULL DEFAULT 0,
+
+      currency VARCHAR(10)
+        NOT NULL DEFAULT 'USD',
+
+      status VARCHAR(20)
         NOT NULL DEFAULT 'ACTIVE',
+
+      created_by INTEGER,
 
       created_at TIMESTAMP
         NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +94,41 @@ const ensureSignalTables = async () => {
       updated_at TIMESTAMP
         NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS accuracy_percent NUMERIC(6, 2)
+    DEFAULT 0;
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS duration_days INTEGER
+    DEFAULT 30;
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS price NUMERIC(20, 2)
+    DEFAULT 0;
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS currency VARCHAR(10)
+    DEFAULT 'USD';
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS created_by INTEGER;
+  `);
+
+  await pool.query(`
+    ALTER TABLE signal_plans
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP;
   `);
 
   await pool.query(`
@@ -123,11 +143,17 @@ const ensureSignalTables = async () => {
         REFERENCES signal_plans(id)
         ON DELETE SET NULL,
 
-      strength NUMERIC(5, 2)
+      strength INTEGER
         NOT NULL DEFAULT 50,
 
-      enabled BOOLEAN
-        NOT NULL DEFAULT TRUE,
+      status VARCHAR(20)
+        NOT NULL DEFAULT 'ACTIVE',
+
+      note TEXT,
+
+      updated_by INTEGER
+        REFERENCES users(id)
+        ON DELETE SET NULL,
 
       created_at TIMESTAMP
         NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -137,6 +163,28 @@ const ensureSignalTables = async () => {
 
       UNIQUE(user_id)
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE user_signals
+    ADD COLUMN IF NOT EXISTS status VARCHAR(20)
+    DEFAULT 'ACTIVE';
+  `);
+
+  await pool.query(`
+    ALTER TABLE user_signals
+    ADD COLUMN IF NOT EXISTS note TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE user_signals
+    ADD COLUMN IF NOT EXISTS updated_by INTEGER;
+  `);
+
+  await pool.query(`
+    ALTER TABLE user_signals
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP;
   `);
 
   await pool.query(`
@@ -176,10 +224,6 @@ const adminLogin = async (
       String(email)
         .trim()
         .toLowerCase();
-
-    logger.info(
-      `Admin login attempt for email: ${normalizedEmail}`
-    );
 
     const result =
       await pool.query(
@@ -227,17 +271,15 @@ const adminLogin = async (
     const role =
       String(
         admin.role || ''
-      ).toLowerCase();
+      )
+        .trim()
+        .toLowerCase();
 
     if (
       role !== 'admin' &&
       role !== 'administrator' &&
       role !== 'superadmin'
     ) {
-      logger.warn(
-        `Non-admin login attempt for ${normalizedEmail}`
-      );
-
       return res.status(403).json({
         message:
           'Administrator access required.',
@@ -247,7 +289,9 @@ const adminLogin = async (
     const status =
       String(
         admin.status || ''
-      ).toLowerCase();
+      )
+        .trim()
+        .toLowerCase();
 
     if (
       status === 'blocked' ||
@@ -524,9 +568,11 @@ const getUsers = async (
     const users =
       result.rows.map(
         (user) => ({
-          id: user.id,
+          id:
+            user.id,
 
-          email: user.email,
+          email:
+            user.email,
 
           firstName:
             user.first_name,
@@ -535,19 +581,19 @@ const getUsers = async (
             user.last_name,
 
           username:
-            user.username,
+            user.username || '',
 
           phone:
-            user.phone,
+            user.phone || '',
 
           country:
-            user.country,
+            user.country || '',
 
           preferredCurrency:
-            user.preferred_currency,
+            user.preferred_currency || 'USD',
 
           referralCode:
-            user.referral_code,
+            user.referral_code || '',
 
           role:
             user.role,
@@ -556,7 +602,9 @@ const getUsers = async (
             user.status,
 
           emailVerified:
-            user.email_verified,
+            Boolean(
+              user.email_verified
+            ),
 
           identityVerificationStatus:
             user.identity_verification_status,
@@ -702,22 +750,22 @@ const getUser = async (
           user.last_name,
 
         username:
-          user.username,
+          user.username || '',
 
         phone:
-          user.phone,
+          user.phone || '',
 
         country:
-          user.country,
+          user.country || '',
 
         preferredCurrency:
-          user.preferred_currency,
+          user.preferred_currency || 'USD',
 
         referralCode:
-          user.referral_code,
+          user.referral_code || '',
 
         referrerCode:
-          user.referrer_code,
+          user.referrer_code || '',
 
         role:
           user.role,
@@ -726,7 +774,9 @@ const getUser = async (
           user.status,
 
         emailVerified:
-          user.email_verified,
+          Boolean(
+            user.email_verified
+          ),
 
         identityVerificationStatus:
           user.identity_verification_status,
@@ -880,16 +930,16 @@ const getTransactions = async (
             transaction.currency,
 
           paymentMethod:
-            transaction.payment_method,
+            transaction.payment_method || '',
 
           status:
             transaction.status,
 
           description:
-            transaction.description,
+            transaction.description || '',
 
           proofOfPaymentUrl:
-            transaction.proof_of_payment_url,
+            transaction.proof_of_payment_url || '',
 
           verifiedBy:
             transaction.verified_by,
@@ -898,7 +948,7 @@ const getTransactions = async (
             transaction.verified_at,
 
           adminNote:
-            transaction.admin_note,
+            transaction.admin_note || '',
 
           createdAt:
             transaction.created_at,
@@ -920,7 +970,7 @@ const getTransactions = async (
               transaction.email,
 
             username:
-              transaction.username,
+              transaction.username || '',
           },
         })
       );
@@ -1010,19 +1060,19 @@ const getDeposits = async (
               row.currency,
 
             paymentMethod:
-              row.payment_method,
+              row.payment_method || '',
 
             status:
               row.status,
 
             description:
-              row.description,
+              row.description || '',
 
             proofOfPaymentUrl:
-              row.proof_of_payment_url,
+              row.proof_of_payment_url || '',
 
             adminNote:
-              row.admin_note,
+              row.admin_note || '',
 
             createdAt:
               row.created_at,
@@ -1041,7 +1091,7 @@ const getDeposits = async (
                 row.email,
 
               username:
-                row.username,
+                row.username || '',
             },
           })
         ),
@@ -1124,16 +1174,16 @@ const getWithdrawals = async (
               row.currency,
 
             paymentMethod:
-              row.payment_method,
+              row.payment_method || '',
 
             status:
               row.status,
 
             description:
-              row.description,
+              row.description || '',
 
             adminNote:
-              row.admin_note,
+              row.admin_note || '',
 
             createdAt:
               row.created_at,
@@ -1152,7 +1202,7 @@ const getWithdrawals = async (
                 row.email,
 
               username:
-                row.username,
+                row.username || '',
             },
           })
         ),
@@ -1222,7 +1272,7 @@ const getKycRequests = async (
               row.document_type,
 
             documentNumber:
-              row.document_number,
+              row.document_number || '',
 
             documentUrl:
               row.document_url,
@@ -1237,7 +1287,7 @@ const getKycRequests = async (
               row.reviewed_at,
 
             rejectionReason:
-              row.rejection_reason,
+              row.rejection_reason || '',
 
             createdAt:
               row.created_at,
@@ -1256,10 +1306,10 @@ const getKycRequests = async (
                 row.email,
 
               username:
-                row.username,
+                row.username || '',
 
               country:
-                row.country,
+                row.country || '',
             },
           })
         ),
@@ -1404,6 +1454,8 @@ const updateTransactionStatus = async (
         transactionId
       )
     ) {
+      await client.query('ROLLBACK');
+
       return res.status(400).json({
         message:
           'Invalid transaction ID.',
@@ -1415,6 +1467,8 @@ const updateTransactionStatus = async (
         normalizedStatus
       )
     ) {
+      await client.query('ROLLBACK');
+
       return res.status(400).json({
         message:
           'Invalid transaction status.',
@@ -1474,7 +1528,7 @@ const updateTransactionStatus = async (
       );
 
     // --------------------------------------------------------
-    // PREVENT INVALID STATUS TRANSITIONS
+    // PREVENT CHANGING COMPLETED TRANSACTIONS
     // --------------------------------------------------------
 
     if (
@@ -1494,8 +1548,7 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
 
     if (
-      previousStatus ===
-      normalizedStatus
+      previousStatus === normalizedStatus
     ) {
       const unchangedResult =
         await client.query(
@@ -1522,7 +1575,10 @@ const updateTransactionStatus = async (
             verified_at
           `,
           [
-            adminNote || null,
+            adminNote
+              ? String(adminNote).trim()
+              : null,
+
             transactionId,
           ]
         );
@@ -1539,7 +1595,7 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // ACCOUNT LOCK FOR FINANCIAL OPERATIONS
+    // ACCOUNT LOCK
     // --------------------------------------------------------
 
     let account = null;
@@ -1629,8 +1685,10 @@ const updateTransactionStatus = async (
         return res.status(400).json({
           message:
             'Insufficient account balance to complete this withdrawal.',
+
           availableBalance:
             currentAvailable,
+
           requestedAmount:
             amount,
         });
@@ -1687,8 +1745,13 @@ const updateTransactionStatus = async (
         `,
         [
           normalizedStatus,
-          adminNote || null,
+
+          adminNote
+            ? String(adminNote).trim()
+            : null,
+
           req.user.id,
+
           transactionId,
         ]
       );
@@ -1728,6 +1791,7 @@ const updateTransactionStatus = async (
         `,
         [
           amount,
+
           transaction.account_id,
         ]
       );
@@ -1765,6 +1829,7 @@ const updateTransactionStatus = async (
         `,
         [
           amount,
+
           transaction.account_id,
         ]
       );
@@ -1786,9 +1851,7 @@ const updateTransactionStatus = async (
 
   } catch (error) {
     try {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
         'Transaction rollback error:',
@@ -1813,7 +1876,7 @@ const updateTransactionStatus = async (
 // ============================================================
 
 // ============================================================
-// GET ALL INVESTMENT PLANS
+// GET INVESTMENT PLANS
 // ============================================================
 
 const getInvestmentPlans = async (
@@ -2022,7 +2085,8 @@ const createInvestmentPlan = async (
           maximum_amount,
           roi_percent,
           duration_days,
-          status
+          status,
+          created_by
         )
         VALUES (
           $1,
@@ -2031,7 +2095,8 @@ const createInvestmentPlan = async (
           $4,
           $5,
           $6,
-          $7
+          $7,
+          $8
         )
         RETURNING
           id,
@@ -2049,9 +2114,7 @@ const createInvestmentPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
           minimum,
@@ -2063,6 +2126,8 @@ const createInvestmentPlan = async (
           duration,
 
           planStatus,
+
+          req.user.id,
         ]
       );
 
@@ -2070,7 +2135,7 @@ const createInvestmentPlan = async (
       result.rows[0];
 
     logger.info(
-      `Admin ${req.user.id} created investment plan ${plan.id}: ${plan.name}`
+      `Admin ${req.user.id} created investment plan ${plan.id}`
     );
 
     return res.status(201).json({
@@ -2167,13 +2232,6 @@ const updateInvestmentPlan = async (
       return res.status(400).json({
         message:
           'Investment plan name is required.',
-      });
-    }
-
-    if (planName.length > 150) {
-      return res.status(400).json({
-        message:
-          'Investment plan name is too long.',
       });
     }
 
@@ -2284,9 +2342,7 @@ const updateInvestmentPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
           minimum,
@@ -2460,7 +2516,12 @@ const getSignalPlans = async (
           name,
           description,
           strength,
+          accuracy_percent,
+          duration_days,
+          price,
+          currency,
           status,
+          created_by,
           created_at,
           updated_at
         FROM signal_plans
@@ -2484,8 +2545,29 @@ const getSignalPlans = async (
               plan.strength
             ),
 
+          accuracyPercent:
+            safeNumber(
+              plan.accuracy_percent
+            ),
+
+          durationDays:
+            Number(
+              plan.duration_days || 30
+            ),
+
+          price:
+            safeNumber(
+              plan.price
+            ),
+
+          currency:
+            plan.currency || 'USD',
+
           status:
             plan.status,
+
+          createdBy:
+            plan.created_by,
 
           createdAt:
             plan.created_at,
@@ -2528,6 +2610,10 @@ const createSignalPlan = async (
       name,
       description,
       strength,
+      accuracyPercent,
+      durationDays,
+      price,
+      currency,
       status,
     } = req.body || {};
 
@@ -2554,9 +2640,7 @@ const createSignalPlan = async (
         : Number(strength);
 
     if (
-      !Number.isFinite(
-        rawStrength
-      ) ||
+      !Number.isFinite(rawStrength) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -2570,6 +2654,61 @@ const createSignalPlan = async (
       getSignalStrength(
         rawStrength
       );
+
+    const accuracy =
+      accuracyPercent === undefined
+        ? 0
+        : Number(accuracyPercent);
+
+    if (
+      !Number.isFinite(accuracy) ||
+      accuracy < 0 ||
+      accuracy > 100
+    ) {
+      return res.status(400).json({
+        message:
+          'Accuracy must be between 0 and 100.',
+      });
+    }
+
+    const duration =
+      durationDays === undefined
+        ? 30
+        : Number(durationDays);
+
+    if (
+      !Number.isInteger(duration) ||
+      duration <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Duration must be a positive number of days.',
+      });
+    }
+
+    const signalPrice =
+      price === undefined ||
+      price === '' ||
+      price === null
+        ? 0
+        : Number(price);
+
+    if (
+      !Number.isFinite(signalPrice) ||
+      signalPrice < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal price is invalid.',
+      });
+    }
+
+    const signalCurrency =
+      String(
+        currency || 'USD'
+      )
+        .trim()
+        .toUpperCase();
 
     const signalStatus =
       normalizeStatus(
@@ -2593,20 +2732,35 @@ const createSignalPlan = async (
           name,
           description,
           strength,
-          status
+          accuracy_percent,
+          duration_days,
+          price,
+          currency,
+          status,
+          created_by
         )
         VALUES (
           $1,
           $2,
           $3,
-          $4
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9
         )
         RETURNING
           id,
           name,
           description,
           strength,
+          accuracy_percent,
+          duration_days,
+          price,
+          currency,
           status,
+          created_by,
           created_at,
           updated_at
         `,
@@ -2614,14 +2768,22 @@ const createSignalPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
           signalStrength,
 
+          accuracy,
+
+          duration,
+
+          signalPrice,
+
+          signalCurrency,
+
           signalStatus,
+
+          req.user.id,
         ]
       );
 
@@ -2651,8 +2813,29 @@ const createSignalPlan = async (
             plan.strength
           ),
 
+        accuracyPercent:
+          safeNumber(
+            plan.accuracy_percent
+          ),
+
+        durationDays:
+          Number(
+            plan.duration_days
+          ),
+
+        price:
+          safeNumber(
+            plan.price
+          ),
+
+        currency:
+          plan.currency,
+
         status:
           plan.status,
+
+        createdBy:
+          plan.created_by,
 
         createdAt:
           plan.created_at,
@@ -2698,6 +2881,10 @@ const updateSignalPlan = async (
       name,
       description,
       strength,
+      accuracyPercent,
+      durationDays,
+      price,
+      currency,
       status,
     } = req.body || {};
 
@@ -2711,20 +2898,11 @@ const updateSignalPlan = async (
       });
     }
 
-    if (planName.length > 150) {
-      return res.status(400).json({
-        message:
-          'Signal plan name is too long.',
-      });
-    }
-
     const rawStrength =
       Number(strength);
 
     if (
-      !Number.isFinite(
-        rawStrength
-      ) ||
+      !Number.isFinite(rawStrength) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -2734,10 +2912,60 @@ const updateSignalPlan = async (
       });
     }
 
-    const signalStrength =
-      getSignalStrength(
-        rawStrength
-      );
+    const accuracy =
+      accuracyPercent === undefined
+        ? 0
+        : Number(accuracyPercent);
+
+    if (
+      !Number.isFinite(accuracy) ||
+      accuracy < 0 ||
+      accuracy > 100
+    ) {
+      return res.status(400).json({
+        message:
+          'Accuracy must be between 0 and 100.',
+      });
+    }
+
+    const duration =
+      durationDays === undefined
+        ? 30
+        : Number(durationDays);
+
+    if (
+      !Number.isInteger(duration) ||
+      duration <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Duration must be a positive number of days.',
+      });
+    }
+
+    const signalPrice =
+      price === undefined ||
+      price === '' ||
+      price === null
+        ? 0
+        : Number(price);
+
+    if (
+      !Number.isFinite(signalPrice) ||
+      signalPrice < 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal price is invalid.',
+      });
+    }
+
+    const signalCurrency =
+      String(
+        currency || 'USD'
+      )
+        .trim()
+        .toUpperCase();
 
     const signalStatus =
       normalizeStatus(
@@ -2763,17 +2991,26 @@ const updateSignalPlan = async (
           name = $1,
           description = $2,
           strength = $3,
-          status = $4,
+          accuracy_percent = $4,
+          duration_days = $5,
+          price = $6,
+          currency = $7,
+          status = $8,
           updated_at = CURRENT_TIMESTAMP
 
-        WHERE id = $5
+        WHERE id = $9
 
         RETURNING
           id,
           name,
           description,
           strength,
+          accuracy_percent,
+          duration_days,
+          price,
+          currency,
           status,
+          created_by,
           created_at,
           updated_at
         `,
@@ -2781,12 +3018,18 @@ const updateSignalPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
-          signalStrength,
+          rawStrength,
+
+          accuracy,
+
+          duration,
+
+          signalPrice,
+
+          signalCurrency,
 
           signalStatus,
 
@@ -2827,8 +3070,29 @@ const updateSignalPlan = async (
             plan.strength
           ),
 
+        accuracyPercent:
+          safeNumber(
+            plan.accuracy_percent
+          ),
+
+        durationDays:
+          Number(
+            plan.duration_days
+          ),
+
+        price:
+          safeNumber(
+            plan.price
+          ),
+
+        currency:
+          plan.currency,
+
         status:
           plan.status,
+
+        createdBy:
+          plan.created_by,
 
         createdAt:
           plan.created_at,
@@ -2947,12 +3211,20 @@ const getUserSignal = async (
 
           us.id AS user_signal_id,
           us.strength,
-          us.enabled,
+          us.status AS signal_status,
+          us.note,
+          us.updated_by,
+          us.created_at AS signal_created_at,
+          us.updated_at AS signal_updated_at,
 
           sp.id AS plan_id,
           sp.name AS plan_name,
           sp.description AS plan_description,
           sp.strength AS plan_strength,
+          sp.accuracy_percent AS plan_accuracy,
+          sp.duration_days AS plan_duration,
+          sp.price AS plan_price,
+          sp.currency AS plan_currency,
           sp.status AS plan_status
 
         FROM users u
@@ -2995,7 +3267,7 @@ const getUserSignal = async (
           row.last_name,
 
         username:
-          row.username,
+          row.username || '',
       },
 
       signal:
@@ -3009,10 +3281,25 @@ const getUserSignal = async (
                   row.strength
                 ),
 
+              status:
+                row.signal_status || 'ACTIVE',
+
               enabled:
-                Boolean(
-                  row.enabled
-                ),
+                String(
+                  row.signal_status || 'ACTIVE'
+                ).toUpperCase() === 'ACTIVE',
+
+              note:
+                row.note || '',
+
+              updatedBy:
+                row.updated_by,
+
+              createdAt:
+                row.signal_created_at,
+
+              updatedAt:
+                row.signal_updated_at,
 
               plan:
                 row.plan_id
@@ -3024,13 +3311,30 @@ const getUserSignal = async (
                         row.plan_name,
 
                       description:
-                        row.plan_description ||
-                        '',
+                        row.plan_description || '',
 
                       strength:
                         getSignalStrength(
                           row.plan_strength
                         ),
+
+                      accuracyPercent:
+                        safeNumber(
+                          row.plan_accuracy
+                        ),
+
+                      durationDays:
+                        Number(
+                          row.plan_duration || 30
+                        ),
+
+                      price:
+                        safeNumber(
+                          row.plan_price
+                        ),
+
+                      currency:
+                        row.plan_currency || 'USD',
 
                       status:
                         row.plan_status,
@@ -3076,6 +3380,8 @@ const updateUserSignal = async (
       signalPlanId,
       strength,
       enabled,
+      status,
+      note,
     } = req.body || {};
 
     // --------------------------------------------------------
@@ -3207,14 +3513,45 @@ const updateUserSignal = async (
     }
 
     // --------------------------------------------------------
-    // ENABLED
+    // STATUS
     // --------------------------------------------------------
 
-    const signalEnabled =
-      parseBoolean(
-        enabled,
-        true
-      );
+    let signalStatus;
+
+    if (status !== undefined) {
+      signalStatus =
+        normalizeStatus(status);
+
+      if (
+        signalStatus !== 'ACTIVE' &&
+        signalStatus !== 'INACTIVE'
+      ) {
+        return res.status(400).json({
+          message:
+            'Signal status must be ACTIVE or INACTIVE.',
+        });
+      }
+
+    } else if (enabled !== undefined) {
+      signalStatus =
+        enabled === true ||
+        String(enabled).toLowerCase() === 'true'
+          ? 'ACTIVE'
+          : 'INACTIVE';
+    } else {
+      signalStatus =
+        'ACTIVE';
+    }
+
+    // --------------------------------------------------------
+    // NOTE
+    // --------------------------------------------------------
+
+    const signalNote =
+      note === undefined ||
+      note === null
+        ? null
+        : String(note).trim();
 
     // --------------------------------------------------------
     // CREATE OR UPDATE
@@ -3227,13 +3564,17 @@ const updateUserSignal = async (
           user_id,
           signal_plan_id,
           strength,
-          enabled
+          status,
+          note,
+          updated_by
         )
         VALUES (
           $1,
           $2,
           $3,
-          $4
+          $4,
+          $5,
+          $6
         )
 
         ON CONFLICT (user_id)
@@ -3245,8 +3586,14 @@ const updateUserSignal = async (
           strength =
             EXCLUDED.strength,
 
-          enabled =
-            EXCLUDED.enabled,
+          status =
+            EXCLUDED.status,
+
+          note =
+            EXCLUDED.note,
+
+          updated_by =
+            EXCLUDED.updated_by,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -3256,7 +3603,9 @@ const updateUserSignal = async (
           user_id,
           signal_plan_id,
           strength,
-          enabled,
+          status,
+          note,
+          updated_by,
           created_at,
           updated_at
         `,
@@ -3267,7 +3616,11 @@ const updateUserSignal = async (
 
           signalStrength,
 
-          signalEnabled,
+          signalStatus,
+
+          signalNote,
+
+          req.user.id,
         ]
       );
 
@@ -3275,7 +3628,7 @@ const updateUserSignal = async (
       result.rows[0];
 
     logger.info(
-      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}, enabled=${signalEnabled}`
+      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}, status=${signalStatus}`
     );
 
     return res.status(200).json({
@@ -3297,10 +3650,19 @@ const updateUserSignal = async (
             signal.strength
           ),
 
+        status:
+          signal.status,
+
         enabled:
-          Boolean(
-            signal.enabled
-          ),
+          normalizeStatus(
+            signal.status
+          ) === 'ACTIVE',
+
+        note:
+          signal.note || '',
+
+        updatedBy:
+          signal.updated_by,
 
         createdAt:
           signal.created_at,
