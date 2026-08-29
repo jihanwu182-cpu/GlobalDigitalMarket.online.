@@ -51,6 +51,9 @@ import ShowChartIcon from '@mui/icons-material/ShowChart';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import PublicIcon from '@mui/icons-material/Public';
 
 import { useNavigate } from 'react-router-dom';
 
@@ -83,9 +86,6 @@ interface PerformanceData {
 
 interface AccountData {
   id?: number;
-  accountNumber?: string;
-  accountType?: string;
-  accountName?: string;
   balance?: number;
   deposit?: number;
   profits?: number;
@@ -114,6 +114,64 @@ interface Allocation {
   value: number;
   percentage: number;
 }
+
+interface MarketItem {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+/* ============================================================
+   DEMO MARKET DATA
+   Replace with real market API later.
+============================================================ */
+
+const initialMarkets: MarketItem[] = [
+  {
+    symbol: 'EUR/USD',
+    name: 'Euro / US Dollar',
+    price: 1.1742,
+    change: 0.0028,
+    changePercent: 0.24,
+  },
+  {
+    symbol: 'GBP/USD',
+    name: 'British Pound / US Dollar',
+    price: 1.3471,
+    change: 0.0041,
+    changePercent: 0.31,
+  },
+  {
+    symbol: 'USD/JPY',
+    name: 'US Dollar / Japanese Yen',
+    price: 148.42,
+    change: -0.36,
+    changePercent: -0.24,
+  },
+  {
+    symbol: 'XAU/USD',
+    name: 'Gold / US Dollar',
+    price: 3408.5,
+    change: 12.6,
+    changePercent: 0.37,
+  },
+  {
+    symbol: 'NAS100',
+    name: 'NASDAQ 100',
+    price: 23542.8,
+    change: 86.4,
+    changePercent: 0.37,
+  },
+  {
+    symbol: 'SPX500',
+    name: 'S&P 500',
+    price: 6458.2,
+    change: 21.5,
+    changePercent: 0.33,
+  },
+];
 
 /* ============================================================
    QUICK CARD
@@ -317,6 +375,121 @@ const StatCard: React.FC<StatCardProps> = ({
 };
 
 /* ============================================================
+   MARKET TICKER
+============================================================ */
+
+interface MarketTickerProps {
+  markets: MarketItem[];
+}
+
+const MarketTicker: React.FC<MarketTickerProps> = ({
+  markets,
+}) => {
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        overflow: 'hidden',
+        borderTop:
+          '1px solid rgba(110,160,255,0.12)',
+        borderBottom:
+          '1px solid rgba(110,160,255,0.12)',
+        background:
+          'rgba(3,10,38,0.78)',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          width: 'max-content',
+          animation:
+            'marketTicker 35s linear infinite',
+          '@keyframes marketTicker': {
+            from: {
+              transform: 'translateX(0)',
+            },
+            to: {
+              transform:
+                'translateX(-50%)',
+            },
+          },
+        }}
+      >
+        {[...markets, ...markets].map(
+          (market, index) => (
+            <Box
+              key={`${market.symbol}-${index}`}
+              sx={{
+                minWidth: {
+                  xs: 170,
+                  sm: 205,
+                },
+                px: 2,
+                py: 1.25,
+                borderRight:
+                  '1px solid rgba(255,255,255,0.06)',
+              }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+              >
+                <Typography
+                  sx={{
+                    color: '#fff',
+                    fontSize: 12,
+                    fontWeight: 900,
+                  }}
+                >
+                  {market.symbol}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color:
+                      market.changePercent >=
+                      0
+                        ? '#58f39b'
+                        : '#ff8297',
+                    fontSize: 11,
+                    fontWeight: 900,
+                  }}
+                >
+                  {market.changePercent >=
+                  0
+                    ? '▲'
+                    : '▼'}{' '}
+                  {Math.abs(
+                    market.changePercent
+                  ).toFixed(2)}
+                  %
+                </Typography>
+              </Stack>
+
+              <Typography
+                sx={{
+                  color: '#a9b9eb',
+                  fontSize: 12,
+                  mt: 0.3,
+                }}
+              >
+                {market.price.toLocaleString(
+                  'en-US',
+                  {
+                    maximumFractionDigits: 4,
+                  }
+                )}
+              </Typography>
+            </Box>
+          )
+        )}
+      </Box>
+    </Box>
+  );
+};
+
+/* ============================================================
    MAIN DASHBOARD
 ============================================================ */
 
@@ -366,6 +539,11 @@ const Dashboard: React.FC = () => {
 
   const [allocation, setAllocation] =
     useState<Allocation[]>([]);
+
+  const [markets, setMarkets] =
+    useState<MarketItem[]>(
+      initialMarkets
+    );
 
   /* ==========================================================
      PROFILE
@@ -499,7 +677,7 @@ const Dashboard: React.FC = () => {
   };
 
   /* ==========================================================
-     LOAD DASHBOARD DATA
+     DASHBOARD API
   ========================================================== */
 
   const loadDashboardData =
@@ -642,13 +820,61 @@ const Dashboard: React.FC = () => {
       }
     };
 
+  /* ==========================================================
+     MARKET MOVEMENT
+  ========================================================== */
+
+  useEffect(() => {
+    const interval =
+      window.setInterval(() => {
+        setMarkets(
+          (previous) =>
+            previous.map(
+              (market) => {
+                const movement =
+                  (Math.random() -
+                    0.5) *
+                  0.001;
+
+                const nextPrice =
+                  Math.max(
+                    0.0001,
+                    market.price +
+                      market.price *
+                        movement
+                  );
+
+                const nextPercent =
+                  movement * 100;
+
+                return {
+                  ...market,
+                  price: nextPrice,
+                  change:
+                    market.change +
+                    nextPrice -
+                    market.price,
+                  changePercent:
+                    nextPercent,
+                };
+              }
+            )
+        );
+      }, 3500);
+
+    return () =>
+      window.clearInterval(
+        interval
+      );
+  }, []);
+
   useEffect(() => {
     loadProfile();
     loadDashboardData();
   }, []);
 
   /* ==========================================================
-     DISPLAY HELPERS
+     DISPLAY
   ========================================================== */
 
   const displayName =
@@ -857,7 +1083,7 @@ const Dashboard: React.FC = () => {
                   letterSpacing: 1,
                 }}
               >
-                PROFESSIONAL DIGITAL ASSET PLATFORM
+                BUILT FOR TRADERS & INVESTORS
               </Typography>
             </Box>
 
@@ -872,8 +1098,6 @@ const Dashboard: React.FC = () => {
               <CloseIcon />
             </IconButton>
           </Stack>
-
-          {/* OVERVIEW */}
 
           <SidebarHeading>
             OVERVIEW
@@ -891,8 +1115,6 @@ const Dashboard: React.FC = () => {
             onClick={goAccountStatement}
           />
 
-          {/* PORTFOLIO */}
-
           <SidebarHeading>
             PORTFOLIO & INVESTMENTS
           </SidebarHeading>
@@ -900,10 +1122,12 @@ const Dashboard: React.FC = () => {
           <MenuItem
             icon={<AutoGraphIcon />}
             text="Investment Plans"
+            badge="Coming Soon"
+            badgeColor="#5369a9"
             onClick={() => {
               setMenuOpen(false);
               setError(
-                'Investment Plans is not connected yet.'
+                'Investment Plans is being prepared.'
               );
             }}
           />
@@ -920,12 +1144,10 @@ const Dashboard: React.FC = () => {
             onClick={() => {
               setMenuOpen(false);
               setError(
-                'Performance History requires historical performance data from the backend.'
+                'Historical performance will appear when historical data is available.'
               );
             }}
           />
-
-          {/* TRADING */}
 
           <SidebarHeading>
             TRADING & MARKETS
@@ -937,37 +1159,41 @@ const Dashboard: React.FC = () => {
             }
             text="Live Markets"
             badge="Live"
-            badgeColor="#58e27c"
+            badgeColor="#18b86a"
             onClick={goMarket}
+          />
+
+          <MenuItem
+            icon={<ShowChartIcon />}
+            text="Trading"
+            onClick={goTrading}
           />
 
           <MenuItem
             icon={<PersonOutlineIcon />}
             text="Copy Trading"
             badge="Pro"
-            badgeColor="#c43dff"
+            badgeColor="#8d45d9"
             onClick={() => {
               setMenuOpen(false);
               setError(
-                'Copy Trading is not connected yet.'
+                'Copy Trading is being prepared.'
               );
             }}
           />
 
           <MenuItem
             icon={<AutoGraphIcon />}
-            text="AI Trading Bots"
+            text="AI Trading"
             badge="AI"
-            badgeColor="#4aa8ed"
+            badgeColor="#367cae"
             onClick={() => {
               setMenuOpen(false);
               setError(
-                'AI Trading Bots is not connected yet.'
+                'AI Trading is being prepared.'
               );
             }}
           />
-
-          {/* MARKET INTELLIGENCE */}
 
           <SidebarHeading>
             MARKET INTELLIGENCE
@@ -979,11 +1205,11 @@ const Dashboard: React.FC = () => {
             }
             text="Premium Signals"
             badge="Premium"
-            badgeColor="#f5b72e"
+            badgeColor="#b48527"
             onClick={() => {
               setMenuOpen(false);
               setError(
-                'Premium Signals is not connected yet.'
+                'Premium Signals is being prepared.'
               );
             }}
           />
@@ -995,8 +1221,6 @@ const Dashboard: React.FC = () => {
                 'rgba(255,255,255,0.10)',
             }}
           />
-
-          {/* ACCOUNT */}
 
           <SidebarHeading>
             ACCOUNT
@@ -1018,7 +1242,7 @@ const Dashboard: React.FC = () => {
             text="Security"
             onClick={() => {
               setMenuOpen(false);
-              setProfileOpen(true);
+              navigate('/security');
             }}
           />
 
@@ -1027,15 +1251,25 @@ const Dashboard: React.FC = () => {
             text="Settings"
             onClick={() => {
               setMenuOpen(false);
-              setProfileOpen(true);
+              navigate('/settings');
             }}
           />
 
-          {/* CONTACT SUPPORT */}
+          <SidebarHeading>
+            SUPPORT
+          </SidebarHeading>
 
           <MenuItem
             icon={<SupportAgentIcon />}
-            text="Contact Support"
+            text="Live Chat"
+            badge="Online"
+            badgeColor="#18b86a"
+            onClick={goSupport}
+          />
+
+          <MenuItem
+            icon={<EmailOutlinedIcon />}
+            text="Email Support"
             onClick={goSupport}
           />
 
@@ -1130,7 +1364,7 @@ const Dashboard: React.FC = () => {
                   letterSpacing: 1,
                 }}
               >
-                PROFESSIONAL DIGITAL ASSET PLATFORM
+                BUILT FOR TRADERS & INVESTORS
               </Typography>
             </Box>
 
@@ -1158,10 +1392,14 @@ const Dashboard: React.FC = () => {
             </Button>
           </Stack>
         </Container>
+
+        <MarketTicker
+          markets={markets}
+        />
       </Box>
 
       {/* ======================================================
-          DASHBOARD
+          MAIN
       ====================================================== */}
 
       <Container
@@ -1173,31 +1411,176 @@ const Dashboard: React.FC = () => {
           },
         }}
       >
-        {/* HEADER */}
+        {/* HERO */}
 
-        <Box sx={{ mb: 3 }}>
-          <Typography
+        <Card
+          sx={{
+            mb: 3,
+            borderRadius: 4,
+            color: '#fff',
+            overflow: 'hidden',
+            background:
+              'linear-gradient(135deg,#0d1e62 0%,#144dc5 58%,#087fda 100%)',
+            border:
+              '1px solid rgba(130,190,255,0.28)',
+            boxShadow:
+              '0 20px 60px rgba(0,0,0,0.25)',
+          }}
+        >
+          <CardContent
             sx={{
-              fontSize: {
-                xs: 29,
-                md: 42,
+              p: {
+                xs: 2.5,
+                md: 4,
               },
-              fontWeight: 900,
-              letterSpacing: -1,
             }}
           >
-            Welcome back, {displayName}
-          </Typography>
+            <Stack
+              direction={{
+                xs: 'column',
+                md: 'row',
+              }}
+              justifyContent="space-between"
+              spacing={3}
+            >
+              <Box
+                sx={{
+                  maxWidth: 720,
+                }}
+              >
+                <Chip
+                  icon={<PublicIcon />}
+                  label="GLOBAL FINANCIAL MARKETS"
+                  size="small"
+                  sx={{
+                    color: '#fff',
+                    background:
+                      'rgba(0,0,0,0.18)',
+                    fontWeight: 900,
+                    mb: 2,
+                  }}
+                />
 
-          <Typography
-            sx={{
-              color: '#8ea4e8',
-              mt: 0.7,
-            }}
-          >
-            Here's your investment account overview.
-          </Typography>
-        </Box>
+                <Typography
+                  sx={{
+                    fontSize: {
+                      xs: 29,
+                      md: 42,
+                    },
+                    fontWeight: 900,
+                    lineHeight: 1.1,
+                    letterSpacing: -1,
+                  }}
+                >
+                  Welcome back,{' '}
+                  {displayName}
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color: '#d0ddff',
+                    mt: 1.5,
+                    fontSize: {
+                      xs: 14,
+                      md: 16,
+                    },
+                    lineHeight: 1.7,
+                  }}
+                >
+                  Trade and invest across
+                  global financial markets
+                  through CFDs on forex,
+                  indices, commodities and
+                  shares.
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color: '#b7c9fa',
+                    mt: 1,
+                    fontSize: 12,
+                  }}
+                >
+                  Transparent pricing.
+                  Reliable execution.
+                  Responsive support.
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  minWidth: {
+                    xs: '100%',
+                    md: 270,
+                  },
+                  alignSelf: {
+                    xs: 'stretch',
+                    md: 'center',
+                  },
+                  p: 2.5,
+                  borderRadius: 3,
+                  background:
+                    'rgba(0,0,0,0.15)',
+                  border:
+                    '1px solid rgba(255,255,255,0.12)',
+                }}
+              >
+                <Typography
+                  sx={{
+                    color: '#b9caff',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    letterSpacing: 1,
+                  }}
+                >
+                  MARKET STATUS
+                </Typography>
+
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{
+                    mt: 1,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 9,
+                      height: 9,
+                      borderRadius:
+                        '50%',
+                      background:
+                        '#58f39b',
+                      boxShadow:
+                        '0 0 12px rgba(88,243,155,0.8)',
+                    }}
+                  />
+
+                  <Typography
+                    sx={{
+                      fontWeight: 900,
+                    }}
+                  >
+                    Markets Active
+                  </Typography>
+                </Stack>
+
+                <Typography
+                  sx={{
+                    color: '#b9caff',
+                    fontSize: 11,
+                    mt: 1,
+                  }}
+                >
+                  Monitor prices and manage
+                  your positions from your
+                  dashboard.
+                </Typography>
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* ERROR */}
 
@@ -1216,7 +1599,7 @@ const Dashboard: React.FC = () => {
         )}
 
         {/* ====================================================
-            MAIN BALANCE
+            PORTFOLIO VALUE
         ==================================================== */}
 
         <Card
@@ -1228,8 +1611,6 @@ const Dashboard: React.FC = () => {
               'linear-gradient(135deg,#10216d 0%,#154ec7 60%,#087fda 100%)',
             border:
               '1px solid rgba(130,190,255,0.28)',
-            boxShadow:
-              '0 20px 60px rgba(0,0,0,0.25)',
           }}
         >
           <CardContent
@@ -1303,12 +1684,7 @@ const Dashboard: React.FC = () => {
                         }}
                       />
                     }
-                    label={
-                      account?.status ===
-                      'active'
-                        ? 'Active Account'
-                        : 'Account'
-                    }
+                    label="Account Active"
                     size="small"
                     sx={{
                       color: '#fff',
@@ -1413,7 +1789,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* ====================================================
-            STATISTICS
+            STATS
         ==================================================== */}
 
         <Box
@@ -1490,7 +1866,7 @@ const Dashboard: React.FC = () => {
         </Box>
 
         {/* ====================================================
-            ACCOUNT FINANCIAL SUMMARY
+            ACCOUNT SUMMARY
         ==================================================== */}
 
         <Card
@@ -1542,7 +1918,7 @@ const Dashboard: React.FC = () => {
                     fontSize: 12,
                   }}
                 >
-                  Your current account financial summary
+                  Your current financial summary
                 </Typography>
               </Box>
             </Stack>
@@ -1596,7 +1972,7 @@ const Dashboard: React.FC = () => {
         </Card>
 
         {/* ====================================================
-            PORTFOLIO + ALLOCATION
+            HOLDINGS
         ==================================================== */}
 
         <Box
@@ -1652,7 +2028,7 @@ const Dashboard: React.FC = () => {
                       fontSize: 12,
                     }}
                   >
-                    Current positions in your portfolio
+                    Current positions
                   </Typography>
                 </Box>
 
@@ -1711,7 +2087,8 @@ const Dashboard: React.FC = () => {
                       fontSize: 12,
                     }}
                   >
-                    Your investment positions will appear here.
+                    Your positions will appear
+                    here.
                   </Typography>
                 </Box>
               ) : (
@@ -1860,6 +2237,8 @@ const Dashboard: React.FC = () => {
             </CardContent>
           </Card>
 
+          {/* ALLOCATION */}
+
           <Card
             sx={{
               borderRadius: 4,
@@ -1895,7 +2274,7 @@ const Dashboard: React.FC = () => {
                   mb: 3,
                 }}
               >
-                Distribution of your invested assets
+                Distribution of invested assets
               </Typography>
 
               {allocation.length ===
@@ -2019,7 +2398,7 @@ const Dashboard: React.FC = () => {
         </Box>
 
         {/* ====================================================
-            PERFORMANCE SNAPSHOT
+            SUPPORT
         ==================================================== */}
 
         <Card
@@ -2028,9 +2407,9 @@ const Dashboard: React.FC = () => {
             borderRadius: 4,
             color: '#fff',
             background:
-              'linear-gradient(145deg,#101f63,#08143f)',
+              'linear-gradient(135deg,#10216d,#0c328d)',
             border:
-              '1px solid rgba(100,150,255,0.20)',
+              '1px solid rgba(100,180,255,0.25)',
           }}
         >
           <CardContent
@@ -2044,159 +2423,98 @@ const Dashboard: React.FC = () => {
             <Stack
               direction={{
                 xs: 'column',
-                sm: 'row',
+                md: 'row',
               }}
               justifyContent="space-between"
-              spacing={2}
+              spacing={3}
             >
               <Box>
                 <Stack
                   direction="row"
-                  spacing={1.2}
+                  spacing={1.5}
                   alignItems="center"
                 >
-                  <ShowChartIcon
+                  <SupportAgentIcon
                     sx={{
-                      color:
-                        '#5ce8ff',
+                      color: '#5ce8ff',
+                      fontSize: 30,
                     }}
                   />
 
                   <Typography
                     sx={{
-                      fontSize: 21,
+                      fontSize: 22,
                       fontWeight: 900,
                     }}
                   >
-                    Performance Snapshot
+                    Need help?
                   </Typography>
                 </Stack>
 
                 <Typography
                   sx={{
-                    color: '#8198df',
-                    fontSize: 12,
-                    mt: 0.7,
+                    color: '#a9b9eb',
+                    mt: 1,
+                    fontSize: 13,
+                    lineHeight: 1.7,
                   }}
                 >
-                  Current portfolio performance from your account data.
+                  Our support team is available
+                  to help with your account,
+                  deposits, withdrawals and
+                  trading questions.
                 </Typography>
               </Box>
 
-              <Chip
-                icon={
-                  performance.totalGain >=
-                  0 ? (
-                    <TrendingUpIcon />
-                  ) : (
-                    <TrendingDownIcon />
-                  )
-                }
-                label={`${performance.gainPercentage.toFixed(
-                  2
-                )}%`}
-                sx={{
-                  color: '#fff',
-                  background:
-                    performance.totalGain >=
-                    0
-                      ? 'rgba(55,220,130,0.18)'
-                      : 'rgba(255,100,130,0.18)',
-                  fontWeight: 900,
-                }}
-              />
-            </Stack>
-
-            <Box
-              sx={{
-                mt: 3,
-                p: 2,
-                borderRadius: 3,
-                background:
-                  'rgba(255,255,255,0.035)',
-                border:
-                  '1px solid rgba(255,255,255,0.06)',
-              }}
-            >
               <Stack
                 direction={{
                   xs: 'column',
                   sm: 'row',
                 }}
-                justifyContent="space-between"
-                spacing={2}
+                spacing={1.5}
+                alignSelf={{
+                  xs: 'stretch',
+                  md: 'center',
+                }}
               >
-                <Box>
-                  <Typography
-                    sx={{
-                      color:
-                        '#8198df',
-                      fontSize: 11,
-                    }}
-                  >
-                    CURRENT GAIN / LOSS
-                  </Typography>
-
-                  <Typography
-                    sx={{
-                      fontSize: 30,
-                      fontWeight: 900,
-                      color:
-                        performance.totalGain >=
-                        0
-                          ? '#58f39b'
-                          : '#ff8297',
-                      mt: 0.5,
-                    }}
-                  >
-                    {money(
-                      performance.totalGain
-                    )}
-                  </Typography>
-                </Box>
-
-                <Box
+                <Button
+                  variant="contained"
+                  startIcon={
+                    <ChatOutlinedIcon />
+                  }
+                  onClick={goSupport}
                   sx={{
-                    textAlign: {
-                      xs: 'left',
-                      sm: 'right',
-                    },
+                    color: '#041033',
+                    background: '#5ce8ff',
+                    textTransform:
+                      'none',
+                    fontWeight: 900,
+                    px: 2.5,
                   }}
                 >
-                  <Typography
-                    sx={{
-                      color:
-                        '#8198df',
-                      fontSize: 11,
-                    }}
-                  >
-                    INVESTED VALUE
-                  </Typography>
+                  Live Chat
+                </Button>
 
-                  <Typography
-                    sx={{
-                      fontSize: 22,
-                      fontWeight: 900,
-                      mt: 0.5,
-                    }}
-                  >
-                    {money(
-                      performance.totalHoldingsValue
-                    )}
-                  </Typography>
-                </Box>
+                <Button
+                  variant="outlined"
+                  startIcon={
+                    <EmailOutlinedIcon />
+                  }
+                  onClick={goSupport}
+                  sx={{
+                    color: '#fff',
+                    borderColor:
+                      'rgba(255,255,255,0.4)',
+                    textTransform:
+                      'none',
+                    fontWeight: 800,
+                    px: 2.5,
+                  }}
+                >
+                  Email Support
+                </Button>
               </Stack>
-            </Box>
-
-            <Typography
-              sx={{
-                mt: 2,
-                color: '#667cbd',
-                fontSize: 11,
-              }}
-            >
-              Historical performance is not displayed because the current backend does not provide historical performance points.
-            </Typography>
+            </Stack>
           </CardContent>
         </Card>
 
@@ -2247,7 +2565,7 @@ const Dashboard: React.FC = () => {
               <CandlestickChartIcon />
             }
             title="Live Markets"
-            description="View the available market and trading section."
+            description="Monitor forex, indices, commodities and shares."
             onClick={goMarket}
           />
 
@@ -2329,8 +2647,8 @@ const Dashboard: React.FC = () => {
                 icon={
                   <AccountBalanceWalletIcon />
                 }
-                title="Account Data"
-                text="Dashboard financial information is loaded from your account."
+                title="Financial Data"
+                text="Your dashboard information is loaded from your account."
               />
             </Stack>
           </CardContent>
@@ -2339,6 +2657,7 @@ const Dashboard: React.FC = () => {
 
       {/* ======================================================
           PROFILE DRAWER
+          NOTE: Account Number and Account Type removed.
       ====================================================== */}
 
       <Drawer
@@ -2442,35 +2761,59 @@ const Dashboard: React.FC = () => {
           />
 
           <ProfileItem
-            title="Account ID"
-            value={
-              profile.accountId ||
-              'Not available'
-            }
-          />
-
-          <ProfileItem
-            title="Account Number"
-            value={
-              account?.accountNumber ||
-              'Not available'
-            }
-          />
-
-          <ProfileItem
-            title="Account Type"
-            value={
-              account?.accountType ||
-              'Not available'
-            }
-          />
-
-          <ProfileItem
             title="Available Balance"
             value={money(
               performance.availableBalance
             )}
           />
+
+          <ProfileItem
+            title="Portfolio Value"
+            value={money(
+              performance.totalValue
+            )}
+          />
+
+          <Button
+            fullWidth
+            startIcon={
+              <PersonOutlineIcon />
+            }
+            onClick={() => {
+              setProfileOpen(false);
+              navigate('/profile');
+            }}
+            sx={{
+              mt: 1,
+              color: '#5ce8ff',
+              border:
+                '1px solid rgba(92,232,255,0.25)',
+              textTransform:
+                'none',
+              py: 1.2,
+            }}
+          >
+            Manage Profile
+          </Button>
+
+          <Button
+            fullWidth
+            startIcon={
+              <SupportAgentIcon />
+            }
+            onClick={goSupport}
+            sx={{
+              mt: 1.5,
+              color: '#fff',
+              border:
+                '1px solid rgba(255,255,255,0.15)',
+              textTransform:
+                'none',
+              py: 1.2,
+            }}
+          >
+            Contact Support
+          </Button>
 
           <Button
             fullWidth
