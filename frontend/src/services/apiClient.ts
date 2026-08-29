@@ -12,12 +12,8 @@ const apiClient = axios.create({
 });
 
 // ============================================================
-// AUTHENTICATION TOKEN
+// ADD AUTHENTICATION TOKEN
 // ============================================================
-//
-// Admin requests use adminToken.
-// Normal user requests use authToken/accessToken/token.
-//
 
 apiClient.interceptors.request.use(
   (config) => {
@@ -29,18 +25,22 @@ apiClient.interceptors.request.use(
 
     let token: string | null = null;
 
+    // --------------------------------------------------------
+    // ADMIN REQUESTS
+    // --------------------------------------------------------
+
     if (isAdminRequest) {
-      // ------------------------------------------------------
-      // ADMIN REQUEST
-      // ------------------------------------------------------
       token =
         localStorage.getItem(
           'adminToken'
         );
-    } else {
-      // ------------------------------------------------------
-      // NORMAL USER REQUEST
-      // ------------------------------------------------------
+    }
+
+    // --------------------------------------------------------
+    // NORMAL USER REQUESTS
+    // --------------------------------------------------------
+
+    else {
       token =
         localStorage.getItem(
           'authToken'
@@ -53,16 +53,18 @@ apiClient.interceptors.request.use(
         );
     }
 
-    if (token) {
-      config.headers =
-        config.headers || {};
+    // --------------------------------------------------------
+    // ADD BEARER TOKEN
+    // --------------------------------------------------------
 
+    if (token) {
       config.headers.Authorization =
         `Bearer ${token}`;
     }
 
     return config;
   },
+
   (error) => {
     return Promise.reject(error);
   }
@@ -123,8 +125,6 @@ apiClient.interceptors.response.use(
       );
     }
 
-    // Do not automatically redirect.
-    // HashRouter handles navigation.
     return Promise.reject(error);
   }
 );
