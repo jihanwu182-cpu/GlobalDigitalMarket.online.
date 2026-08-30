@@ -39,24 +39,30 @@ import AdminDashboard from './pages/AdminDashboard';
 
 // ============================================================
 // ADMIN LAYOUT
+// IMPORTANT: YOUR FOLDER IS "layouts"
 // ============================================================
 
-import AdminLayout from './layout/AdminLayout';
+import AdminLayout from './layouts/AdminLayout';
 
 // ============================================================
-// ADMIN PLACEHOLDER
-// ============================================================
-// These routes temporarily display the Admin Dashboard.
-// Later we can give each section its own full page.
+// ADMIN SECTION
 // ============================================================
 
-const AdminSection: React.FC<{
+interface AdminSectionProps {
   title: string;
-  tab?: number;
-}> = ({ title }) => {
+  tab: number;
+}
+
+const AdminSection: React.FC<AdminSectionProps> = ({
+  title,
+  tab,
+}) => {
   return (
     <AdminLayout>
-      <AdminDashboard />
+      <AdminDashboard
+        initialTab={tab}
+        sectionTitle={title}
+      />
     </AdminLayout>
   );
 };
@@ -288,7 +294,7 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                USER PROFILE
+                PROFILE
             ================================================== */}
 
             <Route
@@ -381,7 +387,10 @@ const App: React.FC = () => {
               path="/admin"
               element={
                 <AdminLayout>
-                  <AdminDashboard />
+                  <AdminDashboard
+                    initialTab={0}
+                    sectionTitle="Dashboard"
+                  />
                 </AdminLayout>
               }
             />
@@ -395,6 +404,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Users"
+                  tab={0}
                 />
               }
             />
@@ -408,6 +418,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Accounts / Funding"
+                  tab={0}
                 />
               }
             />
@@ -421,6 +432,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="KYC"
+                  tab={4}
                 />
               }
             />
@@ -434,6 +446,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Deposits"
+                  tab={1}
                 />
               }
             />
@@ -447,6 +460,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Withdrawals"
+                  tab={2}
                 />
               }
             />
@@ -460,6 +474,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Transactions"
+                  tab={3}
                 />
               }
             />
@@ -473,6 +488,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Investments"
+                  tab={5}
                 />
               }
             />
@@ -486,6 +502,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Signals"
+                  tab={6}
                 />
               }
             />
@@ -499,12 +516,13 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Settings"
+                  tab={0}
                 />
               }
             />
 
             {/* ==================================================
-                ADMIN PAYMENT METHODS
+                PAYMENT METHODS
             ================================================== */}
 
             <Route
@@ -512,6 +530,7 @@ const App: React.FC = () => {
               element={
                 <AdminSection
                   title="Payment Methods"
+                  tab={0}
                 />
               }
             />
