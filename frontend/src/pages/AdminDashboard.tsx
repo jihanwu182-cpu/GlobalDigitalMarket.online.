@@ -427,7 +427,22 @@ const SectionHeader = ({
 // ADMIN DASHBOARD
 // ============================================================
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+
+  initialTab?: number;
+
+  sectionTitle?: string;
+
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({
+
+  initialTab = 0,
+
+  sectionTitle,
+
+}) => {
+
   const navigate = useNavigate();
 
   const [dashboard, setDashboard] =
@@ -466,9 +481,13 @@ const AdminDashboard: React.FC = () => {
   const [success, setSuccess] =
     useState('');
 
-  const [tab, setTab] =
-    useState(0);
+  
+const [tab, setTab] =
+  useState(initialTab);
 
+useEffect(() => {
+  setTab(initialTab);
+}, [initialTab]);
   const [userSearch, setUserSearch] =
     useState('');
 
