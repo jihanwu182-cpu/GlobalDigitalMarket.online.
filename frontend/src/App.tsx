@@ -37,14 +37,12 @@ import ContactSupport from './pages/ContactSupport';
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminLayout from './layout/AdminLayout';
-import AdminSettings from './pages/AdminSettings';
 import AdminPaymentMethods from './pages/AdminPaymentMethods';
 
 // ============================================================
 // ADMIN LAYOUT
 // ============================================================
-
+import AdminLayout from './layout/AdminLayout';
 
 // ============================================================
 // ERROR BOUNDARY
