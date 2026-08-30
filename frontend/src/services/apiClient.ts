@@ -26,18 +26,16 @@ apiClient.interceptors.request.use(
     let token: string | null = null;
 
     // ========================================================
-    // ADMIN REQUESTS
+    // ADMIN TOKEN
     // ========================================================
 
     if (isAdminRequest) {
       token =
-        localStorage.getItem('adminToken') ||
-        localStorage.getItem('accessToken') ||
-        localStorage.getItem('token');
+        localStorage.getItem('adminToken');
     }
 
     // ========================================================
-    // NORMAL USER REQUESTS
+    // NORMAL USER TOKEN
     // ========================================================
 
     else {
@@ -48,33 +46,20 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // ADD BEARER TOKEN
+    // ADD AUTHORIZATION HEADER
     // ========================================================
 
     if (token) {
-      config.headers.Authorization =
-        `Bearer ${token}`;
+      if (config.headers) {
+        config.headers.Authorization =
+          `Bearer ${token}`;
+      }
     }
-
-    // ========================================================
-    // DEBUG INFORMATION
-    // ========================================================
-
-    console.log(
-      '[API REQUEST]',
-      config.method?.toUpperCase(),
-      requestUrl
-    );
 
     return config;
   },
 
   (error) => {
-    console.error(
-      '[API REQUEST ERROR]',
-      error
-    );
-
     return Promise.reject(error);
   }
 );
@@ -85,25 +70,14 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(
-      '[API SUCCESS]',
-      response.config.method?.toUpperCase(),
-      response.config.url,
-      response.status
-    );
-
     return response;
   },
 
   (error) => {
     console.error(
-      '[API ERROR]',
+      'API ERROR:',
       error
     );
-
-    // ========================================================
-    // SERVER RESPONSE
-    // ========================================================
 
     if (error.response) {
       console.error(
@@ -112,17 +86,12 @@ apiClient.interceptors.response.use(
       );
 
       console.error(
-        'URL:',
-        error.config?.url
-      );
-
-      console.error(
         'DATA:',
         error.response.data
       );
 
       // ======================================================
-      // ADMIN AUTHENTICATION ERROR
+      // ADMIN AUTH ERROR
       // ======================================================
 
       if (
@@ -130,7 +99,7 @@ apiClient.interceptors.response.use(
         error.config?.url?.startsWith('/admin')
       ) {
         console.error(
-          '[ADMIN] Authentication failed.'
+          'ADMIN AUTHENTICATION FAILED'
         );
 
         localStorage.removeItem(
@@ -152,8 +121,7 @@ apiClient.interceptors.response.use(
       error.code === 'ETIMEDOUT'
     ) {
       console.error(
-        '[API TIMEOUT]',
-        error.config?.url
+        'API REQUEST TIMED OUT'
       );
     }
 
@@ -163,7 +131,7 @@ apiClient.interceptors.response.use(
 
     else {
       console.error(
-        '[API NETWORK ERROR]',
+        'NETWORK ERROR:',
         error.message
       );
     }
@@ -171,9 +139,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
-// ============================================================
-// EXPORT
-// ============================================================
 
 export default apiClient;
