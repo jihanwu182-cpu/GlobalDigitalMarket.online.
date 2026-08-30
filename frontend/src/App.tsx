@@ -45,7 +45,6 @@ import AdminPaymentMethods from './pages/AdminPaymentMethods';
 // ADMIN LAYOUT
 // ============================================================
 
-import AdminLayout from './layout/AdminLayout';
 
 // ============================================================
 // ERROR BOUNDARY
