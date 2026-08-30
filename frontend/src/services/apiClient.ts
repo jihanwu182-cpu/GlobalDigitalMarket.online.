@@ -6,10 +6,7 @@ const API_URL =
 
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  timeout: 30000,
 });
 
 // ============================================================
@@ -30,8 +27,7 @@ apiClient.interceptors.request.use(
     // ========================================================
 
     if (isAdminRequest) {
-      token =
-        localStorage.getItem('adminToken');
+      token = localStorage.getItem('adminToken');
     }
 
     // ========================================================
@@ -49,10 +45,38 @@ apiClient.interceptors.request.use(
     // ADD AUTHORIZATION HEADER
     // ========================================================
 
-    if (token) {
+    if (token && config.headers) {
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    // ========================================================
+    // FORM DATA
+    // ========================================================
+    // IMPORTANT:
+    // Do NOT manually set Content-Type for FormData.
+    // The browser/Axios will automatically add:
+    // multipart/form-data; boundary=...
+    // ========================================================
+
+    if (
+      typeof FormData !== 'undefined' &&
+      config.data instanceof FormData
+    ) {
       if (config.headers) {
-        config.headers.Authorization =
-          `Bearer ${token}`;
+        delete config.headers['Content-Type'];
+        delete config.headers['content-type'];
+      }
+    }
+
+    // ========================================================
+    // NORMAL JSON REQUESTS
+    // ========================================================
+
+    else {
+      if (config.headers) {
+        config.headers['Content-Type'] =
+          'application/json';
       }
     }
 
