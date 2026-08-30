@@ -15,15 +15,12 @@ import {
 import CssBaseline from '@mui/material/CssBaseline';
 
 // ============================================================
-// PAGES
+// USER PAGES
 // ============================================================
 
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-
-import AdminLogin from './pages/AdminLogin';
-import AdminDashboard from './pages/AdminDashboard';
 
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
@@ -33,6 +30,21 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 import ContactSupport from './pages/ContactSupport';
+
+// ============================================================
+// ADMIN PAGES
+// ============================================================
+
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminSettings from './pages/AdminSettings';
+import AdminPaymentMethods from './pages/AdminPaymentMethods';
+
+// ============================================================
+// ADMIN LAYOUT
+// ============================================================
+
+import AdminLayout from './layout/AdminLayout';
 
 // ============================================================
 // ERROR BOUNDARY
@@ -324,13 +336,7 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                TEMPORARY SECURITY ROUTE
-            ==================================================
-            
-            Security page is not currently registered as a
-            separate page, so keep the user inside the dashboard
-            instead of sending them to Home.
-            
+                SECURITY
             ================================================== */}
 
             <Route
@@ -344,27 +350,7 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                TEMPORARY SETTINGS ROUTE
-            ==================================================
-            
-            Settings page is not currently registered as a
-            separate page, so keep the user inside the account
-            area instead of sending them to Home.
-            
-            ================================================== */}
-
-            <Route
-              path="/settings"
-              element={
-                <Navigate
-                  to="/profile"
-                  replace
-                />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN
+                ADMIN LOGIN
             ================================================== */}
 
             <Route
@@ -372,9 +358,43 @@ const App: React.FC = () => {
               element={<AdminLogin />}
             />
 
+            {/* ==================================================
+                ADMIN DASHBOARD
+            ================================================== */}
+
             <Route
               path="/admin"
-              element={<AdminDashboard />}
+              element={
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
+              }
+            />
+
+            {/* ==================================================
+                ADMIN SETTINGS
+            ================================================== */}
+
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminLayout>
+                  <AdminSettings />
+                </AdminLayout>
+              }
+            />
+
+            {/* ==================================================
+                ADMIN PAYMENT METHODS
+            ================================================== */}
+
+            <Route
+              path="/admin/settings/payment-methods"
+              element={
+                <AdminLayout>
+                  <AdminPaymentMethods />
+                </AdminLayout>
+              }
             />
 
             {/* ==================================================
