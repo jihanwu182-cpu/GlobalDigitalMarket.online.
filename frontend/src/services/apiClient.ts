@@ -26,7 +26,7 @@ apiClient.interceptors.request.use(
     let token: string | null = null;
 
     // ========================================================
-    // ADMIN REQUEST
+    // ADMIN REQUESTS
     // ========================================================
 
     if (isAdminRequest) {
@@ -37,7 +37,7 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // NORMAL USER REQUEST
+    // NORMAL USER REQUESTS
     // ========================================================
 
     else {
@@ -48,26 +48,22 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // ADD AUTHORIZATION HEADER
+    // ADD BEARER TOKEN
     // ========================================================
 
     if (token) {
-      config.headers = config.headers || {};
-
       config.headers.Authorization =
         `Bearer ${token}`;
     }
 
     // ========================================================
-    // DEBUG LOG
+    // DEBUG INFORMATION
     // ========================================================
 
     console.log(
-      `[API] ${config.method?.toUpperCase() || 'GET'} ${requestUrl}`,
-      {
-        authenticated: Boolean(token),
-        adminRequest: isAdminRequest,
-      }
+      '[API REQUEST]',
+      config.method?.toUpperCase(),
+      requestUrl
     );
 
     return config;
@@ -90,7 +86,9 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => {
     console.log(
-      `[API SUCCESS] ${response.config.method?.toUpperCase() || 'GET'} ${response.config.url}`,
+      '[API SUCCESS]',
+      response.config.method?.toUpperCase(),
+      response.config.url,
       response.status
     );
 
@@ -124,7 +122,7 @@ apiClient.interceptors.response.use(
       );
 
       // ======================================================
-      // ADMIN AUTHENTICATION FAILURE
+      // ADMIN AUTHENTICATION ERROR
       // ======================================================
 
       if (
@@ -154,7 +152,7 @@ apiClient.interceptors.response.use(
       error.code === 'ETIMEDOUT'
     ) {
       console.error(
-        '[API] Request timed out:',
+        '[API TIMEOUT]',
         error.config?.url
       );
     }
@@ -165,7 +163,7 @@ apiClient.interceptors.response.use(
 
     else {
       console.error(
-        '[API] Network error:',
+        '[API NETWORK ERROR]',
         error.message
       );
     }
@@ -173,5 +171,9 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 export default apiClient;
