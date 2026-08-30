@@ -22,7 +22,7 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
-import Dashboard from './pages/Dashboard';
+import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile';
 import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
@@ -37,6 +37,7 @@ import ContactSupport from './pages/ContactSupport';
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLayout from './layout/AdminLayout';
 import AdminSettings from './pages/AdminSettings';
 import AdminPaymentMethods from './pages/AdminPaymentMethods';
 
