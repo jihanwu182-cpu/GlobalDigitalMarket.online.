@@ -41,7 +41,25 @@ import AdminDashboard from './pages/AdminDashboard';
 // ADMIN LAYOUT
 // ============================================================
 
-import AdminLayout from './layouts/AdminLayout';
+import AdminLayout from './layout/AdminLayout';
+
+// ============================================================
+// ADMIN PLACEHOLDER
+// ============================================================
+// These routes temporarily display the Admin Dashboard.
+// Later we can give each section its own full page.
+// ============================================================
+
+const AdminSection: React.FC<{
+  title: string;
+  tab?: number;
+}> = ({ title }) => {
+  return (
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  );
+};
 
 // ============================================================
 // ERROR BOUNDARY
@@ -84,8 +102,15 @@ class ErrorBoundary extends React.Component<
     error: Error,
     errorInfo: React.ErrorInfo
   ) {
-    console.error('GLOBAL REACT ERROR:', error);
-    console.error('REACT ERROR INFO:', errorInfo);
+    console.error(
+      'GLOBAL REACT ERROR:',
+      error
+    );
+
+    console.error(
+      'REACT ERROR INFO:',
+      errorInfo
+    );
   }
 
   handleReload = () => {
@@ -212,21 +237,10 @@ const theme = createTheme({
   },
 
   typography: {
-    fontFamily: 'Roboto, Arial, sans-serif',
+    fontFamily:
+      'Roboto, Arial, sans-serif',
   },
 });
-
-// ============================================================
-// ADMIN PAGE WRAPPER
-// ============================================================
-
-const AdminPage: React.FC = () => {
-  return (
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  );
-};
 
 // ============================================================
 // APP
@@ -241,14 +255,18 @@ const App: React.FC = () => {
         <HashRouter>
           <Routes>
 
-            {/* HOME */}
+            {/* ==================================================
+                HOME
+            ================================================== */}
 
             <Route
               path="/"
               element={<Home />}
             />
 
-            {/* AUTHENTICATION */}
+            {/* ==================================================
+                AUTHENTICATION
+            ================================================== */}
 
             <Route
               path="/login"
@@ -260,63 +278,81 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
-            {/* USER DASHBOARD */}
+            {/* ==================================================
+                USER DASHBOARD
+            ================================================== */}
 
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
 
-            {/* USER PROFILE */}
+            {/* ==================================================
+                USER PROFILE
+            ================================================== */}
 
             <Route
               path="/profile"
               element={<Profile />}
             />
 
-            {/* ACCOUNT STATEMENT */}
+            {/* ==================================================
+                ACCOUNT STATEMENT
+            ================================================== */}
 
             <Route
               path="/account-statement"
               element={<AccountStatement />}
             />
 
-            {/* PORTFOLIO */}
+            {/* ==================================================
+                PORTFOLIO
+            ================================================== */}
 
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
 
-            {/* WALLET */}
+            {/* ==================================================
+                WALLET
+            ================================================== */}
 
             <Route
               path="/wallet"
               element={<Wallet />}
             />
 
-            {/* TRADING */}
+            {/* ==================================================
+                TRADING
+            ================================================== */}
 
             <Route
               path="/trading"
               element={<Trading />}
             />
 
-            {/* MARKET */}
+            {/* ==================================================
+                MARKET
+            ================================================== */}
 
             <Route
               path="/market"
               element={<Market />}
             />
 
-            {/* SUPPORT */}
+            {/* ==================================================
+                SUPPORT
+            ================================================== */}
 
             <Route
               path="/support"
               element={<ContactSupport />}
             />
 
-            {/* SECURITY */}
+            {/* ==================================================
+                SECURITY
+            ================================================== */}
 
             <Route
               path="/security"
@@ -338,57 +374,146 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                ADMIN ROUTES
+                ADMIN DASHBOARD
             ================================================== */}
 
             <Route
               path="/admin"
-              element={<AdminPage />}
+              element={
+                <AdminLayout>
+                  <AdminDashboard />
+                </AdminLayout>
+              }
             />
+
+            {/* ==================================================
+                ADMIN USERS
+            ================================================== */}
 
             <Route
               path="/admin/users"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Users"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN ACCOUNTS
+            ================================================== */}
 
             <Route
               path="/admin/accounts"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Accounts / Funding"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN KYC
+            ================================================== */}
 
             <Route
               path="/admin/kyc"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="KYC"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN DEPOSITS
+            ================================================== */}
 
             <Route
               path="/admin/deposits"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Deposits"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN WITHDRAWALS
+            ================================================== */}
 
             <Route
               path="/admin/withdrawals"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Withdrawals"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN TRANSACTIONS
+            ================================================== */}
 
             <Route
               path="/admin/transactions"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Transactions"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN INVESTMENTS
+            ================================================== */}
 
             <Route
               path="/admin/investments"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Investments"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN SIGNALS
+            ================================================== */}
 
             <Route
               path="/admin/signals"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Signals"
+                />
+              }
             />
+
+            {/* ==================================================
+                ADMIN SETTINGS
+            ================================================== */}
 
             <Route
               path="/admin/settings"
-              element={<AdminPage />}
+              element={
+                <AdminSection
+                  title="Settings"
+                />
+              }
+            />
+
+            {/* ==================================================
+                ADMIN PAYMENT METHODS
+            ================================================== */}
+
+            <Route
+              path="/admin/settings/payment-methods"
+              element={
+                <AdminSection
+                  title="Payment Methods"
+                />
+              }
             />
 
             {/* ==================================================
