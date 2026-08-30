@@ -39,55 +39,112 @@ const AdminLogin: React.FC = () => {
   const [error, setError] =
     useState('');
 
+  // ============================================================
+  // ADMIN LOGIN
+  // ============================================================
+
   const handleLogin = async (
-    event: React.FormEvent
+    event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
     setError('');
 
-    if (!email.trim()) {
-      setError('Please enter your admin email.');
+    const normalizedEmail =
+      email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setError(
+        'Please enter your admin email.'
+      );
       return;
     }
 
     if (!password) {
-      setError('Please enter your password.');
+      setError(
+        'Please enter your password.'
+      );
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await apiClient.post(
-        '/admin/login',
-        {
-          email: email.trim(),
-          password,
-        }
+      // --------------------------------------------------------
+      // REMOVE OLD ADMIN SESSION
+      // --------------------------------------------------------
+
+      localStorage.removeItem(
+        'adminToken'
       );
 
-      const data = response.data || {};
+      localStorage.removeItem(
+        'admin'
+      );
 
-      /*
-       * Save the authentication token if
-       * the backend returns one.
-       */
+      // --------------------------------------------------------
+      // LOGIN REQUEST
+      // --------------------------------------------------------
+
+      const response =
+        await apiClient.post(
+          '/admin/login',
+          {
+            email: normalizedEmail,
+            password,
+          }
+        );
+
+      const data =
+        response?.data || {};
+
+      console.log(
+        'ADMIN LOGIN RESPONSE:',
+        data
+      );
+
+      // --------------------------------------------------------
+      // GET TOKEN
+      // --------------------------------------------------------
+
       const token =
         data.token ||
         data.accessToken ||
         data.access_token;
 
-      if (token) {
-        localStorage.setItem(
-          'adminToken',
-          token
+      // --------------------------------------------------------
+      // TOKEN IS REQUIRED
+      // --------------------------------------------------------
+
+      if (
+        !token ||
+        typeof token !== 'string'
+      ) {
+        console.error(
+          'Admin login succeeded but no token was returned.',
+          data
         );
+
+        setError(
+          'Login succeeded, but the administrator authentication token was not returned by the server.'
+        );
+
+        return;
       }
 
-      /*
-       * Save admin information if supplied.
-       */
+      // --------------------------------------------------------
+      // SAVE ADMIN TOKEN
+      // --------------------------------------------------------
+
+      localStorage.setItem(
+        'adminToken',
+        token
+      );
+
+      // --------------------------------------------------------
+      // SAVE ADMIN USER
+      // --------------------------------------------------------
+
       if (data.admin) {
         localStorage.setItem(
           'admin',
@@ -95,11 +152,38 @@ const AdminLogin: React.FC = () => {
         );
       }
 
-      /*
-       * Go to the admin dashboard if the
-       * login succeeds.
-       */
-      navigate('/admin');
+      // --------------------------------------------------------
+      // VERIFY TOKEN WAS SAVED
+      // --------------------------------------------------------
+
+      const savedToken =
+        localStorage.getItem(
+          'adminToken'
+        );
+
+      if (!savedToken) {
+        setError(
+          'Unable to save the administrator login session.'
+        );
+
+        return;
+      }
+
+      console.log(
+        'ADMIN TOKEN SAVED SUCCESSFULLY'
+      );
+
+      // --------------------------------------------------------
+      // GO TO ADMIN DASHBOARD
+      // --------------------------------------------------------
+
+      navigate(
+        '/admin',
+        {
+          replace: true,
+        }
+      );
+
     } catch (requestError: any) {
       console.error(
         'Admin login error:',
@@ -112,10 +196,15 @@ const AdminLogin: React.FC = () => {
         'Admin login failed. Please check your credentials.';
 
       setError(message);
+
     } finally {
       setLoading(false);
     }
   };
+
+  // ============================================================
+  // UI
+  // ============================================================
 
   return (
     <Box
@@ -124,23 +213,27 @@ const AdminLogin: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+
         background:
           'radial-gradient(circle at top right, rgba(25,84,199,0.35), transparent 35%), linear-gradient(180deg,#020817 0%,#071453 100%)',
+
         px: 2,
         py: 4,
       }}
     >
-      <Container
-        maxWidth="sm"
-      >
+      <Container maxWidth="sm">
         <Card
           sx={{
             borderRadius: 4,
+
             background:
               'linear-gradient(145deg,#101f63,#08143f)',
+
             border:
               '1px solid rgba(100,150,255,0.22)',
+
             color: '#fff',
+
             boxShadow:
               '0 25px 70px rgba(0,0,0,0.45)',
           }}
@@ -153,35 +246,53 @@ const AdminLogin: React.FC = () => {
               },
             }}
           >
+            {/* BACK BUTTON */}
+
             <IconButton
               onClick={() =>
                 navigate('/')
               }
+              disabled={loading}
               sx={{
                 color: '#fff',
+
                 background:
                   'rgba(255,255,255,0.07)',
+
                 mb: 3,
+
+                '&:hover': {
+                  background:
+                    'rgba(255,255,255,0.12)',
+                },
               }}
             >
               <ArrowBackIcon />
             </IconButton>
 
+            {/* HEADER */}
+
             <Stack
               alignItems="center"
               spacing={1}
-              sx={{ mb: 4 }}
+              sx={{
+                mb: 4,
+              }}
             >
               <Box
                 sx={{
                   width: 70,
                   height: 70,
+
                   borderRadius: 3,
+
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+
                   background:
                     'rgba(92,232,255,0.10)',
+
                   border:
                     '1px solid rgba(92,232,255,0.20)',
                 }}
@@ -215,6 +326,8 @@ const AdminLogin: React.FC = () => {
               </Typography>
             </Stack>
 
+            {/* ERROR */}
+
             {error && (
               <Alert
                 severity="error"
@@ -226,13 +339,18 @@ const AdminLogin: React.FC = () => {
               </Alert>
             )}
 
+            {/* FORM */}
+
             <Box
               component="form"
               onSubmit={handleLogin}
             >
               <Stack spacing={2.5}>
+                {/* EMAIL */}
+
                 <TextField
                   fullWidth
+                  required
                   label="Admin Email"
                   type="email"
                   value={email}
@@ -251,14 +369,17 @@ const AdminLogin: React.FC = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       color: '#fff',
+
                       '& fieldset': {
                         borderColor:
                           'rgba(145,164,216,0.35)',
                       },
+
                       '&:hover fieldset': {
                         borderColor:
                           '#5ce8ff',
                       },
+
                       '&.Mui-focused fieldset': {
                         borderColor:
                           '#5ce8ff',
@@ -267,8 +388,11 @@ const AdminLogin: React.FC = () => {
                   }}
                 />
 
+                {/* PASSWORD */}
+
                 <TextField
                   fullWidth
+                  required
                   label="Password"
                   type={
                     showPassword
@@ -292,12 +416,15 @@ const AdminLogin: React.FC = () => {
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
+                          type="button"
                           onClick={() =>
                             setShowPassword(
-                              !showPassword
+                              (current) =>
+                                !current
                             )
                           }
                           edge="end"
+                          disabled={loading}
                           sx={{
                             color:
                               '#91a4d8',
@@ -315,14 +442,17 @@ const AdminLogin: React.FC = () => {
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       color: '#fff',
+
                       '& fieldset': {
                         borderColor:
                           'rgba(145,164,216,0.35)',
                       },
+
                       '&:hover fieldset': {
                         borderColor:
                           '#5ce8ff',
                       },
+
                       '&.Mui-focused fieldset': {
                         borderColor:
                           '#5ce8ff',
@@ -331,6 +461,8 @@ const AdminLogin: React.FC = () => {
                   }}
                 />
 
+                {/* LOGIN BUTTON */}
+
                 <Button
                   type="submit"
                   fullWidth
@@ -338,12 +470,22 @@ const AdminLogin: React.FC = () => {
                   disabled={loading}
                   sx={{
                     py: 1.5,
+
                     borderRadius: 2,
+
                     background:
                       'linear-gradient(135deg,#1768ff,#168fff)',
+
                     textTransform: 'none',
+
                     fontWeight: 900,
+
                     fontSize: 15,
+
+                    '&:hover': {
+                      background:
+                        'linear-gradient(135deg,#1259dd,#117edc)',
+                    },
                   }}
                 >
                   {loading ? (
@@ -359,6 +501,8 @@ const AdminLogin: React.FC = () => {
                 </Button>
               </Stack>
             </Box>
+
+            {/* FOOTER */}
 
             <Typography
               sx={{
