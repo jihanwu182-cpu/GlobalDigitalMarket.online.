@@ -61,36 +61,17 @@ const ensureSignalTables = async () => {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS signal_plans (
       id SERIAL PRIMARY KEY,
-
       name VARCHAR(150) NOT NULL,
-
       description TEXT,
-
-      strength INTEGER
-        NOT NULL DEFAULT 50,
-
-      accuracy_percent NUMERIC(6, 2)
-        NOT NULL DEFAULT 0,
-
-      duration_days INTEGER
-        NOT NULL DEFAULT 30,
-
-      price NUMERIC(20, 2)
-        NOT NULL DEFAULT 0,
-
-      currency VARCHAR(10)
-        NOT NULL DEFAULT 'USD',
-
-      status VARCHAR(20)
-        NOT NULL DEFAULT 'ACTIVE',
-
+      strength INTEGER NOT NULL DEFAULT 50,
+      accuracy_percent NUMERIC(6, 2) NOT NULL DEFAULT 0,
+      duration_days INTEGER NOT NULL DEFAULT 30,
+      price NUMERIC(20, 2) NOT NULL DEFAULT 0,
+      currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
       created_by INTEGER,
-
-      created_at TIMESTAMP
-        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      updated_at TIMESTAMP
-        NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
   `);
 
@@ -327,11 +308,8 @@ const adminLogin = async (
     return res.status(200).json({
       message:
         'Administrator login successful.',
-
       token: accessToken,
-
       accessToken,
-
       admin: adminUser,
     });
 
@@ -393,10 +371,7 @@ const getDashboard = async (
     const depositsResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(amount),
-            0
-          ) AS total
+          COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'DEPOSIT'
         AND status = 'COMPLETED'
@@ -405,10 +380,7 @@ const getDashboard = async (
     const withdrawalsResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(amount),
-            0
-          ) AS total
+          COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'WITHDRAWAL'
         AND status = 'COMPLETED'
@@ -446,10 +418,7 @@ const getDashboard = async (
     const balanceResult =
       await pool.query(`
         SELECT
-          COALESCE(
-            SUM(balance),
-            0
-          ) AS total
+          COALESCE(SUM(balance), 0) AS total
         FROM accounts
       `);
 
@@ -566,43 +535,22 @@ const getUsers = async (
     const users =
       result.rows.map(
         (user) => ({
-          id:
-            user.id,
-
-          email:
-            user.email,
-
-          firstName:
-            user.first_name,
-
-          lastName:
-            user.last_name,
-
-          username:
-            user.username || '',
-
-          phone:
-            user.phone || '',
-
-          country:
-            user.country || '',
-
+          id: user.id,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+          username: user.username || '',
+          phone: user.phone || '',
+          country: user.country || '',
           preferredCurrency:
             user.preferred_currency || 'USD',
-
           referralCode:
             user.referral_code || '',
-
-          role:
-            user.role,
-
-          status:
-            user.status,
+          role: user.role,
+          status: user.status,
 
           emailVerified:
-            Boolean(
-              user.email_verified
-            ),
+            Boolean(user.email_verified),
 
           identityVerificationStatus:
             user.identity_verification_status,
@@ -641,9 +589,7 @@ const getUsers = async (
 
     return res.status(200).json({
       users,
-
-      count:
-        users.length,
+      count: users.length,
     });
 
   } catch (error) {
@@ -735,46 +681,24 @@ const getUser = async (
 
     return res.status(200).json({
       user: {
-        id:
-          user.id,
-
-        email:
-          user.email,
-
-        firstName:
-          user.first_name,
-
-        lastName:
-          user.last_name,
-
-        username:
-          user.username || '',
-
-        phone:
-          user.phone || '',
-
-        country:
-          user.country || '',
-
+        id: user.id,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+        username: user.username || '',
+        phone: user.phone || '',
+        country: user.country || '',
         preferredCurrency:
           user.preferred_currency || 'USD',
-
         referralCode:
           user.referral_code || '',
-
         referrerCode:
           user.referrer_code || '',
-
-        role:
-          user.role,
-
-        status:
-          user.status,
+        role: user.role,
+        status: user.status,
 
         emailVerified:
-          Boolean(
-            user.email_verified
-          ),
+          Boolean(user.email_verified),
 
         identityVerificationStatus:
           user.identity_verification_status,
@@ -975,9 +899,7 @@ const getTransactions = async (
 
     return res.status(200).json({
       transactions,
-
-      count:
-        transactions.length,
+      count: transactions.length,
     });
 
   } catch (error) {
@@ -1218,7 +1140,6 @@ const getWithdrawals = async (
 
 // ============================================================
 // FUND USER ACCOUNT
-// ADMIN ONLY
 // ============================================================
 
 const fundUserAccount = async (
@@ -1239,10 +1160,6 @@ const fundUserAccount = async (
       description,
     } = req.body || {};
 
-    // --------------------------------------------------------
-    // VALIDATE USER ID
-    // --------------------------------------------------------
-
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
         message:
@@ -1250,17 +1167,11 @@ const fundUserAccount = async (
       });
     }
 
-    // --------------------------------------------------------
-    // VALIDATE AMOUNT
-    // --------------------------------------------------------
-
     const fundingAmount =
       Number(amount);
 
     if (
-      !Number.isFinite(
-        fundingAmount
-      ) ||
+      !Number.isFinite(fundingAmount) ||
       fundingAmount <= 0
     ) {
       return res.status(400).json({
@@ -1269,14 +1180,8 @@ const fundUserAccount = async (
       });
     }
 
-    // --------------------------------------------------------
-    // VALIDATE CURRENCY
-    // --------------------------------------------------------
-
     const fundingCurrency =
-      String(
-        currency || 'USD'
-      )
+      String(currency || 'USD')
         .trim()
         .toUpperCase();
 
@@ -1290,15 +1195,7 @@ const fundUserAccount = async (
       });
     }
 
-    // --------------------------------------------------------
-    // START TRANSACTION
-    // --------------------------------------------------------
-
     await client.query('BEGIN');
-
-    // --------------------------------------------------------
-    // FIND USER ACCOUNT
-    // --------------------------------------------------------
 
     const accountResult =
       await client.query(
@@ -1332,12 +1229,8 @@ const fundUserAccount = async (
         [userId]
       );
 
-    if (
-      accountResult.rows.length === 0
-    ) {
-      await client.query(
-        'ROLLBACK'
-      );
+    if (accountResult.rows.length === 0) {
+      await client.query('ROLLBACK');
 
       return res.status(404).json({
         message:
@@ -1348,14 +1241,8 @@ const fundUserAccount = async (
     const account =
       accountResult.rows[0];
 
-    // --------------------------------------------------------
-    // CHECK ACCOUNT CURRENCY
-    // --------------------------------------------------------
-
     const accountCurrency =
-      String(
-        account.currency || 'USD'
-      )
+      String(account.currency || 'USD')
         .trim()
         .toUpperCase();
 
@@ -1363,9 +1250,7 @@ const fundUserAccount = async (
       accountCurrency !==
       fundingCurrency
     ) {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
@@ -1378,18 +1263,15 @@ const fundUserAccount = async (
       });
     }
 
-    // --------------------------------------------------------
-    // TRANSACTION REFERENCE
-    // --------------------------------------------------------
-
     const transactionReference =
       `ADMIN-FUND-${Date.now()}-${userId}-${Math.floor(
         Math.random() * 100000
       )}`;
 
-    // --------------------------------------------------------
-    // CREATE COMPLETED DEPOSIT
-    // --------------------------------------------------------
+    const fundingDescription =
+      description
+        ? String(description).trim()
+        : 'Account funded by administrator.';
 
     const transactionResult =
       await client.query(
@@ -1444,32 +1326,14 @@ const fundUserAccount = async (
         `,
         [
           account.account_id,
-
           transactionReference,
-
           fundingAmount,
-
           fundingCurrency,
-
-          description
-            ? String(
-                description
-              ).trim()
-            : 'Account funded by administrator.',
-
+          fundingDescription,
           req.user.id,
-
-          description
-            ? String(
-                description
-              ).trim()
-            : 'Account funded by administrator.',
+          fundingDescription,
         ]
       );
-
-    // --------------------------------------------------------
-    // UPDATE ACCOUNT BALANCES
-    // --------------------------------------------------------
 
     const updatedAccountResult =
       await client.query(
@@ -1525,27 +1389,17 @@ const fundUserAccount = async (
         ]
       );
 
-    // --------------------------------------------------------
-    // COMMIT
-    // --------------------------------------------------------
-
-    await client.query(
-      'COMMIT'
-    );
-
-    const updatedAccount =
-      updatedAccountResult.rows[0];
+    await client.query('COMMIT');
 
     const transaction =
       transactionResult.rows[0];
 
+    const updatedAccount =
+      updatedAccountResult.rows[0];
+
     logger.info(
       `Admin ${req.user.id} funded user ${userId} account ${account.account_id} with ${fundingAmount} ${fundingCurrency}`
     );
-
-    // --------------------------------------------------------
-    // RESPONSE
-    // --------------------------------------------------------
 
     return res.status(200).json({
       message:
@@ -1577,8 +1431,7 @@ const fundUserAccount = async (
           fundingCurrency,
 
         transactionReference:
-          transaction
-            .transaction_reference,
+          transaction.transaction_reference,
 
         status:
           'COMPLETED',
@@ -1696,9 +1549,7 @@ const fundUserAccount = async (
 
   } catch (error) {
     try {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
         'Account funding rollback error:',
@@ -1708,6 +1559,468 @@ const fundUserAccount = async (
 
     logger.error(
       'Admin fund user account error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
+// DEBIT USER ACCOUNT
+// ============================================================
+
+const debitUserAccount = async (
+  req,
+  res,
+  next
+) => {
+  const client =
+    await pool.connect();
+
+  try {
+    const userId =
+      Number(req.params.id);
+
+    const {
+      amount,
+      currency,
+      description,
+    } = req.body || {};
+
+    if (!isPositiveInteger(userId)) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    const debitAmount =
+      Number(amount);
+
+    if (
+      !Number.isFinite(debitAmount) ||
+      debitAmount <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Debit amount must be greater than zero.',
+      });
+    }
+
+    const debitCurrency =
+      String(currency || 'USD')
+        .trim()
+        .toUpperCase();
+
+    if (
+      debitCurrency.length < 3 ||
+      debitCurrency.length > 10
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid currency.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const accountResult =
+      await client.query(
+        `
+        SELECT
+          u.id AS user_id,
+          u.email,
+          u.first_name,
+          u.last_name,
+
+          a.id AS account_id,
+          a.account_number,
+          a.account_type,
+          a.account_name,
+          a.currency,
+          a.balance,
+          a.deposit,
+          a.profits,
+          a.available_balance,
+          a.bonus,
+          a.referrer_bonus,
+          a.buying_power,
+          a.margin_available,
+          a.status
+
+        FROM users u
+
+        INNER JOIN accounts a
+          ON a.user_id = u.id
+
+        WHERE u.id = $1
+
+        LIMIT 1
+
+        FOR UPDATE OF a
+        `,
+        [userId]
+      );
+
+    if (accountResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const account =
+      accountResult.rows[0];
+
+    const accountCurrency =
+      String(account.currency || 'USD')
+        .trim()
+        .toUpperCase();
+
+    if (
+      accountCurrency !==
+      debitCurrency
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          `Account currency is ${accountCurrency}. Debit currency must match the account currency.`,
+
+        accountCurrency,
+
+        requestedCurrency:
+          debitCurrency,
+      });
+    }
+
+    const currentBalance =
+      safeNumber(account.balance);
+
+    const currentAvailableBalance =
+      safeNumber(
+        account.available_balance
+      );
+
+    if (
+      currentBalance < debitAmount ||
+      currentAvailableBalance < debitAmount
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Insufficient account balance.',
+
+        balance:
+          currentBalance,
+
+        availableBalance:
+          currentAvailableBalance,
+
+        requestedAmount:
+          debitAmount,
+      });
+    }
+
+    const transactionReference =
+      `ADMIN-DEBIT-${Date.now()}-${userId}-${Math.floor(
+        Math.random() * 100000
+      )}`;
+
+    const debitDescription =
+      description
+        ? String(description).trim()
+        : 'Account debited by administrator.';
+
+    const transactionResult =
+      await client.query(
+        `
+        INSERT INTO transactions (
+          account_id,
+          transaction_reference,
+          transaction_type,
+          amount,
+          currency,
+          payment_method,
+          status,
+          description,
+          verified_by,
+          verified_at,
+          admin_note,
+          created_at,
+          updated_at
+        )
+
+        VALUES (
+          $1,
+          $2,
+          'WITHDRAWAL',
+          $3,
+          $4,
+          'ADMIN_DEBIT',
+          'COMPLETED',
+          $5,
+          $6,
+          CURRENT_TIMESTAMP,
+          $7,
+          CURRENT_TIMESTAMP,
+          CURRENT_TIMESTAMP
+        )
+
+        RETURNING
+          id,
+          account_id,
+          transaction_reference,
+          transaction_type,
+          amount,
+          currency,
+          payment_method,
+          status,
+          description,
+          verified_by,
+          verified_at,
+          admin_note,
+          created_at,
+          updated_at
+        `,
+        [
+          account.account_id,
+          transactionReference,
+          debitAmount,
+          debitCurrency,
+          debitDescription,
+          req.user.id,
+          debitDescription,
+        ]
+      );
+
+    const updatedAccountResult =
+      await client.query(
+        `
+        UPDATE accounts
+
+        SET
+          balance =
+            COALESCE(balance, 0)
+            - $1,
+
+          available_balance =
+            COALESCE(available_balance, 0)
+            - $1,
+
+          buying_power =
+            COALESCE(buying_power, 0)
+            - $1,
+
+          margin_available =
+            COALESCE(margin_available, 0)
+            - $1,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $2
+
+        RETURNING
+          id,
+          account_number,
+          account_type,
+          account_name,
+          currency,
+          balance,
+          deposit,
+          profits,
+          available_balance,
+          bonus,
+          referrer_bonus,
+          buying_power,
+          margin_available,
+          status,
+          updated_at
+        `,
+        [
+          debitAmount,
+          account.account_id,
+        ]
+      );
+
+    await client.query('COMMIT');
+
+    const transaction =
+      transactionResult.rows[0];
+
+    const updatedAccount =
+      updatedAccountResult.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} debited user ${userId} account ${account.account_id} by ${debitAmount} ${debitCurrency}`
+    );
+
+    return res.status(200).json({
+      message:
+        'User account debited successfully.',
+
+      debit: {
+        userId:
+          account.user_id,
+
+        email:
+          account.email,
+
+        firstName:
+          account.first_name,
+
+        lastName:
+          account.last_name,
+
+        accountId:
+          account.account_id,
+
+        accountNumber:
+          account.account_number,
+
+        amount:
+          debitAmount,
+
+        currency:
+          debitCurrency,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        status:
+          'COMPLETED',
+      },
+
+      transaction: {
+        id:
+          transaction.id,
+
+        accountId:
+          transaction.account_id,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        transactionType:
+          transaction.transaction_type,
+
+        amount:
+          safeNumber(
+            transaction.amount
+          ),
+
+        currency:
+          transaction.currency,
+
+        paymentMethod:
+          transaction.payment_method,
+
+        status:
+          transaction.status,
+
+        description:
+          transaction.description || '',
+
+        verifiedBy:
+          transaction.verified_by,
+
+        verifiedAt:
+          transaction.verified_at,
+
+        adminNote:
+          transaction.admin_note || '',
+
+        createdAt:
+          transaction.created_at,
+
+        updatedAt:
+          transaction.updated_at,
+      },
+
+      account: {
+        id:
+          updatedAccount.id,
+
+        accountNumber:
+          updatedAccount.account_number,
+
+        accountType:
+          updatedAccount.account_type,
+
+        accountName:
+          updatedAccount.account_name,
+
+        currency:
+          updatedAccount.currency,
+
+        balance:
+          safeNumber(
+            updatedAccount.balance
+          ),
+
+        deposit:
+          safeNumber(
+            updatedAccount.deposit
+          ),
+
+        profits:
+          safeNumber(
+            updatedAccount.profits
+          ),
+
+        availableBalance:
+          safeNumber(
+            updatedAccount.available_balance
+          ),
+
+        bonus:
+          safeNumber(
+            updatedAccount.bonus
+          ),
+
+        referrerBonus:
+          safeNumber(
+            updatedAccount.referrer_bonus
+          ),
+
+        buyingPower:
+          safeNumber(
+            updatedAccount.buying_power
+          ),
+
+        marginAvailable:
+          safeNumber(
+            updatedAccount.margin_available
+          ),
+
+        status:
+          updatedAccount.status,
+
+        updatedAt:
+          updatedAccount.updated_at,
+      },
+    });
+
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Account debit rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin debit user account error:',
       error
     );
 
@@ -1865,7 +2178,6 @@ const updateUserStatus = async (
       return res.status(400).json({
         message:
           'Invalid user status.',
-
         allowedStatuses,
       });
     }
@@ -1954,9 +2266,7 @@ const updateTransactionStatus = async (
       normalizeStatus(status);
 
     if (
-      !isPositiveInteger(
-        transactionId
-      )
+      !isPositiveInteger(transactionId)
     ) {
       return res.status(400).json({
         message:
@@ -1972,18 +2282,11 @@ const updateTransactionStatus = async (
       return res.status(400).json({
         message:
           'Invalid transaction status.',
-
         allowedStatuses,
       });
     }
 
-    await client.query(
-      'BEGIN'
-    );
-
-    // --------------------------------------------------------
-    // LOCK TRANSACTION
-    // --------------------------------------------------------
+    await client.query('BEGIN');
 
     const transactionResult =
       await client.query(
@@ -2004,9 +2307,7 @@ const updateTransactionStatus = async (
     if (
       transactionResult.rows.length === 0
     ) {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
 
       return res.status(404).json({
         message:
@@ -2032,27 +2333,17 @@ const updateTransactionStatus = async (
         transaction.amount
       );
 
-    // --------------------------------------------------------
-    // PREVENT CHANGING COMPLETED
-    // --------------------------------------------------------
-
     if (
       previousStatus === 'COMPLETED' &&
       normalizedStatus !== 'COMPLETED'
     ) {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
           'A completed transaction cannot be changed to another status.',
       });
     }
-
-    // --------------------------------------------------------
-    // NO-OP
-    // --------------------------------------------------------
 
     if (
       previousStatus ===
@@ -2065,10 +2356,7 @@ const updateTransactionStatus = async (
 
           SET
             admin_note =
-              COALESCE(
-                $1,
-                admin_note
-              ),
+              COALESCE($1, admin_note),
 
             updated_at =
               CURRENT_TIMESTAMP
@@ -2097,9 +2385,7 @@ const updateTransactionStatus = async (
           ]
         );
 
-      await client.query(
-        'COMMIT'
-      );
+      await client.query('COMMIT');
 
       return res.status(200).json({
         message:
@@ -2110,20 +2396,13 @@ const updateTransactionStatus = async (
       });
     }
 
-    // --------------------------------------------------------
-    // ACCOUNT LOCK
-    // --------------------------------------------------------
-
     let account = null;
 
     if (
-      normalizedStatus ===
-        'COMPLETED' &&
+      normalizedStatus === 'COMPLETED' &&
       (
-        transactionType ===
-          'DEPOSIT' ||
-        transactionType ===
-          'WITHDRAWAL'
+        transactionType === 'DEPOSIT' ||
+        transactionType === 'WITHDRAWAL'
       )
     ) {
       const accountResult =
@@ -2149,9 +2428,7 @@ const updateTransactionStatus = async (
       if (
         accountResult.rows.length === 0
       ) {
-        await client.query(
-          'ROLLBACK'
-        );
+        await client.query('ROLLBACK');
 
         return res.status(404).json({
           message:
@@ -2163,23 +2440,14 @@ const updateTransactionStatus = async (
         accountResult.rows[0];
     }
 
-    // --------------------------------------------------------
-    // VALIDATE AMOUNT
-    // --------------------------------------------------------
-
     if (
-      normalizedStatus ===
-        'COMPLETED' &&
+      normalizedStatus === 'COMPLETED' &&
       (
-        !Number.isFinite(
-          amount
-        ) ||
+        !Number.isFinite(amount) ||
         amount <= 0
       )
     ) {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
@@ -2187,15 +2455,9 @@ const updateTransactionStatus = async (
       });
     }
 
-    // --------------------------------------------------------
-    // WITHDRAWAL BALANCE CHECK
-    // --------------------------------------------------------
-
     if (
-      normalizedStatus ===
-        'COMPLETED' &&
-      transactionType ===
-        'WITHDRAWAL'
+      normalizedStatus === 'COMPLETED' &&
+      transactionType === 'WITHDRAWAL'
     ) {
       const currentBalance =
         safeNumber(
@@ -2211,9 +2473,7 @@ const updateTransactionStatus = async (
         currentBalance < amount ||
         currentAvailable < amount
       ) {
-        await client.query(
-          'ROLLBACK'
-        );
+        await client.query('ROLLBACK');
 
         return res.status(400).json({
           message:
@@ -2228,10 +2488,6 @@ const updateTransactionStatus = async (
       }
     }
 
-    // --------------------------------------------------------
-    // UPDATE TRANSACTION
-    // --------------------------------------------------------
-
     const updatedResult =
       await client.query(
         `
@@ -2241,10 +2497,7 @@ const updateTransactionStatus = async (
           status = $1,
 
           admin_note =
-            COALESCE(
-              $2,
-              admin_note
-            ),
+            COALESCE($2, admin_note),
 
           verified_by =
             CASE
@@ -2292,17 +2545,10 @@ const updateTransactionStatus = async (
         ]
       );
 
-    // --------------------------------------------------------
-    // COMPLETE DEPOSIT
-    // --------------------------------------------------------
-
     if (
-      normalizedStatus ===
-        'COMPLETED' &&
-      previousStatus !==
-        'COMPLETED' &&
-      transactionType ===
-        'DEPOSIT'
+      normalizedStatus === 'COMPLETED' &&
+      previousStatus !== 'COMPLETED' &&
+      transactionType === 'DEPOSIT'
     ) {
       await client.query(
         `
@@ -2310,34 +2556,19 @@ const updateTransactionStatus = async (
 
         SET
           balance =
-            COALESCE(
-              balance,
-              0
-            ) + $1,
+            COALESCE(balance, 0) + $1,
 
           deposit =
-            COALESCE(
-              deposit,
-              0
-            ) + $1,
+            COALESCE(deposit, 0) + $1,
 
           available_balance =
-            COALESCE(
-              available_balance,
-              0
-            ) + $1,
+            COALESCE(available_balance, 0) + $1,
 
           buying_power =
-            COALESCE(
-              buying_power,
-              0
-            ) + $1,
+            COALESCE(buying_power, 0) + $1,
 
           margin_available =
-            COALESCE(
-              margin_available,
-              0
-            ) + $1,
+            COALESCE(margin_available, 0) + $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -2346,23 +2577,15 @@ const updateTransactionStatus = async (
         `,
         [
           amount,
-
           transaction.account_id,
         ]
       );
     }
 
-    // --------------------------------------------------------
-    // COMPLETE WITHDRAWAL
-    // --------------------------------------------------------
-
     if (
-      normalizedStatus ===
-        'COMPLETED' &&
-      previousStatus !==
-        'COMPLETED' &&
-      transactionType ===
-        'WITHDRAWAL'
+      normalizedStatus === 'COMPLETED' &&
+      previousStatus !== 'COMPLETED' &&
+      transactionType === 'WITHDRAWAL'
     ) {
       await client.query(
         `
@@ -2370,28 +2593,16 @@ const updateTransactionStatus = async (
 
         SET
           balance =
-            COALESCE(
-              balance,
-              0
-            ) - $1,
+            COALESCE(balance, 0) - $1,
 
           available_balance =
-            COALESCE(
-              available_balance,
-              0
-            ) - $1,
+            COALESCE(available_balance, 0) - $1,
 
           buying_power =
-            COALESCE(
-              buying_power,
-              0
-            ) - $1,
+            COALESCE(buying_power, 0) - $1,
 
           margin_available =
-            COALESCE(
-              margin_available,
-              0
-            ) - $1,
+            COALESCE(margin_available, 0) - $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -2400,15 +2611,12 @@ const updateTransactionStatus = async (
         `,
         [
           amount,
-
           transaction.account_id,
         ]
       );
     }
 
-    await client.query(
-      'COMMIT'
-    );
+    await client.query('COMMIT');
 
     logger.info(
       `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${normalizedStatus}`
@@ -2424,9 +2632,7 @@ const updateTransactionStatus = async (
 
   } catch (error) {
     try {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
         'Transaction rollback error:',
@@ -2448,10 +2654,6 @@ const updateTransactionStatus = async (
 
 // ============================================================
 // INVESTMENT PLANS
-// ============================================================
-
-// ============================================================
-// GET INVESTMENT PLANS
 // ============================================================
 
 const getInvestmentPlans = async (
@@ -2498,8 +2700,7 @@ const getInvestmentPlans = async (
             ),
 
           maximumAmount:
-            plan.maximum_amount ===
-              null
+            plan.maximum_amount === null
               ? null
               : safeNumber(
                   plan.maximum_amount
@@ -2528,9 +2729,7 @@ const getInvestmentPlans = async (
 
     return res.status(200).json({
       plans,
-
-      count:
-        plans.length,
+      count: plans.length,
     });
 
   } catch (error) {
@@ -2542,10 +2741,6 @@ const getInvestmentPlans = async (
     return next(error);
   }
 };
-
-// ============================================================
-// CREATE INVESTMENT PLAN
-// ============================================================
 
 const createInvestmentPlan = async (
   req,
@@ -2564,9 +2759,7 @@ const createInvestmentPlan = async (
     } = req.body || {};
 
     const planName =
-      String(
-        name || ''
-      ).trim();
+      String(name || '').trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2575,41 +2768,24 @@ const createInvestmentPlan = async (
       });
     }
 
-    if (planName.length > 150) {
-      return res.status(400).json({
-        message:
-          'Investment plan name is too long.',
-      });
-    }
-
     const minimum =
-      Number(
-        minimumAmount
-      );
+      Number(minimumAmount);
 
     const maximum =
       maximumAmount === '' ||
       maximumAmount === null ||
       maximumAmount === undefined
         ? null
-        : Number(
-            maximumAmount
-          );
+        : Number(maximumAmount);
 
     const roi =
-      Number(
-        roiPercent
-      );
+      Number(roiPercent);
 
     const duration =
-      Number(
-        durationDays
-      );
+      Number(durationDays);
 
     if (
-      !Number.isFinite(
-        minimum
-      ) ||
+      !Number.isFinite(minimum) ||
       minimum < 0
     ) {
       return res.status(400).json({
@@ -2621,9 +2797,7 @@ const createInvestmentPlan = async (
     if (
       maximum !== null &&
       (
-        !Number.isFinite(
-          maximum
-        ) ||
+        !Number.isFinite(maximum) ||
         maximum < minimum
       )
     ) {
@@ -2634,9 +2808,7 @@ const createInvestmentPlan = async (
     }
 
     if (
-      !Number.isFinite(
-        roi
-      ) ||
+      !Number.isFinite(roi) ||
       roi < 0
     ) {
       return res.status(400).json({
@@ -2646,9 +2818,7 @@ const createInvestmentPlan = async (
     }
 
     if (
-      !Number.isInteger(
-        duration
-      ) ||
+      !Number.isInteger(duration) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2663,10 +2833,8 @@ const createInvestmentPlan = async (
       );
 
     if (
-      planStatus !==
-        'ACTIVE' &&
-      planStatus !==
-        'INACTIVE'
+      planStatus !== 'ACTIVE' &&
+      planStatus !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2715,31 +2883,20 @@ const createInvestmentPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
           minimum,
-
           maximum,
-
           roi,
-
           duration,
-
           planStatus,
-
           req.user.id,
         ]
       );
 
     const plan =
       result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} created investment plan ${plan.id}`
-    );
 
     return res.status(201).json({
       message:
@@ -2761,8 +2918,7 @@ const createInvestmentPlan = async (
           ),
 
         maximumAmount:
-          plan.maximum_amount ===
-            null
+          plan.maximum_amount === null
             ? null
             : safeNumber(
                 plan.maximum_amount
@@ -2799,10 +2955,6 @@ const createInvestmentPlan = async (
   }
 };
 
-// ============================================================
-// UPDATE INVESTMENT PLAN
-// ============================================================
-
 const updateInvestmentPlan = async (
   req,
   res,
@@ -2810,9 +2962,7 @@ const updateInvestmentPlan = async (
 ) => {
   try {
     const planId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -2832,9 +2982,7 @@ const updateInvestmentPlan = async (
     } = req.body || {};
 
     const planName =
-      String(
-        name || ''
-      ).trim();
+      String(name || '').trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -2844,33 +2992,23 @@ const updateInvestmentPlan = async (
     }
 
     const minimum =
-      Number(
-        minimumAmount
-      );
+      Number(minimumAmount);
 
     const maximum =
       maximumAmount === '' ||
       maximumAmount === null ||
       maximumAmount === undefined
         ? null
-        : Number(
-            maximumAmount
-          );
+        : Number(maximumAmount);
 
     const roi =
-      Number(
-        roiPercent
-      );
+      Number(roiPercent);
 
     const duration =
-      Number(
-        durationDays
-      );
+      Number(durationDays);
 
     if (
-      !Number.isFinite(
-        minimum
-      ) ||
+      !Number.isFinite(minimum) ||
       minimum < 0
     ) {
       return res.status(400).json({
@@ -2882,9 +3020,7 @@ const updateInvestmentPlan = async (
     if (
       maximum !== null &&
       (
-        !Number.isFinite(
-          maximum
-        ) ||
+        !Number.isFinite(maximum) ||
         maximum < minimum
       )
     ) {
@@ -2895,9 +3031,7 @@ const updateInvestmentPlan = async (
     }
 
     if (
-      !Number.isFinite(
-        roi
-      ) ||
+      !Number.isFinite(roi) ||
       roi < 0
     ) {
       return res.status(400).json({
@@ -2907,9 +3041,7 @@ const updateInvestmentPlan = async (
     }
 
     if (
-      !Number.isInteger(
-        duration
-      ) ||
+      !Number.isInteger(duration) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -2924,10 +3056,8 @@ const updateInvestmentPlan = async (
       );
 
     if (
-      planStatus !==
-        'ACTIVE' &&
-      planStatus !==
-        'INACTIVE'
+      planStatus !== 'ACTIVE' &&
+      planStatus !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2968,28 +3098,19 @@ const updateInvestmentPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
           minimum,
-
           maximum,
-
           roi,
-
           duration,
-
           planStatus,
-
           planId,
         ]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -2998,10 +3119,6 @@ const updateInvestmentPlan = async (
 
     const plan =
       result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} updated investment plan ${planId}`
-    );
 
     return res.status(200).json({
       message:
@@ -3023,8 +3140,7 @@ const updateInvestmentPlan = async (
           ),
 
         maximumAmount:
-          plan.maximum_amount ===
-            null
+          plan.maximum_amount === null
             ? null
             : safeNumber(
                 plan.maximum_amount
@@ -3061,10 +3177,6 @@ const updateInvestmentPlan = async (
   }
 };
 
-// ============================================================
-// DELETE INVESTMENT PLAN
-// ============================================================
-
 const deleteInvestmentPlan = async (
   req,
   res,
@@ -3072,9 +3184,7 @@ const deleteInvestmentPlan = async (
 ) => {
   try {
     const planId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -3097,18 +3207,12 @@ const deleteInvestmentPlan = async (
         [planId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
       });
     }
-
-    logger.info(
-      `Admin ${req.user.id} deleted investment plan ${planId}`
-    );
 
     return res.status(200).json({
       message:
@@ -3130,10 +3234,6 @@ const deleteInvestmentPlan = async (
 
 // ============================================================
 // SIGNAL PLANS
-// ============================================================
-
-// ============================================================
-// GET SIGNAL PLANS
 // ============================================================
 
 const getSignalPlans = async (
@@ -3190,8 +3290,7 @@ const getSignalPlans = async (
 
           durationDays:
             Number(
-              plan.duration_days ||
-              30
+              plan.duration_days || 30
             ),
 
           price:
@@ -3200,8 +3299,7 @@ const getSignalPlans = async (
             ),
 
           currency:
-            plan.currency ||
-            'USD',
+            plan.currency || 'USD',
 
           status:
             plan.status,
@@ -3219,9 +3317,7 @@ const getSignalPlans = async (
 
     return res.status(200).json({
       plans,
-
-      count:
-        plans.length,
+      count: plans.length,
     });
 
   } catch (error) {
@@ -3233,10 +3329,6 @@ const getSignalPlans = async (
     return next(error);
   }
 };
-
-// ============================================================
-// CREATE SIGNAL PLAN
-// ============================================================
 
 const createSignalPlan = async (
   req,
@@ -3258,9 +3350,7 @@ const createSignalPlan = async (
     } = req.body || {};
 
     const planName =
-      String(
-        name || ''
-      ).trim();
+      String(name || '').trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -3269,24 +3359,13 @@ const createSignalPlan = async (
       });
     }
 
-    if (planName.length > 150) {
-      return res.status(400).json({
-        message:
-          'Signal plan name is too long.',
-      });
-    }
-
     const rawStrength =
       strength === undefined
         ? 50
-        : Number(
-            strength
-          );
+        : Number(strength);
 
     if (
-      !Number.isFinite(
-        rawStrength
-      ) ||
+      !Number.isFinite(rawStrength) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -3296,23 +3375,13 @@ const createSignalPlan = async (
       });
     }
 
-    const signalStrength =
-      getSignalStrength(
-        rawStrength
-      );
-
     const accuracy =
-      accuracyPercent ===
-        undefined
+      accuracyPercent === undefined
         ? 0
-        : Number(
-            accuracyPercent
-          );
+        : Number(accuracyPercent);
 
     if (
-      !Number.isFinite(
-        accuracy
-      ) ||
+      !Number.isFinite(accuracy) ||
       accuracy < 0 ||
       accuracy > 100
     ) {
@@ -3323,17 +3392,12 @@ const createSignalPlan = async (
     }
 
     const duration =
-      durationDays ===
-        undefined
+      durationDays === undefined
         ? 30
-        : Number(
-            durationDays
-          );
+        : Number(durationDays);
 
     if (
-      !Number.isInteger(
-        duration
-      ) ||
+      !Number.isInteger(duration) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -3347,14 +3411,10 @@ const createSignalPlan = async (
       price === '' ||
       price === null
         ? 0
-        : Number(
-            price
-          );
+        : Number(price);
 
     if (
-      !Number.isFinite(
-        signalPrice
-      ) ||
+      !Number.isFinite(signalPrice) ||
       signalPrice < 0
     ) {
       return res.status(400).json({
@@ -3364,9 +3424,7 @@ const createSignalPlan = async (
     }
 
     const signalCurrency =
-      String(
-        currency || 'USD'
-      )
+      String(currency || 'USD')
         .trim()
         .toUpperCase();
 
@@ -3376,10 +3434,8 @@ const createSignalPlan = async (
       );
 
     if (
-      signalStatus !==
-        'ACTIVE' &&
-      signalStatus !==
-        'INACTIVE'
+      signalStatus !== 'ACTIVE' &&
+      signalStatus !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3432,12 +3488,12 @@ const createSignalPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
-          signalStrength,
+          getSignalStrength(
+            rawStrength
+          ),
 
           accuracy,
 
@@ -3455,10 +3511,6 @@ const createSignalPlan = async (
 
     const plan =
       result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} created signal plan ${plan.id}`
-    );
 
     return res.status(201).json({
       message:
@@ -3521,10 +3573,6 @@ const createSignalPlan = async (
   }
 };
 
-// ============================================================
-// UPDATE SIGNAL PLAN
-// ============================================================
-
 const updateSignalPlan = async (
   req,
   res,
@@ -3534,9 +3582,7 @@ const updateSignalPlan = async (
     await ensureSignalTables();
 
     const planId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -3557,9 +3603,7 @@ const updateSignalPlan = async (
     } = req.body || {};
 
     const planName =
-      String(
-        name || ''
-      ).trim();
+      String(name || '').trim();
 
     if (!planName) {
       return res.status(400).json({
@@ -3569,14 +3613,10 @@ const updateSignalPlan = async (
     }
 
     const rawStrength =
-      Number(
-        strength
-      );
+      Number(strength);
 
     if (
-      !Number.isFinite(
-        rawStrength
-      ) ||
+      !Number.isFinite(rawStrength) ||
       rawStrength < 0 ||
       rawStrength > 100
     ) {
@@ -3587,17 +3627,12 @@ const updateSignalPlan = async (
     }
 
     const accuracy =
-      accuracyPercent ===
-        undefined
+      accuracyPercent === undefined
         ? 0
-        : Number(
-            accuracyPercent
-          );
+        : Number(accuracyPercent);
 
     if (
-      !Number.isFinite(
-        accuracy
-      ) ||
+      !Number.isFinite(accuracy) ||
       accuracy < 0 ||
       accuracy > 100
     ) {
@@ -3608,17 +3643,12 @@ const updateSignalPlan = async (
     }
 
     const duration =
-      durationDays ===
-        undefined
+      durationDays === undefined
         ? 30
-        : Number(
-            durationDays
-          );
+        : Number(durationDays);
 
     if (
-      !Number.isInteger(
-        duration
-      ) ||
+      !Number.isInteger(duration) ||
       duration <= 0
     ) {
       return res.status(400).json({
@@ -3632,14 +3662,10 @@ const updateSignalPlan = async (
       price === '' ||
       price === null
         ? 0
-        : Number(
-            price
-          );
+        : Number(price);
 
     if (
-      !Number.isFinite(
-        signalPrice
-      ) ||
+      !Number.isFinite(signalPrice) ||
       signalPrice < 0
     ) {
       return res.status(400).json({
@@ -3649,9 +3675,7 @@ const updateSignalPlan = async (
     }
 
     const signalCurrency =
-      String(
-        currency || 'USD'
-      )
+      String(currency || 'USD')
         .trim()
         .toUpperCase();
 
@@ -3661,10 +3685,8 @@ const updateSignalPlan = async (
       );
 
     if (
-      signalStatus !==
-        'ACTIVE' &&
-      signalStatus !==
-        'INACTIVE'
+      signalStatus !== 'ACTIVE' &&
+      signalStatus !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3708,12 +3730,12 @@ const updateSignalPlan = async (
           planName,
 
           description
-            ? String(
-                description
-              ).trim()
+            ? String(description).trim()
             : null,
 
-          rawStrength,
+          getSignalStrength(
+            rawStrength
+          ),
 
           accuracy,
 
@@ -3729,9 +3751,7 @@ const updateSignalPlan = async (
         ]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3740,10 +3760,6 @@ const updateSignalPlan = async (
 
     const plan =
       result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} updated signal plan ${planId}`
-    );
 
     return res.status(200).json({
       message:
@@ -3806,10 +3822,6 @@ const updateSignalPlan = async (
   }
 };
 
-// ============================================================
-// DELETE SIGNAL PLAN
-// ============================================================
-
 const deleteSignalPlan = async (
   req,
   res,
@@ -3819,9 +3831,7 @@ const deleteSignalPlan = async (
     await ensureSignalTables();
 
     const planId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(planId)) {
       return res.status(400).json({
@@ -3844,18 +3854,12 @@ const deleteSignalPlan = async (
         [planId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
       });
     }
-
-    logger.info(
-      `Admin ${req.user.id} deleted signal plan ${planId}`
-    );
 
     return res.status(200).json({
       message:
@@ -3888,9 +3892,7 @@ const getUserSignal = async (
     await ensureSignalTables();
 
     const userId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -3942,9 +3944,7 @@ const getUserSignal = async (
         [userId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -4031,8 +4031,7 @@ const getUserSignal = async (
 
                       durationDays:
                         Number(
-                          row.plan_duration ||
-                          30
+                          row.plan_duration || 30
                         ),
 
                       price:
@@ -4075,9 +4074,7 @@ const updateUserSignal = async (
     await ensureSignalTables();
 
     const userId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -4093,10 +4090,6 @@ const updateUserSignal = async (
       status,
       note,
     } = req.body || {};
-
-    // --------------------------------------------------------
-    // VERIFY USER
-    // --------------------------------------------------------
 
     const userResult =
       await pool.query(
@@ -4117,35 +4110,23 @@ const updateUserSignal = async (
         [userId]
       );
 
-    if (
-      userResult.rows.length === 0
-    ) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({
         message:
           'User not found.',
       });
     }
 
-    // --------------------------------------------------------
-    // SIGNAL PLAN
-    // --------------------------------------------------------
-
     let planId = null;
-
     let planStrength = null;
 
     if (
-      signalPlanId !==
-        undefined &&
-      signalPlanId !==
-        null &&
-      signalPlanId !==
-        ''
+      signalPlanId !== undefined &&
+      signalPlanId !== null &&
+      signalPlanId !== ''
     ) {
       planId =
-        Number(
-          signalPlanId
-        );
+        Number(signalPlanId);
 
       if (!isPositiveInteger(planId)) {
         return res.status(400).json({
@@ -4172,10 +4153,7 @@ const updateUserSignal = async (
           [planId]
         );
 
-      if (
-        planResult.rows.length ===
-        0
-      ) {
+      if (planResult.rows.length === 0) {
         return res.status(404).json({
           message:
             'Signal plan not found.',
@@ -4202,25 +4180,16 @@ const updateUserSignal = async (
         );
     }
 
-    // --------------------------------------------------------
-    // SIGNAL STRENGTH
-    // --------------------------------------------------------
-
     let signalStrength;
 
-    if (
-      strength ===
-      undefined
-    ) {
+    if (strength === undefined) {
       signalStrength =
         planStrength !== null
           ? planStrength
           : 50;
     } else {
       const numericStrength =
-        Number(
-          strength
-        );
+        Number(strength);
 
       if (
         !Number.isFinite(
@@ -4241,26 +4210,15 @@ const updateUserSignal = async (
         );
     }
 
-    // --------------------------------------------------------
-    // STATUS
-    // --------------------------------------------------------
-
     let signalStatus;
 
-    if (
-      status !==
-      undefined
-    ) {
+    if (status !== undefined) {
       signalStatus =
-        normalizeStatus(
-          status
-        );
+        normalizeStatus(status);
 
       if (
-        signalStatus !==
-          'ACTIVE' &&
-        signalStatus !==
-          'INACTIVE'
+        signalStatus !== 'ACTIVE' &&
+        signalStatus !== 'INACTIVE'
       ) {
         return res.status(400).json({
           message:
@@ -4268,38 +4226,24 @@ const updateUserSignal = async (
         });
       }
 
-    } else if (
-      enabled !==
-      undefined
-    ) {
+    } else if (enabled !== undefined) {
       signalStatus =
         enabled === true ||
-        String(
-          enabled
-        ).toLowerCase() ===
+        String(enabled).toLowerCase() ===
           'true'
           ? 'ACTIVE'
           : 'INACTIVE';
+
     } else {
       signalStatus =
         'ACTIVE';
     }
 
-    // --------------------------------------------------------
-    // NOTE
-    // --------------------------------------------------------
-
     const signalNote =
       note === undefined ||
       note === null
         ? null
-        : String(
-            note
-          ).trim();
-
-    // --------------------------------------------------------
-    // CREATE OR UPDATE
-    // --------------------------------------------------------
+        : String(note).trim();
 
     const result =
       await pool.query(
@@ -4356,25 +4300,16 @@ const updateUserSignal = async (
         `,
         [
           userId,
-
           planId,
-
           signalStrength,
-
           signalStatus,
-
           signalNote,
-
           req.user.id,
         ]
       );
 
     const signal =
       result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} updated signal for user ${userId}: strength=${signalStrength}, plan=${planId}, status=${signalStatus}`
-    );
 
     return res.status(200).json({
       message:
@@ -4445,6 +4380,9 @@ module.exports = {
 
   // Account funding
   fundUserAccount,
+
+  // Account debit
+  debitUserAccount,
 
   // Transactions
   getTransactions,
