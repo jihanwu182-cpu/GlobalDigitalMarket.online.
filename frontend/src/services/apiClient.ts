@@ -13,7 +13,7 @@ const apiClient = axios.create({
 });
 
 // ============================================================
-// ADD AUTHENTICATION TOKEN
+// REQUEST INTERCEPTOR
 // ============================================================
 
 apiClient.interceptors.request.use(
@@ -25,18 +25,20 @@ apiClient.interceptors.request.use(
 
     let token: string | null = null;
 
-    // --------------------------------------------------------
-    // ADMIN REQUESTS
-    // --------------------------------------------------------
+    // ========================================================
+    // ADMIN REQUEST
+    // ========================================================
 
     if (isAdminRequest) {
       token =
-        localStorage.getItem('adminToken');
+        localStorage.getItem('adminToken') ||
+        localStorage.getItem('accessToken') ||
+        localStorage.getItem('token');
     }
 
-    // --------------------------------------------------------
-    // NORMAL USER REQUESTS
-    // --------------------------------------------------------
+    // ========================================================
+    // NORMAL USER REQUEST
+    // ========================================================
 
     else {
       token =
@@ -45,37 +47,65 @@ apiClient.interceptors.request.use(
         localStorage.getItem('token');
     }
 
-    // --------------------------------------------------------
-    // ADD BEARER TOKEN
-    // --------------------------------------------------------
+    // ========================================================
+    // ADD AUTHORIZATION HEADER
+    // ========================================================
 
     if (token) {
+      config.headers = config.headers || {};
+
       config.headers.Authorization =
         `Bearer ${token}`;
     }
 
+    // ========================================================
+    // DEBUG LOG
+    // ========================================================
+
+    console.log(
+      `[API] ${config.method?.toUpperCase() || 'GET'} ${requestUrl}`,
+      {
+        authenticated: Boolean(token),
+        adminRequest: isAdminRequest,
+      }
+    );
+
     return config;
   },
+
   (error) => {
+    console.error(
+      '[API REQUEST ERROR]',
+      error
+    );
+
     return Promise.reject(error);
   }
 );
 
 // ============================================================
-// API RESPONSE HANDLER
+// RESPONSE INTERCEPTOR
 // ============================================================
 
 apiClient.interceptors.response.use(
   (response) => {
+    console.log(
+      `[API SUCCESS] ${response.config.method?.toUpperCase() || 'GET'} ${response.config.url}`,
+      response.status
+    );
+
     return response;
   },
 
   (error) => {
-    console.error('API ERROR:', error);
+    console.error(
+      '[API ERROR]',
+      error
+    );
 
-    // --------------------------------------------------------
+    // ========================================================
     // SERVER RESPONSE
-    // --------------------------------------------------------
+    // ========================================================
 
     if (error.response) {
       console.error(
@@ -84,20 +114,25 @@ apiClient.interceptors.response.use(
       );
 
       console.error(
+        'URL:',
+        error.config?.url
+      );
+
+      console.error(
         'DATA:',
         error.response.data
       );
 
-      // ------------------------------------------------------
-      // ADMIN AUTHENTICATION ERROR
-      // ------------------------------------------------------
+      // ======================================================
+      // ADMIN AUTHENTICATION FAILURE
+      // ======================================================
 
       if (
         error.response.status === 401 &&
         error.config?.url?.startsWith('/admin')
       ) {
         console.error(
-          'ADMIN AUTHENTICATION FAILED'
+          '[ADMIN] Authentication failed.'
         );
 
         localStorage.removeItem(
@@ -110,26 +145,27 @@ apiClient.interceptors.response.use(
       }
     }
 
-    // --------------------------------------------------------
-    // REQUEST TIMEOUT
-    // --------------------------------------------------------
+    // ========================================================
+    // TIMEOUT
+    // ========================================================
 
     else if (
       error.code === 'ECONNABORTED' ||
       error.code === 'ETIMEDOUT'
     ) {
       console.error(
-        'API REQUEST TIMED OUT'
+        '[API] Request timed out:',
+        error.config?.url
       );
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // NETWORK ERROR
-    // --------------------------------------------------------
+    // ========================================================
 
     else {
       console.error(
-        'NETWORK ERROR:',
+        '[API] Network error:',
         error.message
       );
     }
