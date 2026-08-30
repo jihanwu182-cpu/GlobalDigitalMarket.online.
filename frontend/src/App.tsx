@@ -39,7 +39,6 @@ import AdminDashboard from './pages/AdminDashboard';
 
 // ============================================================
 // ADMIN LAYOUT
-// IMPORTANT: folder is "layouts" (with s)
 // ============================================================
 
 import AdminLayout from './layouts/AdminLayout';
@@ -85,15 +84,8 @@ class ErrorBoundary extends React.Component<
     error: Error,
     errorInfo: React.ErrorInfo
   ) {
-    console.error(
-      'GLOBAL REACT ERROR:',
-      error
-    );
-
-    console.error(
-      'REACT ERROR INFO:',
-      errorInfo
-    );
+    console.error('GLOBAL REACT ERROR:', error);
+    console.error('REACT ERROR INFO:', errorInfo);
   }
 
   handleReload = () => {
@@ -220,10 +212,21 @@ const theme = createTheme({
   },
 
   typography: {
-    fontFamily:
-      'Roboto, Arial, sans-serif',
+    fontFamily: 'Roboto, Arial, sans-serif',
   },
 });
+
+// ============================================================
+// ADMIN PAGE WRAPPER
+// ============================================================
+
+const AdminPage: React.FC = () => {
+  return (
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  );
+};
 
 // ============================================================
 // APP
@@ -238,18 +241,14 @@ const App: React.FC = () => {
         <HashRouter>
           <Routes>
 
-            {/* ==================================================
-                HOME
-            ================================================== */}
+            {/* HOME */}
 
             <Route
               path="/"
               element={<Home />}
             />
 
-            {/* ==================================================
-                AUTHENTICATION
-            ================================================== */}
+            {/* AUTHENTICATION */}
 
             <Route
               path="/login"
@@ -261,81 +260,63 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
-            {/* ==================================================
-                USER DASHBOARD
-            ================================================== */}
+            {/* USER DASHBOARD */}
 
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
 
-            {/* ==================================================
-                USER PROFILE
-            ================================================== */}
+            {/* USER PROFILE */}
 
             <Route
               path="/profile"
               element={<Profile />}
             />
 
-            {/* ==================================================
-                ACCOUNT STATEMENT
-            ================================================== */}
+            {/* ACCOUNT STATEMENT */}
 
             <Route
               path="/account-statement"
               element={<AccountStatement />}
             />
 
-            {/* ==================================================
-                PORTFOLIO
-            ================================================== */}
+            {/* PORTFOLIO */}
 
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
 
-            {/* ==================================================
-                WALLET
-            ================================================== */}
+            {/* WALLET */}
 
             <Route
               path="/wallet"
               element={<Wallet />}
             />
 
-            {/* ==================================================
-                TRADING
-            ================================================== */}
+            {/* TRADING */}
 
             <Route
               path="/trading"
               element={<Trading />}
             />
 
-            {/* ==================================================
-                MARKET
-            ================================================== */}
+            {/* MARKET */}
 
             <Route
               path="/market"
               element={<Market />}
             />
 
-            {/* ==================================================
-                SUPPORT
-            ================================================== */}
+            {/* SUPPORT */}
 
             <Route
               path="/support"
               element={<ContactSupport />}
             />
 
-            {/* ==================================================
-                SECURITY
-            ================================================== */}
+            {/* SECURITY */}
 
             <Route
               path="/security"
@@ -356,100 +337,59 @@ const App: React.FC = () => {
               element={<AdminLogin />}
             />
 
- {/* ====================================================================================================
-    ADMIN DASHBOARD
-================================================== */}
-
-<Route
-  path="/admin"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/users"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/accounts"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/kyc"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/deposits"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/withdrawals"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/transactions"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/investments"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/signals"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
-
-<Route
-  path="/admin/settings"
-  element={
-    <AdminLayout>
-      <AdminDashboard />
-    </AdminLayout>
-  }
-/>
+            {/* ==================================================
+                ADMIN ROUTES
             ================================================== */}
+
+            <Route
+              path="/admin"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/users"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/accounts"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/kyc"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/deposits"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/withdrawals"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/transactions"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/investments"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/signals"
+              element={<AdminPage />}
+            />
+
+            <Route
+              path="/admin/settings"
+              element={<AdminPage />}
+            />
 
             {/* ==================================================
                 UNKNOWN ROUTES
