@@ -1059,9 +1059,11 @@ const getTransactions = async (
 // EXPORTS
 // ============================================================
 
+
 module.exports = {
   getBalance,
   depositFunds,
   withdrawFunds,
   getTransactions,
+  uploadProofOfPayment,
 };
