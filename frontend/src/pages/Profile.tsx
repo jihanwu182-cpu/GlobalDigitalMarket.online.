@@ -1,4 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import {
   Alert,
@@ -30,6 +34,10 @@ import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../services/apiClient';
 
+/* ============================================================
+   TYPES
+============================================================ */
+
 interface UserProfile {
   name: string;
   email: string;
@@ -37,24 +45,42 @@ interface UserProfile {
   accountId: string;
 }
 
+/* ============================================================
+   PROFILE
+============================================================ */
+
 const Profile: React.FC = () => {
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [saving, setSaving] =
+    useState(false);
 
-  const [profile, setProfile] = useState<UserProfile>({
-    name: '',
-    email: '',
-    username: '',
-    accountId: '',
-  });
+  const [error, setError] =
+    useState('');
 
-  const [name, setName] = useState('');
-  const [username, setUsername] = useState('');
+  const [success, setSuccess] =
+    useState('');
+
+  const [profile, setProfile] =
+    useState<UserProfile>({
+      name: '',
+      email: '',
+      username: '',
+      accountId: '',
+    });
+
+  const [name, setName] =
+    useState('');
+
+  const [username, setUsername] =
+    useState('');
+
+  /* ==========================================================
+     LOAD PROFILE
+  ========================================================== */
 
   const loadProfile = async () => {
     try {
@@ -63,25 +89,32 @@ const Profile: React.FC = () => {
 
       let loadedUser: any = null;
 
-      /*
-       * Try the backend first.
-       */
+      /* --------------------------------------------------------
+         TRY BACKEND FIRST
+      -------------------------------------------------------- */
+
       try {
-        const response = await apiClient.get('/auth/profile');
+        const response =
+          await apiClient.get(
+            '/auth/profile'
+          );
 
-        const data = response.data || {};
+        const data =
+          response.data || {};
 
-        loadedUser = data.user || data;
+        loadedUser =
+          data.user || data;
       } catch (backendError) {
         console.warn(
-          'Backend profile endpoint unavailable. Using stored account information.'
+          'Backend profile endpoint unavailable. Using stored account information.',
+          backendError
         );
       }
 
-      /*
-       * If the backend did not provide a profile,
-       * check localStorage.
-       */
+      /* --------------------------------------------------------
+         LOCAL STORAGE FALLBACK
+      -------------------------------------------------------- */
+
       if (!loadedUser) {
         const possibleKeys = [
           'user',
@@ -91,14 +124,16 @@ const Profile: React.FC = () => {
         ];
 
         for (const key of possibleKeys) {
-          const stored = localStorage.getItem(key);
+          const stored =
+            localStorage.getItem(key);
 
           if (!stored) {
             continue;
           }
 
           try {
-            const parsed = JSON.parse(stored);
+            const parsed =
+              JSON.parse(stored);
 
             if (
               parsed &&
@@ -113,27 +148,38 @@ const Profile: React.FC = () => {
         }
       }
 
-      /*
-       * Try JWT information if available.
-       */
+      /* --------------------------------------------------------
+         JWT FALLBACK
+      -------------------------------------------------------- */
+
       if (!loadedUser) {
         const token =
-          localStorage.getItem('token') ||
-          localStorage.getItem('accessToken') ||
-          localStorage.getItem('authToken');
+          localStorage.getItem(
+            'authToken'
+          ) ||
+          localStorage.getItem(
+            'accessToken'
+          ) ||
+          localStorage.getItem(
+            'token'
+          );
 
         if (token) {
           try {
-            const parts = token.split('.');
+            const parts =
+              token.split('.');
 
             if (parts.length === 3) {
-              const normalized = parts[1]
-                .replace(/-/g, '+')
-                .replace(/_/g, '/');
+              const normalized =
+                parts[1]
+                  .replace(/-/g, '+')
+                  .replace(/_/g, '/');
 
-              const decoded = atob(normalized);
+              const decoded =
+                atob(normalized);
 
-              loadedUser = JSON.parse(decoded);
+              loadedUser =
+                JSON.parse(decoded);
             }
           } catch {
             loadedUser = null;
@@ -141,19 +187,26 @@ const Profile: React.FC = () => {
         }
       }
 
-      const user = loadedUser || {};
+      /* --------------------------------------------------------
+         BUILD PROFILE
+      -------------------------------------------------------- */
 
-      const firstName = String(
-        user.firstName ||
-          user.first_name ||
-          ''
-      ).trim();
+      const user =
+        loadedUser || {};
 
-      const lastName = String(
-        user.lastName ||
-          user.last_name ||
-          ''
-      ).trim();
+      const firstName =
+        String(
+          user.firstName ||
+            user.first_name ||
+            ''
+        ).trim();
+
+      const lastName =
+        String(
+          user.lastName ||
+            user.last_name ||
+            ''
+        ).trim();
 
       const combinedName =
         `${firstName} ${lastName}`.trim();
@@ -188,9 +241,17 @@ const Profile: React.FC = () => {
         ).trim(),
       };
 
-      setProfile(loadedProfile);
-      setName(loadedProfile.name);
-      setUsername(loadedProfile.username);
+      setProfile(
+        loadedProfile
+      );
+
+      setName(
+        loadedProfile.name
+      );
+
+      setUsername(
+        loadedProfile.username
+      );
     } catch (err) {
       console.error(
         'Profile loading error:',
@@ -205,57 +266,92 @@ const Profile: React.FC = () => {
     }
   };
 
+  /* ==========================================================
+     LOAD ON PAGE OPEN
+  ========================================================== */
+
   useEffect(() => {
     loadProfile();
   }, []);
 
-  const displayName = useMemo(() => {
-    if (profile.name) {
-      return profile.name;
-    }
+  /* ==========================================================
+     DISPLAY NAME
+  ========================================================== */
 
-    if (profile.username) {
-      return profile.username;
-    }
+  const displayName =
+    useMemo(() => {
+      if (profile.name) {
+        return profile.name;
+      }
 
-    return 'Account Holder';
-  }, [profile.name, profile.username]);
+      if (profile.username) {
+        return profile.username;
+      }
 
-  const initials = useMemo(() => {
-    const source =
-      profile.name ||
-      profile.username ||
-      'Account';
+      return 'Account Holder';
+    }, [
+      profile.name,
+      profile.username,
+    ]);
 
-    const parts = source
-      .trim()
-      .split(/\s+/)
-      .filter(Boolean);
+  /* ==========================================================
+     INITIALS
+  ========================================================== */
 
-    if (parts.length >= 2) {
-      return (
-        parts[0][0] +
-        parts[parts.length - 1][0]
-      ).toUpperCase();
-    }
+  const initials =
+    useMemo(() => {
+      const source =
+        profile.name ||
+        profile.username ||
+        'Account';
 
-    return parts[0][0].toUpperCase();
-  }, [profile.name, profile.username]);
+      const parts =
+        source
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+
+      if (parts.length >= 2) {
+        return (
+          parts[0][0] +
+          parts[
+            parts.length - 1
+          ][0]
+        ).toUpperCase();
+      }
+
+      return parts[0][0]
+        .toUpperCase();
+    }, [
+      profile.name,
+      profile.username,
+    ]);
+
+  /* ==========================================================
+     SAVE PROFILE
+  ========================================================== */
 
   const handleSave = async () => {
     setError('');
     setSuccess('');
 
-    const trimmedName = name.trim();
-    const trimmedUsername = username.trim();
+    const trimmedName =
+      name.trim();
+
+    const trimmedUsername =
+      username.trim();
 
     if (!trimmedName) {
-      setError('Please enter your full name.');
+      setError(
+        'Please enter your full name.'
+      );
       return;
     }
 
     if (!trimmedUsername) {
-      setError('Please enter your username.');
+      setError(
+        'Please enter your username.'
+      );
       return;
     }
 
@@ -264,14 +360,19 @@ const Profile: React.FC = () => {
 
       let backendSaved = false;
 
-      /*
-       * Try to save to the backend.
-       */
+      /* --------------------------------------------------------
+         TRY BACKEND
+      -------------------------------------------------------- */
+
       try {
-        await apiClient.put('/auth/profile', {
-          name: trimmedName,
-          username: trimmedUsername,
-        });
+        await apiClient.put(
+          '/auth/profile',
+          {
+            name: trimmedName,
+            username:
+              trimmedUsername,
+          }
+        );
 
         backendSaved = true;
       } catch (backendError) {
@@ -281,9 +382,10 @@ const Profile: React.FC = () => {
         );
       }
 
-      /*
-       * Keep the local account information synchronized.
-       */
+      /* --------------------------------------------------------
+         UPDATE LOCAL STORAGE
+      -------------------------------------------------------- */
+
       const possibleKeys = [
         'user',
         'currentUser',
@@ -291,15 +393,20 @@ const Profile: React.FC = () => {
         'profile',
       ];
 
+      let updatedLocalStorage =
+        false;
+
       for (const key of possibleKeys) {
-        const stored = localStorage.getItem(key);
+        const stored =
+          localStorage.getItem(key);
 
         if (!stored) {
           continue;
         }
 
         try {
-          const parsed = JSON.parse(stored);
+          const parsed =
+            JSON.parse(stored);
 
           if (
             parsed &&
@@ -310,9 +417,13 @@ const Profile: React.FC = () => {
               JSON.stringify({
                 ...parsed,
                 name: trimmedName,
-                username: trimmedUsername,
+                username:
+                  trimmedUsername,
               })
             );
+
+            updatedLocalStorage =
+              true;
 
             break;
           }
@@ -321,14 +432,44 @@ const Profile: React.FC = () => {
         }
       }
 
-      setProfile((previous) => ({
-        ...previous,
-        name: trimmedName,
-        username: trimmedUsername,
-      }));
+      /*
+       * If no existing user object was found,
+       * create one so the dashboard can use
+       * the updated profile information.
+       */
+      if (!updatedLocalStorage) {
+        localStorage.setItem(
+          'user',
+          JSON.stringify({
+            name: trimmedName,
+            username:
+              trimmedUsername,
+            email:
+              profile.email,
+            accountId:
+              profile.accountId,
+          })
+        );
+      }
+
+      /* --------------------------------------------------------
+         UPDATE STATE
+      -------------------------------------------------------- */
+
+      setProfile(
+        (previous) => ({
+          ...previous,
+          name: trimmedName,
+          username:
+            trimmedUsername,
+        })
+      );
 
       setName(trimmedName);
-      setUsername(trimmedUsername);
+
+      setUsername(
+        trimmedUsername
+      );
 
       setSuccess(
         backendSaved
@@ -349,6 +490,10 @@ const Profile: React.FC = () => {
     }
   };
 
+  /* ==========================================================
+     LOGOUT
+  ========================================================== */
+
   const handleLogout = () => {
     const keys = [
       'token',
@@ -366,6 +511,10 @@ const Profile: React.FC = () => {
 
     navigate('/login');
   };
+
+  /* ==========================================================
+     TEXT FIELD STYLE
+  ========================================================== */
 
   const inputSx = {
     '& .MuiInputLabel-root': {
@@ -394,26 +543,38 @@ const Profile: React.FC = () => {
     },
   };
 
+  /* ==========================================================
+     RENDER
+  ========================================================== */
+
   return (
     <Box
       sx={{
         minHeight: '100vh',
         color: '#fff',
+
         background:
           'radial-gradient(circle at top right, rgba(25,84,199,0.30), transparent 30%), linear-gradient(180deg,#02071f 0%,#071453 55%,#091b68 100%)',
+
         pb: 6,
       }}
     >
-      {/* HEADER */}
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
 
       <Box
         sx={{
           position: 'sticky',
           top: 0,
           zIndex: 20,
+
           background:
             'rgba(2,7,31,0.96)',
-          backdropFilter: 'blur(14px)',
+
+          backdropFilter:
+            'blur(14px)',
+
           borderBottom:
             '1px solid rgba(125,150,255,0.18)',
         }}
@@ -423,12 +584,23 @@ const Profile: React.FC = () => {
             direction="row"
             alignItems="center"
             spacing={2}
-            sx={{ py: 1.5 }}
+            sx={{
+              py: 1.5,
+            }}
           >
+            {/* ------------------------------------------------
+                BACK TO DASHBOARD
+            ------------------------------------------------ */}
+
             <IconButton
-              onClick={() => navigate('/')}
+              onClick={() =>
+                navigate(
+                  '/dashboard'
+                )
+              }
               sx={{
                 color: '#fff',
+
                 background:
                   'rgba(60,90,220,0.25)',
 
@@ -441,13 +613,22 @@ const Profile: React.FC = () => {
               <ArrowBackIcon />
             </IconButton>
 
-            <Box sx={{ flexGrow: 1 }}>
+            {/* ------------------------------------------------
+                TITLE
+            ------------------------------------------------ */}
+
+            <Box
+              sx={{
+                flexGrow: 1,
+              }}
+            >
               <Typography
                 sx={{
                   fontSize: {
                     xs: 18,
                     sm: 22,
                   },
+
                   fontWeight: 900,
                 }}
               >
@@ -465,12 +646,23 @@ const Profile: React.FC = () => {
               </Typography>
             </Box>
 
+            {/* ------------------------------------------------
+                DESKTOP LOGOUT
+            ------------------------------------------------ */}
+
             <Button
-              onClick={handleLogout}
-              startIcon={<LogoutIcon />}
+              onClick={
+                handleLogout
+              }
+              startIcon={
+                <LogoutIcon />
+              }
               sx={{
                 color: '#ff8297',
-                textTransform: 'none',
+
+                textTransform:
+                  'none',
+
                 display: {
                   xs: 'none',
                   sm: 'flex',
@@ -483,7 +675,9 @@ const Profile: React.FC = () => {
         </Container>
       </Box>
 
-      {/* MAIN */}
+      {/* ======================================================
+          MAIN
+      ====================================================== */}
 
       <Container
         maxWidth="lg"
@@ -494,16 +688,24 @@ const Profile: React.FC = () => {
           },
         }}
       >
-        {/* PAGE TITLE */}
+        {/* ====================================================
+            PAGE TITLE
+        ==================================================== */}
 
-        <Box sx={{ mb: 3 }}>
+        <Box
+          sx={{
+            mb: 3,
+          }}
+        >
           <Typography
             sx={{
               fontSize: {
                 xs: 30,
                 md: 42,
               },
+
               fontWeight: 900,
+
               letterSpacing: -1,
             }}
           >
@@ -516,17 +718,22 @@ const Profile: React.FC = () => {
               mt: 0.5,
             }}
           >
-            Manage your account information and
+            Manage your account
+            information and
             security.
           </Typography>
         </Box>
 
-        {/* ALERTS */}
+        {/* ====================================================
+            ALERTS
+        ==================================================== */}
 
         {error && (
           <Alert
             severity="error"
-            onClose={() => setError('')}
+            onClose={() =>
+              setError('')
+            }
             sx={{
               mb: 2,
               borderRadius: 2,
@@ -539,7 +746,9 @@ const Profile: React.FC = () => {
         {success && (
           <Alert
             severity="success"
-            onClose={() => setSuccess('')}
+            onClose={() =>
+              setSuccess('')
+            }
             sx={{
               mb: 2,
               borderRadius: 2,
@@ -549,7 +758,9 @@ const Profile: React.FC = () => {
           </Alert>
         )}
 
-        {/* PROFILE HEADER */}
+        {/* ====================================================
+            PROFILE HEADER
+        ==================================================== */}
 
         <Card
           sx={{
@@ -557,10 +768,13 @@ const Profile: React.FC = () => {
             borderRadius: 4,
             color: '#fff',
             overflow: 'hidden',
+
             background:
               'linear-gradient(135deg,#10216d 0%,#154ec7 60%,#087fda 100%)',
+
             border:
               '1px solid rgba(130,190,255,0.28)',
+
             boxShadow:
               '0 20px 60px rgba(0,0,0,0.25)',
           }}
@@ -577,7 +791,9 @@ const Profile: React.FC = () => {
               <Stack
                 alignItems="center"
                 spacing={2}
-                sx={{ py: 4 }}
+                sx={{
+                  py: 4,
+                }}
               >
                 <CircularProgress
                   sx={{
@@ -590,7 +806,8 @@ const Profile: React.FC = () => {
                     color: '#c7d7ff',
                   }}
                 >
-                  Loading account profile...
+                  Loading account
+                  profile...
                 </Typography>
               </Stack>
             ) : (
@@ -605,16 +822,21 @@ const Profile: React.FC = () => {
                   sm: 'center',
                 }}
               >
+                {/* AVATAR */}
+
                 <Avatar
                   sx={{
                     width: 90,
                     height: 90,
                     fontSize: 30,
                     fontWeight: 900,
+
                     background:
                       'linear-gradient(135deg,#19d8ff,#285cff)',
+
                     border:
                       '3px solid rgba(255,255,255,0.25)',
+
                     boxShadow:
                       '0 12px 35px rgba(0,0,0,0.25)',
                   }}
@@ -622,13 +844,20 @@ const Profile: React.FC = () => {
                   {initials}
                 </Avatar>
 
-                <Box sx={{ flexGrow: 1 }}>
+                {/* USER INFORMATION */}
+
+                <Box
+                  sx={{
+                    flexGrow: 1,
+                  }}
+                >
                   <Typography
                     sx={{
                       fontSize: {
                         xs: 26,
                         md: 32,
                       },
+
                       fontWeight: 900,
                     }}
                   >
@@ -648,7 +877,9 @@ const Profile: React.FC = () => {
                   <Stack
                     direction="row"
                     spacing={1}
-                    sx={{ mt: 1.5 }}
+                    sx={{
+                      mt: 1.5,
+                    }}
                     flexWrap="wrap"
                     useFlexGap
                   >
@@ -665,8 +896,10 @@ const Profile: React.FC = () => {
                       size="small"
                       sx={{
                         color: '#fff',
+
                         background:
                           'rgba(0,0,0,0.18)',
+
                         fontWeight: 700,
                       }}
                     />
@@ -684,8 +917,10 @@ const Profile: React.FC = () => {
                       size="small"
                       sx={{
                         color: '#fff',
+
                         background:
                           'rgba(0,0,0,0.18)',
+
                         fontWeight: 700,
                       }}
                     />
@@ -696,26 +931,34 @@ const Profile: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* CONTENT */}
+        {/* ====================================================
+            CONTENT
+        ==================================================== */}
 
         <Box
           sx={{
             display: 'grid',
+
             gridTemplateColumns: {
               xs: '1fr',
               md: '1.35fr 0.8fr',
             },
+
             gap: 3,
           }}
         >
-          {/* PERSONAL INFORMATION */}
+          {/* ==================================================
+              PERSONAL INFORMATION
+          ================================================== */}
 
           <Card
             sx={{
               borderRadius: 4,
               color: '#fff',
+
               background:
                 'linear-gradient(145deg,#11246f,#08164c)',
+
               border:
                 '1px solid rgba(100,150,255,0.2)',
             }}
@@ -738,19 +981,27 @@ const Profile: React.FC = () => {
                 Personal Information
               </Typography>
 
-              <Stack spacing={2.5}>
+              <Stack
+                spacing={2.5}
+              >
+                {/* FULL NAME */}
+
                 <TextField
                   fullWidth
                   label="Full Name"
                   value={name}
                   onChange={(event) =>
-                    setName(event.target.value)
+                    setName(
+                      event.target
+                        .value
+                    )
                   }
                   InputProps={{
                     startAdornment: (
                       <PersonOutlineIcon
                         sx={{
-                          color: '#6edcff',
+                          color:
+                            '#6edcff',
                           mr: 1,
                         }}
                       />
@@ -758,6 +1009,8 @@ const Profile: React.FC = () => {
                   }}
                   sx={inputSx}
                 />
+
+                {/* EMAIL */}
 
                 <TextField
                   fullWidth
@@ -771,7 +1024,8 @@ const Profile: React.FC = () => {
                     startAdornment: (
                       <EmailOutlinedIcon
                         sx={{
-                          color: '#6edcff',
+                          color:
+                            '#6edcff',
                           mr: 1,
                         }}
                       />
@@ -779,6 +1033,7 @@ const Profile: React.FC = () => {
                   }}
                   sx={{
                     ...inputSx,
+
                     '& .MuiInputBase-input.Mui-disabled':
                       {
                         WebkitTextFillColor:
@@ -787,18 +1042,24 @@ const Profile: React.FC = () => {
                   }}
                 />
 
+                {/* USERNAME */}
+
                 <TextField
                   fullWidth
                   label="Username"
                   value={username}
                   onChange={(event) =>
-                    setUsername(event.target.value)
+                    setUsername(
+                      event.target
+                        .value
+                    )
                   }
                   InputProps={{
                     startAdornment: (
                       <BadgeOutlinedIcon
                         sx={{
-                          color: '#6edcff',
+                          color:
+                            '#6edcff',
                           mr: 1,
                         }}
                       />
@@ -808,17 +1069,29 @@ const Profile: React.FC = () => {
                 />
               </Stack>
 
+              {/* SAVE */}
+
               <Button
                 fullWidth
                 variant="contained"
-                disabled={saving || loading}
-                onClick={handleSave}
+                disabled={
+                  saving ||
+                  loading
+                }
+                onClick={
+                  handleSave
+                }
                 sx={{
                   mt: 3,
                   py: 1.5,
-                  textTransform: 'none',
+
+                  textTransform:
+                    'none',
+
                   fontWeight: 900,
+
                   borderRadius: 2,
+
                   background:
                     'linear-gradient(90deg,#13b95f,#18d878)',
                 }}
@@ -837,22 +1110,34 @@ const Profile: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* RIGHT SIDE */}
+          {/* ==================================================
+              RIGHT SIDE
+          ================================================== */}
 
-          <Stack spacing={3}>
-            {/* ACCOUNT DETAILS */}
+          <Stack
+            spacing={3}
+          >
+            {/* =================================================
+                ACCOUNT DETAILS
+            ================================================= */}
 
             <Card
               sx={{
                 borderRadius: 4,
                 color: '#fff',
+
                 background:
                   'linear-gradient(145deg,#11246f,#08164c)',
+
                 border:
                   '1px solid rgba(100,150,255,0.2)',
               }}
             >
-              <CardContent sx={{ p: 3 }}>
+              <CardContent
+                sx={{
+                  p: 3,
+                }}
+              >
                 <Typography
                   sx={{
                     fontSize: 20,
@@ -864,10 +1149,13 @@ const Profile: React.FC = () => {
                 </Typography>
 
                 <Stack spacing={2}>
+                  {/* ACCOUNT ID */}
+
                   <Box>
                     <Typography
                       sx={{
-                        color: '#8296e0',
+                        color:
+                          '#8296e0',
                         fontSize: 10,
                         fontWeight: 800,
                       }}
@@ -880,7 +1168,8 @@ const Profile: React.FC = () => {
                         mt: 0.5,
                         fontSize: 13,
                         fontWeight: 700,
-                        wordBreak: 'break-all',
+                        wordBreak:
+                          'break-all',
                       }}
                     >
                       {profile.accountId ||
@@ -895,10 +1184,13 @@ const Profile: React.FC = () => {
                     }}
                   />
 
+                  {/* ACCOUNT STATUS */}
+
                   <Box>
                     <Typography
                       sx={{
-                        color: '#8296e0',
+                        color:
+                          '#8296e0',
                         fontSize: 10,
                         fontWeight: 800,
                       }}
@@ -920,8 +1212,10 @@ const Profile: React.FC = () => {
                       sx={{
                         mt: 1,
                         color: '#fff',
+
                         background:
                           'rgba(19,185,95,0.18)',
+
                         fontWeight: 800,
                       }}
                     />
@@ -930,19 +1224,27 @@ const Profile: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* SECURITY */}
+            {/* =================================================
+                SECURITY
+            ================================================= */}
 
             <Card
               sx={{
                 borderRadius: 4,
                 color: '#fff',
+
                 background:
                   'linear-gradient(145deg,#11246f,#08164c)',
+
                 border:
                   '1px solid rgba(100,150,255,0.2)',
               }}
             >
-              <CardContent sx={{ p: 3 }}>
+              <CardContent
+                sx={{
+                  p: 3,
+                }}
+              >
                 <Stack
                   direction="row"
                   spacing={1.5}
@@ -950,7 +1252,8 @@ const Profile: React.FC = () => {
                 >
                   <SecurityIcon
                     sx={{
-                      color: '#5ce8ff',
+                      color:
+                        '#5ce8ff',
                     }}
                   />
 
@@ -966,15 +1269,19 @@ const Profile: React.FC = () => {
 
                 <Typography
                   sx={{
-                    color: '#8296e0',
+                    color:
+                      '#8296e0',
                     fontSize: 13,
                     lineHeight: 1.6,
                     mt: 1.5,
                   }}
                 >
-                  Keep your account secure by
-                  protecting your login credentials
-                  and reviewing your security settings.
+                  Keep your account
+                  secure by
+                  protecting your
+                  login credentials
+                  and reviewing your
+                  security settings.
                 </Typography>
 
                 <Button
@@ -984,14 +1291,20 @@ const Profile: React.FC = () => {
                     <SecurityIcon />
                   }
                   onClick={() =>
-                    navigate('/security')
+                    navigate(
+                      '/security'
+                    )
                   }
                   sx={{
                     mt: 2,
                     color: '#fff',
+
                     borderColor:
                       'rgba(110,190,255,0.45)',
-                    textTransform: 'none',
+
+                    textTransform:
+                      'none',
+
                     fontWeight: 700,
                   }}
                 >
@@ -1000,19 +1313,27 @@ const Profile: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* SETTINGS */}
+            {/* =================================================
+                SETTINGS
+            ================================================= */}
 
             <Card
               sx={{
                 borderRadius: 4,
                 color: '#fff',
+
                 background:
                   'linear-gradient(145deg,#11246f,#08164c)',
+
                 border:
                   '1px solid rgba(100,150,255,0.2)',
               }}
             >
-              <CardContent sx={{ p: 3 }}>
+              <CardContent
+                sx={{
+                  p: 3,
+                }}
+              >
                 <Stack
                   direction="row"
                   spacing={1.5}
@@ -1020,7 +1341,8 @@ const Profile: React.FC = () => {
                 >
                   <SettingsIcon
                     sx={{
-                      color: '#5ce8ff',
+                      color:
+                        '#5ce8ff',
                     }}
                   />
 
@@ -1036,14 +1358,16 @@ const Profile: React.FC = () => {
 
                 <Typography
                   sx={{
-                    color: '#8296e0',
+                    color:
+                      '#8296e0',
                     fontSize: 13,
                     lineHeight: 1.6,
                     mt: 1.5,
                   }}
                 >
-                  Manage your account preferences
-                  and platform settings.
+                  Manage your account
+                  preferences and
+                  platform settings.
                 </Typography>
 
                 <Button
@@ -1053,14 +1377,20 @@ const Profile: React.FC = () => {
                     <SettingsIcon />
                   }
                   onClick={() =>
-                    navigate('/settings')
+                    navigate(
+                      '/settings'
+                    )
                   }
                   sx={{
                     mt: 2,
                     color: '#fff',
+
                     borderColor:
                       'rgba(110,190,255,0.45)',
-                    textTransform: 'none',
+
+                    textTransform:
+                      'none',
+
                     fontWeight: 700,
                   }}
                 >
@@ -1071,24 +1401,37 @@ const Profile: React.FC = () => {
           </Stack>
         </Box>
 
-        {/* MOBILE LOGOUT */}
+        {/* ====================================================
+            MOBILE LOGOUT
+        ==================================================== */}
 
         <Button
           fullWidth
           variant="outlined"
-          startIcon={<LogoutIcon />}
-          onClick={handleLogout}
+          startIcon={
+            <LogoutIcon />
+          }
+          onClick={
+            handleLogout
+          }
           sx={{
             display: {
               xs: 'flex',
               sm: 'none',
             },
+
             mt: 3,
+
             color: '#ff8297',
+
             borderColor:
               'rgba(255,100,130,0.3)',
-            textTransform: 'none',
+
+            textTransform:
+              'none',
+
             fontWeight: 800,
+
             py: 1.3,
           }}
         >
