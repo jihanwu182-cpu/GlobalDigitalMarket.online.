@@ -18,8 +18,9 @@ const {
   getUser,
   updateUserStatus,
 
-  // Account Funding
+  // Account Funding / Debit
   fundUserAccount,
+  debitUserAccount,
 
   // Transactions
   getTransactions,
@@ -69,6 +70,7 @@ const requiredHandlers = {
   updateUserStatus,
 
   fundUserAccount,
+  debitUserAccount,
 
   getTransactions,
   getDeposits,
@@ -179,6 +181,30 @@ router.patch(
 router.post(
   '/users/:id/fund',
   fundUserAccount
+);
+
+// ============================================================
+// USER ACCOUNT DEBIT
+// ============================================================
+//
+// POST /api/admin/users/:id/debit
+//
+// Example:
+//
+// POST /api/admin/users/25/debit
+//
+// Body:
+//
+// {
+//   "amount": 100,
+//   "currency": "USD",
+//   "description": "Admin account debit"
+// }
+//
+
+router.post(
+  '/users/:id/debit',
+  debitUserAccount
 );
 
 // ============================================================
