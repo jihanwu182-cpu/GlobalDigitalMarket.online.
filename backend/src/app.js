@@ -3,7 +3,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const path = require('path');
 
 const pool = require('./config/database');
 const { initializeDatabase } = require('./config/database');
@@ -26,6 +25,7 @@ app.use(
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || '*',
+    credentials: true,
   })
 );
 
@@ -43,29 +43,13 @@ app.use(
 );
 
 // ============================================================
-// PROJECT PATHS
-// ============================================================
-
-const projectRoot = path.resolve(
-  __dirname,
-  '../..'
-);
-
-const frontendBuildPath = path.join(
-  projectRoot,
-  'frontend',
-  'build'
-);
-
-// ============================================================
 // API PREFIX
 // ============================================================
 
-const API_PREFIX =
-  process.env.API_PREFIX || '/api';
+const API_PREFIX = process.env.API_PREFIX || '/api';
 
 // ============================================================
-// SERVER HEALTH CHECK
+// HEALTH CHECK
 // ============================================================
 
 app.get('/health', (req, res) => {
@@ -169,99 +153,23 @@ app.use(
 );
 
 // ============================================================
-// REACT FRONTEND
-// ============================================================
-//
-// The new React application is built into:
-//
-// frontend/build
-//
-// Serve that folder instead of the old root index.html.
-//
-
-app.use(
-  express.static(frontendBuildPath)
-);
-
-// ============================================================
 // LEGACY SIGNUP REDIRECT
 // ============================================================
 
 app.get('/signup.html', (req, res) => {
-  res.redirect('/#/register');
-});
-
-// ============================================================
-// LEGACY INDEX REDIRECT
-// ============================================================
-//
-// If somebody opens /index.html, serve the NEW React app.
-//
-
-app.get('/index.html', (req, res, next) => {
-  res.sendFile(
-    path.join(
-      frontendBuildPath,
-      'index.html'
-    ),
-    (error) => {
-      if (error) {
-        logger.error(
-          'Could not serve React index.html:',
-          error
-        );
-
-        next(error);
-      }
-    }
+  res.redirect(
+    `${API_PREFIX}/auth/register`
   );
 });
 
 // ============================================================
-// REACT APPLICATION FALLBACK
-// ============================================================
-//
-// Non-API browser requests receive the React application.
-//
-// Your React app uses HashRouter, so routes such as:
-//
-// /#/login
-// /#/register
-// /#/admin/login
-// /#/admin
-//
-// are handled by React in the browser.
-//
-
-app.get(
-  /^\/(?!api(?:\/|$)).*/,
-  (req, res, next) => {
-    res.sendFile(
-      path.join(
-        frontendBuildPath,
-        'index.html'
-      ),
-      (error) => {
-        if (error) {
-          logger.error(
-            'Could not serve React frontend:',
-            error
-          );
-
-          next(error);
-        }
-      }
-    );
-  }
-);
-
-// ============================================================
-// 404
+// API 404 HANDLER
 // ============================================================
 
 app.use((req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
+    path: req.originalUrl,
   });
 });
 
@@ -275,11 +183,8 @@ app.use(errorHandler);
 // SERVER
 // ============================================================
 
-const PORT =
-  process.env.PORT || 5000;
-
-const HOST =
-  process.env.HOST || '0.0.0.0';
+const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // ============================================================
 // START SERVER
@@ -293,16 +198,12 @@ const startServer = async () => {
       'Database initialization completed successfully'
     );
 
-    logger.info(
-      `React frontend build path: ${frontendBuildPath}`
-    );
-
     app.listen(
       PORT,
       HOST,
       () => {
         logger.info(
-          `GlobalDigitalMarket.online server running on ${HOST}:${PORT}`
+          `GlobalDigitalMarket.online API running on ${HOST}:${PORT}`
         );
       }
     );
