@@ -5108,7 +5108,13 @@ module.exports = {
   updateSignalPlan,
   deleteSignalPlan,
 
-  // User signal
+    // User signal
   getUserSignal,
   updateUserSignal,
+
+  // Payment Methods
+  getPaymentMethods,
+  createPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
 };
