@@ -6,6 +6,7 @@ const API_URL =
 
 const apiClient = axios.create({
   baseURL: API_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,8 +18,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const requestUrl =
-      config.url || '';
+    const requestUrl = config.url || '';
 
     const isAdminRequest =
       requestUrl.startsWith('/admin');
@@ -31,9 +31,7 @@ apiClient.interceptors.request.use(
 
     if (isAdminRequest) {
       token =
-        localStorage.getItem(
-          'adminToken'
-        );
+        localStorage.getItem('adminToken');
     }
 
     // --------------------------------------------------------
@@ -42,15 +40,9 @@ apiClient.interceptors.request.use(
 
     else {
       token =
-        localStorage.getItem(
-          'authToken'
-        ) ||
-        localStorage.getItem(
-          'accessToken'
-        ) ||
-        localStorage.getItem(
-          'token'
-        );
+        localStorage.getItem('authToken') ||
+        localStorage.getItem('accessToken') ||
+        localStorage.getItem('token');
     }
 
     // --------------------------------------------------------
@@ -64,7 +56,6 @@ apiClient.interceptors.request.use(
 
     return config;
   },
-
   (error) => {
     return Promise.reject(error);
   }
@@ -80,10 +71,11 @@ apiClient.interceptors.response.use(
   },
 
   (error) => {
-    console.error(
-      'API ERROR:',
-      error
-    );
+    console.error('API ERROR:', error);
+
+    // --------------------------------------------------------
+    // SERVER RESPONSE
+    // --------------------------------------------------------
 
     if (error.response) {
       console.error(
@@ -102,9 +94,7 @@ apiClient.interceptors.response.use(
 
       if (
         error.response.status === 401 &&
-        error.config?.url?.startsWith(
-          '/admin'
-        )
+        error.config?.url?.startsWith('/admin')
       ) {
         console.error(
           'ADMIN AUTHENTICATION FAILED'
@@ -118,7 +108,26 @@ apiClient.interceptors.response.use(
           'admin'
         );
       }
-    } else {
+    }
+
+    // --------------------------------------------------------
+    // REQUEST TIMEOUT
+    // --------------------------------------------------------
+
+    else if (
+      error.code === 'ECONNABORTED' ||
+      error.code === 'ETIMEDOUT'
+    ) {
+      console.error(
+        'API REQUEST TIMED OUT'
+      );
+    }
+
+    // --------------------------------------------------------
+    // NETWORK ERROR
+    // --------------------------------------------------------
+
+    else {
       console.error(
         'NETWORK ERROR:',
         error.message
