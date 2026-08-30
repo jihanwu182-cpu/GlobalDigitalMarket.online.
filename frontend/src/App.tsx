@@ -21,8 +21,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
@@ -40,8 +39,10 @@ import AdminDashboard from './pages/AdminDashboard';
 
 // ============================================================
 // ADMIN LAYOUT
+// IMPORTANT: folder is "layouts" (with s)
 // ============================================================
-import AdminLayout from './layout/AdminLayout';
+
+import AdminLayout from './layouts/AdminLayout';
 
 // ============================================================
 // ERROR BOUNDARY
@@ -364,32 +365,6 @@ const App: React.FC = () => {
               element={
                 <AdminLayout>
                   <AdminDashboard />
-                </AdminLayout>
-              }
-            />
-
-            {/* ==================================================
-                ADMIN SETTINGS
-            ================================================== */}
-
-            <Route
-              path="/admin/settings"
-              element={
-                <AdminLayout>
-                  <AdminSettings />
-                </AdminLayout>
-              }
-            />
-
-            {/* ==================================================
-                ADMIN PAYMENT METHODS
-            ================================================== */}
-
-            <Route
-              path="/admin/settings/payment-methods"
-              element={
-                <AdminLayout>
-                  <AdminPaymentMethods />
                 </AdminLayout>
               }
             />
