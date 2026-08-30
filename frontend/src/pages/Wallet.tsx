@@ -55,6 +55,7 @@ interface Transaction {
   description?: string;
   proofOfPaymentUrl?: string | null;
   adminNote?: string | null;
+  withdrawalCode?: string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -64,6 +65,9 @@ const Wallet: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofFileName, setProofFileName] = useState('');
 
   const [wallet, setWallet] = useState<WalletData>({
     balance: 0,
@@ -77,22 +81,16 @@ const Wallet: React.FC = () => {
     currency: 'USD',
   });
 
-  const [transactions, setTransactions] = useState<
-    Transaction[]
-  >([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   const [openDeposit, setOpenDeposit] = useState(false);
-  const [openWithdraw, setOpenWithdraw] =
-    useState(false);
+  const [openWithdraw, setOpenWithdraw] = useState(false);
 
-  const [depositAmount, setDepositAmount] =
-    useState('');
-
-  const [withdrawAmount, setWithdrawAmount] =
-    useState('');
+  const [depositAmount, setDepositAmount] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
   const [depositMethod, setDepositMethod] =
     useState('Bank Transfer');
@@ -123,12 +121,13 @@ const Wallet: React.FC = () => {
         maximumFractionDigits: 2,
       }).format(Number(value || 0));
     } catch {
-      return `${currency} ${Number(
-        value || 0
-      ).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`;
+      return `${currency} ${Number(value || 0).toLocaleString(
+        'en-US',
+        {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }
+      )}`;
     }
   };
 
@@ -147,36 +146,22 @@ const Wallet: React.FC = () => {
       const transactionResponse =
         await apiClient.get('/wallet/transactions');
 
-      const data =
-        balanceResponse.data || {};
+      const data = balanceResponse.data || {};
 
       setWallet({
-        balance:
-          Number(data.balance) || 0,
-
-        deposit:
-          Number(data.deposit) || 0,
-
-        profits:
-          Number(data.profits) || 0,
-
+        balance: Number(data.balance) || 0,
+        deposit: Number(data.deposit) || 0,
+        profits: Number(data.profits) || 0,
         availableBalance:
           Number(data.availableBalance) || 0,
-
-        bonus:
-          Number(data.bonus) || 0,
-
+        bonus: Number(data.bonus) || 0,
         referrerBonus:
           Number(data.referrerBonus) || 0,
-
         buyingPower:
           Number(data.buyingPower) || 0,
-
         marginAvailable:
           Number(data.marginAvailable) || 0,
-
-        currency:
-          data.currency || 'USD',
+        currency: data.currency || 'USD',
       });
 
       const serverTransactions =
@@ -214,6 +199,99 @@ const Wallet: React.FC = () => {
     }
   };
 
+  // ============================================================
+  // UPLOAD PAYMENT PROOF
+  // ============================================================
+
+  const handleProofUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setErrorMessage(
+        'Only JPG, PNG, WebP images and PDF files are allowed.'
+      );
+
+      event.target.value = '';
+
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMessage(
+        'Payment proof must be smaller than 10 MB.'
+      );
+
+      event.target.value = '';
+
+      return;
+    }
+
+    try {
+      setProofUploading(true);
+
+      const formData = new FormData();
+
+      formData.append('proof', file);
+
+      const response = await apiClient.post(
+        '/wallet/upload-proof',
+        formData
+      );
+
+      const uploadedUrl =
+        response.data?.proofOfPaymentUrl;
+
+      if (!uploadedUrl) {
+        throw new Error(
+          'Upload succeeded but no file URL was returned.'
+        );
+      }
+
+      setProofOfPaymentUrl(uploadedUrl);
+
+      setProofFileName(file.name);
+
+      setSuccessMessage(
+        'Payment proof uploaded successfully. You can now submit your deposit.'
+      );
+    } catch (error: any) {
+      console.error(
+        'PAYMENT PROOF UPLOAD ERROR:',
+        error
+      );
+
+      setProofOfPaymentUrl('');
+      setProofFileName('');
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          'Unable to upload payment proof.'
+      );
+    } finally {
+      setProofUploading(false);
+
+      event.target.value = '';
+    }
+  };
+
   useEffect(() => {
     loadWallet();
   }, []);
@@ -223,9 +301,7 @@ const Wallet: React.FC = () => {
   // ============================================================
 
   const handleDeposit = async () => {
-    const amount = Number(
-      depositAmount
-    );
+    const amount = Number(depositAmount);
 
     setErrorMessage('');
     setSuccessMessage('');
@@ -240,18 +316,14 @@ const Wallet: React.FC = () => {
       return;
     }
 
-    if (
-      !depositMethod.trim()
-    ) {
+    if (!depositMethod.trim()) {
       setErrorMessage(
         'Please select a deposit method.'
       );
       return;
     }
 
-    if (
-      !proofOfPaymentUrl.trim()
-    ) {
+    if (!proofOfPaymentUrl.trim()) {
       setErrorMessage(
         'Proof of payment is required for every deposit.'
       );
@@ -278,10 +350,15 @@ const Wallet: React.FC = () => {
       );
 
       setDepositAmount('');
+
       setProofOfPaymentUrl('');
+
+      setProofFileName('');
+
       setDepositMethod(
         'Bank Transfer'
       );
+
       setOpenDeposit(false);
 
       await loadWallet();
@@ -306,9 +383,7 @@ const Wallet: React.FC = () => {
   // ============================================================
 
   const handleWithdraw = async () => {
-    const amount = Number(
-      withdrawAmount
-    );
+    const amount = Number(withdrawAmount);
 
     setErrorMessage('');
     setSuccessMessage('');
@@ -333,18 +408,14 @@ const Wallet: React.FC = () => {
       return;
     }
 
-    if (
-      !withdrawMethod.trim()
-    ) {
+    if (!withdrawMethod.trim()) {
       setErrorMessage(
         'Please select a withdrawal method.'
       );
       return;
     }
 
-    if (
-      !identityDocumentNumber.trim()
-    ) {
+    if (!identityDocumentNumber.trim()) {
       setErrorMessage(
         'Your ID or passport number is required for withdrawal.'
       );
@@ -371,10 +442,13 @@ const Wallet: React.FC = () => {
       );
 
       setWithdrawAmount('');
+
       setIdentityDocumentNumber('');
+
       setWithdrawMethod(
         'Bank Account'
       );
+
       setOpenWithdraw(false);
 
       await loadWallet();
@@ -406,9 +480,7 @@ const Wallet: React.FC = () => {
     | 'error'
     | 'default' => {
     const value =
-      String(
-        status || ''
-      ).toUpperCase();
+      String(status || '').toUpperCase();
 
     if (
       value === 'COMPLETED' ||
@@ -443,8 +515,7 @@ const Wallet: React.FC = () => {
   const formatDate = (
     transaction: Transaction
   ) => {
-    const value =
-      transaction.createdAt;
+    const value = transaction.createdAt;
 
     if (!value) {
       return '-';
@@ -452,11 +523,7 @@ const Wallet: React.FC = () => {
 
     const date = new Date(value);
 
-    if (
-      Number.isNaN(
-        date.getTime()
-      )
-    ) {
+    if (Number.isNaN(date.getTime())) {
       return String(value);
     }
 
@@ -578,7 +645,9 @@ const Wallet: React.FC = () => {
       >
         <Container
           maxWidth="xl"
-          sx={{ py: 2 }}
+          sx={{
+            py: 2,
+          }}
         >
           <Stack
             direction={{
@@ -620,9 +689,7 @@ const Wallet: React.FC = () => {
               spacing={1}
             >
               <Button
-                onClick={
-                  loadWallet
-                }
+                onClick={loadWallet}
                 disabled={loading}
                 startIcon={
                   <RefreshIcon />
@@ -810,9 +877,7 @@ const Wallet: React.FC = () => {
                     <AddIcon />
                   }
                   onClick={() =>
-                    setOpenDeposit(
-                      true
-                    )
+                    setOpenDeposit(true)
                   }
                   sx={{
                     minWidth: 150,
@@ -833,9 +898,7 @@ const Wallet: React.FC = () => {
                     <SendIcon />
                   }
                   onClick={() =>
-                    setOpenWithdraw(
-                      true
-                    )
+                    setOpenWithdraw(true)
                   }
                   sx={{
                     minWidth: 150,
@@ -1106,9 +1169,7 @@ const Wallet: React.FC = () => {
               </Box>
 
               <Button
-                onClick={
-                  loadWallet
-                }
+                onClick={loadWallet}
                 startIcon={
                   <RefreshIcon />
                 }
@@ -1141,42 +1202,35 @@ const Wallet: React.FC = () => {
               0 ? (
               <Box
                 sx={{
-                  textAlign:
-                    'center',
+                  textAlign: 'center',
                   py: 5,
                 }}
               >
                 <Typography
                   sx={{
-                    color:
-                      '#9eaff0',
+                    color: '#9eaff0',
                     fontSize: 16,
                   }}
                 >
-                  No transactions
-                  yet.
+                  No transactions yet.
                 </Typography>
 
                 <Typography
                   sx={{
-                    color:
-                      '#7186cd',
+                    color: '#7186cd',
                     fontSize: 12,
                     mt: 1,
                   }}
                 >
-                  Your deposit
-                  and withdrawal
-                  activity will
-                  appear here.
+                  Your deposit and
+                  withdrawal activity
+                  will appear here.
                 </Typography>
               </Box>
             ) : (
               <Stack spacing={1}>
                 {transactions.map(
-                  (
-                    transaction
-                  ) => {
+                  (transaction) => {
                     const type =
                       String(
                         transaction.transactionType ||
@@ -1184,8 +1238,7 @@ const Wallet: React.FC = () => {
                       ).toUpperCase();
 
                     const isDeposit =
-                      type ===
-                      'DEPOSIT';
+                      type === 'DEPOSIT';
 
                     return (
                       <Box
@@ -1274,6 +1327,28 @@ const Wallet: React.FC = () => {
                                 }
                               </Typography>
                             )}
+
+                            {transaction.proofOfPaymentUrl &&
+                              isDeposit && (
+                                <Button
+                                  component="a"
+                                  href={
+                                    transaction.proofOfPaymentUrl
+                                  }
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  size="small"
+                                  sx={{
+                                    mt: 1,
+                                    color:
+                                      '#62dcff',
+                                    textTransform:
+                                      'none',
+                                  }}
+                                >
+                                  View Payment Proof
+                                </Button>
+                              )}
                           </Box>
 
                           <Stack
@@ -1330,12 +1405,8 @@ const Wallet: React.FC = () => {
       <Dialog
         open={openDeposit}
         onClose={() => {
-          if (
-            !actionLoading
-          ) {
-            setOpenDeposit(
-              false
-            );
+          if (!actionLoading && !proofUploading) {
+            setOpenDeposit(false);
           }
         }}
         maxWidth="sm"
@@ -1361,15 +1432,10 @@ const Wallet: React.FC = () => {
               fullWidth
               label={`Amount (${wallet.currency})`}
               type="number"
-              value={
-                depositAmount
-              }
-              onChange={(
-                event
-              ) =>
+              value={depositAmount}
+              onChange={(event) =>
                 setDepositAmount(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
               inputProps={{
@@ -1377,7 +1443,8 @@ const Wallet: React.FC = () => {
                 step: 0.01,
               }}
               disabled={
-                actionLoading
+                actionLoading ||
+                proofUploading
               }
             />
 
@@ -1385,19 +1452,15 @@ const Wallet: React.FC = () => {
               fullWidth
               select
               label="Deposit Method"
-              value={
-                depositMethod
-              }
-              onChange={(
-                event
-              ) =>
+              value={depositMethod}
+              onChange={(event) =>
                 setDepositMethod(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
               disabled={
-                actionLoading
+                actionLoading ||
+                proofUploading
               }
             >
               <MenuItem value="Bank Transfer">
@@ -1417,45 +1480,89 @@ const Wallet: React.FC = () => {
               </MenuItem>
             </TextField>
 
-            <TextField
-              fullWidth
-              required
-              label="Proof of Payment"
-              placeholder="Paste your uploaded proof-of-payment link"
-              value={
-                proofOfPaymentUrl
-              }
-              onChange={(
-                event
-              ) =>
-                setProofOfPaymentUrl(
-                  event.target
-                    .value
-                )
-              }
-              disabled={
-                actionLoading
-              }
-              InputProps={{
-                startAdornment: (
-                  <CloudUploadIcon
-                    sx={{
-                      mr: 1,
-                      color:
-                        'text.secondary',
-                    }}
-                  />
-                ),
-              }}
-              helperText="Required. Upload your payment receipt through your file-storage system and paste the secure file link here."
-            />
+            {/* ================================================= */}
+            {/* PAYMENT PROOF UPLOAD */}
+            {/* ================================================= */}
+
+            <Box>
+              <input
+                id="payment-proof-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={handleProofUpload}
+                disabled={
+                  actionLoading ||
+                  proofUploading
+                }
+                style={{
+                  display: 'none',
+                }}
+              />
+
+              <label
+                htmlFor="payment-proof-upload"
+              >
+                <Button
+                  component="span"
+                  variant="outlined"
+                  fullWidth
+                  startIcon={
+                    proofUploading ? (
+                      <CircularProgress
+                        size={20}
+                      />
+                    ) : (
+                      <CloudUploadIcon />
+                    )
+                  }
+                  disabled={
+                    actionLoading ||
+                    proofUploading
+                  }
+                  sx={{
+                    py: 1.5,
+                    textTransform:
+                      'none',
+                    fontWeight: 700,
+                  }}
+                >
+                  {proofUploading
+                    ? 'Uploading...'
+                    : 'Upload Proof of Payment'}
+                </Button>
+              </label>
+
+              {proofFileName && (
+                <Typography
+                  sx={{
+                    mt: 1,
+                    fontSize: 13,
+                    color:
+                      'success.main',
+                  }}
+                >
+                  ✓ {proofFileName}
+                </Typography>
+              )}
+
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  display: 'block',
+                  mt: 1,
+                }}
+              >
+                JPG, PNG, WebP or PDF.
+                Maximum 10 MB.
+              </Typography>
+            </Box>
 
             <Typography
               variant="body2"
               color="text.secondary"
             >
-              Minimum deposit:{' '}
-              10{' '}
+              Minimum deposit: 10{' '}
               {wallet.currency}
             </Typography>
           </Stack>
@@ -1464,12 +1571,11 @@ const Wallet: React.FC = () => {
         <DialogActions>
           <Button
             onClick={() =>
-              setOpenDeposit(
-                false
-              )
+              setOpenDeposit(false)
             }
             disabled={
-              actionLoading
+              actionLoading ||
+              proofUploading
             }
           >
             Cancel
@@ -1477,18 +1583,19 @@ const Wallet: React.FC = () => {
 
           <Button
             variant="contained"
-            onClick={
-              handleDeposit
-            }
+            onClick={handleDeposit}
             disabled={
               actionLoading ||
+              proofUploading ||
               !depositAmount ||
               !proofOfPaymentUrl.trim()
             }
           >
             {actionLoading
               ? 'Submitting...'
-              : 'Submit Deposit'}
+              : proofUploading
+                ? 'Uploading...'
+                : 'Submit Deposit'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1500,12 +1607,8 @@ const Wallet: React.FC = () => {
       <Dialog
         open={openWithdraw}
         onClose={() => {
-          if (
-            !actionLoading
-          ) {
-            setOpenWithdraw(
-              false
-            );
+          if (!actionLoading) {
+            setOpenWithdraw(false);
           }
         }}
         maxWidth="sm"
@@ -1538,15 +1641,10 @@ const Wallet: React.FC = () => {
               fullWidth
               label={`Amount (${wallet.currency})`}
               type="number"
-              value={
-                withdrawAmount
-              }
-              onChange={(
-                event
-              ) =>
+              value={withdrawAmount}
+              onChange={(event) =>
                 setWithdrawAmount(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
               inputProps={{
@@ -1555,29 +1653,20 @@ const Wallet: React.FC = () => {
                 max:
                   wallet.availableBalance,
               }}
-              disabled={
-                actionLoading
-              }
+              disabled={actionLoading}
             />
 
             <TextField
               fullWidth
               select
               label="Withdrawal Method"
-              value={
-                withdrawMethod
-              }
-              onChange={(
-                event
-              ) =>
+              value={withdrawMethod}
+              onChange={(event) =>
                 setWithdrawMethod(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
-              disabled={
-                actionLoading
-              }
+              disabled={actionLoading}
             >
               <MenuItem value="Bank Account">
                 Bank Account
@@ -1599,17 +1688,12 @@ const Wallet: React.FC = () => {
               value={
                 identityDocumentNumber
               }
-              onChange={(
-                event
-              ) =>
+              onChange={(event) =>
                 setIdentityDocumentNumber(
-                  event.target
-                    .value
+                  event.target.value
                 )
               }
-              disabled={
-                actionLoading
-              }
+              disabled={actionLoading}
               InputProps={{
                 startAdornment: (
                   <VerifiedUserIcon
@@ -1649,31 +1733,22 @@ const Wallet: React.FC = () => {
         <DialogActions>
           <Button
             onClick={() =>
-              setOpenWithdraw(
-                false
-              )
+              setOpenWithdraw(false)
             }
-            disabled={
-              actionLoading
-            }
+            disabled={actionLoading}
           >
             Cancel
           </Button>
 
           <Button
             variant="contained"
-            onClick={
-              handleWithdraw
-            }
+            onClick={handleWithdraw}
             disabled={
               actionLoading ||
               !withdrawAmount ||
-              Number(
-                withdrawAmount
-              ) < 10 ||
-              Number(
-                withdrawAmount
-              ) >
+              Number(withdrawAmount) <
+                10 ||
+              Number(withdrawAmount) >
                 wallet.availableBalance ||
               !identityDocumentNumber.trim()
             }
