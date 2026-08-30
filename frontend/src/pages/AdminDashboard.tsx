@@ -610,40 +610,82 @@ useEffect(() => {
   // ==========================================================
 
   const loadDashboard = async () => {
-    try {
-      const response =
-        await apiClient.get('/admin/dashboard');
 
-      setDashboard(
-        response.data?.dashboard || null
-      );
-    } catch (requestError: any) {
-      console.error(
-        'Admin dashboard error:',
-        requestError
-      );
+  try {
 
-      if (
-        requestError?.response?.status === 401
-      ) {
-        showError(
-          'Your administrator session has expired. Please login again.'
-        );
-      } else if (
-        requestError?.response?.status === 403
-      ) {
-        showError(
-          'You do not have administrator permission.'
-        );
-      } else {
-        showError(
-          requestError?.response?.data?.message ||
-            requestError?.response?.data?.error ||
-            'Unable to load admin dashboard.'
-        );
-      }
+    const response = await apiClient.get(
+
+      '/admin/dashboard'
+
+    );
+
+    console.log(
+
+      'ADMIN DASHBOARD RESPONSE:',
+
+      response.data
+
+    );
+
+    const dashboardData =
+
+      response.data?.dashboard ||
+
+      response.data;
+
+    if (dashboardData) {
+
+      setDashboard(dashboardData);
+
     }
-  };
+
+  } catch (requestError: any) {
+
+    console.error(
+
+      'Admin dashboard error:',
+
+      requestError
+
+    );
+
+    const status =
+
+      requestError?.response?.status;
+
+    if (status === 401) {
+
+      showError(
+
+        'Your administrator session has expired. Please login again.'
+
+      );
+
+    } else if (status === 403) {
+
+      showError(
+
+        'You do not have administrator permission.'
+
+      );
+
+    } else {
+
+      showError(
+
+        requestError?.response?.data?.message ||
+
+          requestError?.response?.data?.error ||
+
+          'Unable to load admin dashboard.'
+
+      );
+
+    }
+
+  }
+
+};
 
   // ==========================================================
   // LOAD USERS
@@ -794,30 +836,96 @@ useEffect(() => {
   // ==========================================================
 
   const loadAllData = async (
-    initial = false
-  ) => {
-    try {
-      if (initial) {
-        setLoading(true);
-      } else {
-        setSectionLoading(true);
-      }
 
-      setError('');
+  initial = false
 
-      await Promise.all([
+) => {
+
+  try {
+
+    if (initial) {
+
+      setLoading(true);
+
+    } else {
+
+      setSectionLoading(true);
+
+    }
+
+    setError('');
+
+    /*
+
+     * IMPORTANT:
+
+     * Use allSettled instead of Promise.all.
+
+     *
+
+     * This prevents one failed API request from
+
+     * keeping the entire admin dashboard loading forever.
+
+     */
+
+    const results =
+
+      await Promise.allSettled([
+
         loadDashboard(),
+
         loadUsers(),
+
         loadTransactions(),
+
         loadDeposits(),
+
         loadWithdrawals(),
+
         loadKyc(),
+
         loadInvestmentPlans(),
+
         loadSignalPlans(),
+
       ]);
-    } finally {
-      setLoading(false);
-      setSectionLoading(false);
+
+    console.log(
+
+      'ADMIN DATA LOAD RESULTS:',
+
+      results
+
+    );
+
+  } catch (requestError) {
+
+    console.error(
+
+      'Admin data loading error:',
+
+      requestError
+
+    );
+
+    showError(
+
+      'Some administrator data could not be loaded.'
+
+    );
+
+  } finally {
+
+    /*
+
+     * ALWAYS stop the loading screen.
+
+     */
+
+    setLoading(false);
+
+    setSectionLoading(false);
     }
   };
 
