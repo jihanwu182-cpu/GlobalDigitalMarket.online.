@@ -387,7 +387,17 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   read_at TIMESTAMP
 );
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE;
 
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS related_entity_type VARCHAR(100);
+
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS related_entity_id INTEGER;
+
+ALTER TABLE notifications
+ADD COLUMN IF NOT EXISTS read_at TIMESTAMP;
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id
 ON notifications(user_id);
 
