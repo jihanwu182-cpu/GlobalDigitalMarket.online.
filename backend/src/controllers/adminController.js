@@ -4363,7 +4363,710 @@ const updateUserSignal = async (
 };
 
 // ============================================================
-// EXPORTS
+// // ============================================================
+// PAYMENT METHOD SETTINGS
+// ============================================================
+
+const ensurePaymentMethodTable = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS payment_methods (
+      id SERIAL PRIMARY KEY,
+
+      name VARCHAR(150) NOT NULL,
+
+      type VARCHAR(50) NOT NULL DEFAULT 'OTHER',
+
+      currency VARCHAR(20) NOT NULL DEFAULT 'USD',
+
+      details TEXT,
+
+      account_name VARCHAR(150),
+
+      account_number VARCHAR(150),
+
+      bank_name VARCHAR(150),
+
+      wallet_address TEXT,
+
+      instructions TEXT,
+
+      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+
+      created_by INTEGER
+        REFERENCES users(id)
+        ON DELETE SET NULL,
+
+      created_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP NOT NULL
+        DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS type VARCHAR(50)
+    DEFAULT 'OTHER';
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS currency VARCHAR(20)
+    DEFAULT 'USD';
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS details TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS account_name VARCHAR(150);
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS account_number VARCHAR(150);
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS bank_name VARCHAR(150);
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS instructions TEXT;
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS status VARCHAR(20)
+    DEFAULT 'ACTIVE';
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS created_by INTEGER;
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP;
+  `);
+
+  await pool.query(`
+    ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+    DEFAULT CURRENT_TIMESTAMP;
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS
+    idx_payment_methods_status
+    ON payment_methods(status);
+  `);
+};
+
+// ============================================================
+// GET PAYMENT METHODS
+// ============================================================
+
+const getPaymentMethods = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensurePaymentMethodTable();
+
+    const result =
+      await pool.query(`
+        SELECT
+          id,
+          name,
+          type,
+          currency,
+          details,
+          account_name,
+          account_number,
+          bank_name,
+          wallet_address,
+          instructions,
+          status,
+          created_by,
+          created_at,
+          updated_at
+
+        FROM payment_methods
+
+        ORDER BY
+          created_at DESC
+      `);
+
+    const methods =
+      result.rows.map(
+        (method) => ({
+          id:
+            method.id,
+
+          name:
+            method.name,
+
+          type:
+            method.type,
+
+          currency:
+            method.currency,
+
+          details:
+            method.details || '',
+
+          accountName:
+            method.account_name || '',
+
+          accountNumber:
+            method.account_number || '',
+
+          bankName:
+            method.bank_name || '',
+
+          walletAddress:
+            method.wallet_address || '',
+
+          instructions:
+            method.instructions || '',
+
+          status:
+            method.status,
+
+          createdBy:
+            method.created_by,
+
+          createdAt:
+            method.created_at,
+
+          updatedAt:
+            method.updated_at,
+        })
+      );
+
+    return res.status(200).json({
+      paymentMethods:
+        methods,
+
+      count:
+        methods.length,
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin get payment methods error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// CREATE PAYMENT METHOD
+// ============================================================
+
+const createPaymentMethod = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensurePaymentMethodTable();
+
+    const {
+      name,
+      type,
+      currency,
+      details,
+      accountName,
+      accountNumber,
+      bankName,
+      walletAddress,
+      instructions,
+      status,
+    } = req.body || {};
+
+    const methodName =
+      String(name || '').trim();
+
+    if (!methodName) {
+      return res.status(400).json({
+        message:
+          'Payment method name is required.',
+      });
+    }
+
+    const methodType =
+      String(type || 'OTHER')
+        .trim()
+        .toUpperCase();
+
+    const methodCurrency =
+      String(currency || 'USD')
+        .trim()
+        .toUpperCase();
+
+    const methodStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
+      );
+
+    if (
+      methodStatus !== 'ACTIVE' &&
+      methodStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Payment method status must be ACTIVE or INACTIVE.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        INSERT INTO payment_methods (
+          name,
+          type,
+          currency,
+          details,
+          account_name,
+          account_number,
+          bank_name,
+          wallet_address,
+          instructions,
+          status,
+          created_by
+        )
+
+        VALUES (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          $10,
+          $11
+        )
+
+        RETURNING
+          id,
+          name,
+          type,
+          currency,
+          details,
+          account_name,
+          account_number,
+          bank_name,
+          wallet_address,
+          instructions,
+          status,
+          created_by,
+          created_at,
+          updated_at
+        `,
+        [
+          methodName,
+
+          methodType,
+
+          methodCurrency,
+
+          details
+            ? String(details).trim()
+            : null,
+
+          accountName
+            ? String(accountName).trim()
+            : null,
+
+          accountNumber
+            ? String(accountNumber).trim()
+            : null,
+
+          bankName
+            ? String(bankName).trim()
+            : null,
+
+          walletAddress
+            ? String(walletAddress).trim()
+            : null,
+
+          instructions
+            ? String(instructions).trim()
+            : null,
+
+          methodStatus,
+
+          req.user.id,
+        ]
+      );
+
+    const method =
+      result.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} created payment method ${method.id}`
+    );
+
+    return res.status(201).json({
+      message:
+        'Payment method created successfully.',
+
+      paymentMethod: {
+        id:
+          method.id,
+
+        name:
+          method.name,
+
+        type:
+          method.type,
+
+        currency:
+          method.currency,
+
+        details:
+          method.details || '',
+
+        accountName:
+          method.account_name || '',
+
+        accountNumber:
+          method.account_number || '',
+
+        bankName:
+          method.bank_name || '',
+
+        walletAddress:
+          method.wallet_address || '',
+
+        instructions:
+          method.instructions || '',
+
+        status:
+          method.status,
+
+        createdBy:
+          method.created_by,
+
+        createdAt:
+          method.created_at,
+
+        updatedAt:
+          method.updated_at,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin create payment method error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// UPDATE PAYMENT METHOD
+// ============================================================
+
+const updatePaymentMethod = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensurePaymentMethodTable();
+
+    const methodId =
+      Number(req.params.id);
+
+    if (!isPositiveInteger(methodId)) {
+      return res.status(400).json({
+        message:
+          'Invalid payment method ID.',
+      });
+    }
+
+    const {
+      name,
+      type,
+      currency,
+      details,
+      accountName,
+      accountNumber,
+      bankName,
+      walletAddress,
+      instructions,
+      status,
+    } = req.body || {};
+
+    const methodName =
+      String(name || '').trim();
+
+    if (!methodName) {
+      return res.status(400).json({
+        message:
+          'Payment method name is required.',
+      });
+    }
+
+    const methodType =
+      String(type || 'OTHER')
+        .trim()
+        .toUpperCase();
+
+    const methodCurrency =
+      String(currency || 'USD')
+        .trim()
+        .toUpperCase();
+
+    const methodStatus =
+      normalizeStatus(
+        status || 'ACTIVE'
+      );
+
+    if (
+      methodStatus !== 'ACTIVE' &&
+      methodStatus !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Payment method status must be ACTIVE or INACTIVE.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        UPDATE payment_methods
+
+        SET
+          name = $1,
+          type = $2,
+          currency = $3,
+          details = $4,
+          account_name = $5,
+          account_number = $6,
+          bank_name = $7,
+          wallet_address = $8,
+          instructions = $9,
+          status = $10,
+          updated_at = CURRENT_TIMESTAMP
+
+        WHERE id = $11
+
+        RETURNING
+          id,
+          name,
+          type,
+          currency,
+          details,
+          account_name,
+          account_number,
+          bank_name,
+          wallet_address,
+          instructions,
+          status,
+          created_by,
+          created_at,
+          updated_at
+        `,
+        [
+          methodName,
+
+          methodType,
+
+          methodCurrency,
+
+          details
+            ? String(details).trim()
+            : null,
+
+          accountName
+            ? String(accountName).trim()
+            : null,
+
+          accountNumber
+            ? String(accountNumber).trim()
+            : null,
+
+          bankName
+            ? String(bankName).trim()
+            : null,
+
+          walletAddress
+            ? String(walletAddress).trim()
+            : null,
+
+          instructions
+            ? String(instructions).trim()
+            : null,
+
+          methodStatus,
+
+          methodId,
+        ]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Payment method not found.',
+      });
+    }
+
+    const method =
+      result.rows[0];
+
+    logger.info(
+      `Admin ${req.user.id} updated payment method ${methodId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Payment method updated successfully.',
+
+      paymentMethod: {
+        id:
+          method.id,
+
+        name:
+          method.name,
+
+        type:
+          method.type,
+
+        currency:
+          method.currency,
+
+        details:
+          method.details || '',
+
+        accountName:
+          method.account_name || '',
+
+        accountNumber:
+          method.account_number || '',
+
+        bankName:
+          method.bank_name || '',
+
+        walletAddress:
+          method.wallet_address || '',
+
+        instructions:
+          method.instructions || '',
+
+        status:
+          method.status,
+
+        createdBy:
+          method.created_by,
+
+        createdAt:
+          method.created_at,
+
+        updatedAt:
+          method.updated_at,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin update payment method error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// DELETE PAYMENT METHOD
+// ============================================================
+
+const deletePaymentMethod = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    await ensurePaymentMethodTable();
+
+    const methodId =
+      Number(req.params.id);
+
+    if (!isPositiveInteger(methodId)) {
+      return res.status(400).json({
+        message:
+          'Invalid payment method ID.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        DELETE FROM payment_methods
+
+        WHERE id = $1
+
+        RETURNING
+          id,
+          name
+        `,
+        [methodId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Payment method not found.',
+      });
+    }
+
+    logger.info(
+      `Admin ${req.user.id} deleted payment method ${methodId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Payment method deleted successfully.',
+
+      paymentMethod:
+        result.rows[0],
+    });
+
+  } catch (error) {
+    logger.error(
+      'Admin delete payment method error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 // ============================================================
 
 module.exports = {
