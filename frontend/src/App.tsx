@@ -356,18 +356,100 @@ const App: React.FC = () => {
               element={<AdminLogin />}
             />
 
-            {/* ==================================================
-                ADMIN DASHBOARD
-            ================================================== */}
+ {/* ====================================================================================================
+    ADMIN DASHBOARD
+================================================== */}
 
-            <Route
-              path="/admin"
-              element={
-                <AdminLayout>
-                  <AdminDashboard />
-                </AdminLayout>
-              }
-            />
+<Route
+  path="/admin"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/users"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/accounts"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/kyc"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/deposits"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/withdrawals"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/transactions"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/investments"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/signals"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+
+<Route
+  path="/admin/settings"
+  element={
+    <AdminLayout>
+      <AdminDashboard />
+    </AdminLayout>
+  }
+/>
+            ================================================== */}
 
             {/* ==================================================
                 UNKNOWN ROUTES
