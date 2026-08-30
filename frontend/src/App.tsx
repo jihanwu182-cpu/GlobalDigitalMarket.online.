@@ -26,6 +26,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
 
 import Dashboard from './pages/Dashboard';
+import Profile from './pages/Profile';
 import AccountStatement from './pages/AccountStatement';
 import Portfolio from './pages/Portfolio';
 import Trading from './pages/Trading';
@@ -260,7 +261,16 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                ACCOUNT
+                USER PROFILE
+            ================================================== */}
+
+            <Route
+              path="/profile"
+              element={<Profile />}
+            />
+
+            {/* ==================================================
+                ACCOUNT STATEMENT
             ================================================== */}
 
             <Route
@@ -268,10 +278,18 @@ const App: React.FC = () => {
               element={<AccountStatement />}
             />
 
+            {/* ==================================================
+                PORTFOLIO
+            ================================================== */}
+
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
+
+            {/* ==================================================
+                WALLET
+            ================================================== */}
 
             <Route
               path="/wallet"
@@ -279,13 +297,17 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                TRADING & MARKETS
+                TRADING
             ================================================== */}
 
             <Route
               path="/trading"
               element={<Trading />}
             />
+
+            {/* ==================================================
+                MARKET
+            ================================================== */}
 
             <Route
               path="/market"
@@ -299,6 +321,46 @@ const App: React.FC = () => {
             <Route
               path="/support"
               element={<ContactSupport />}
+            />
+
+            {/* ==================================================
+                TEMPORARY SECURITY ROUTE
+            ==================================================
+            
+            Security page is not currently registered as a
+            separate page, so keep the user inside the dashboard
+            instead of sending them to Home.
+            
+            ================================================== */}
+
+            <Route
+              path="/security"
+              element={
+                <Navigate
+                  to="/profile"
+                  replace
+                />
+              }
+            />
+
+            {/* ==================================================
+                TEMPORARY SETTINGS ROUTE
+            ==================================================
+            
+            Settings page is not currently registered as a
+            separate page, so keep the user inside the account
+            area instead of sending them to Home.
+            
+            ================================================== */}
+
+            <Route
+              path="/settings"
+              element={
+                <Navigate
+                  to="/profile"
+                  replace
+                />
+              }
             />
 
             {/* ==================================================
