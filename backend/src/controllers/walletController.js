@@ -1054,7 +1054,78 @@ const getTransactions = async (
     return next(error);
   }
 };
+// ============================================================
+// UPLOAD PAYMENT PROOF
+// ============================================================
 
+const uploadProofOfPayment = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: 'Please select a payment proof file.',
+      });
+    }
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'application/pdf',
+    ];
+
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        message:
+          'Only JPG, PNG, WebP images and PDF files are allowed.',
+      });
+    }
+
+    const cloudinary = require('../config/cloudinary');
+
+    const uploadedFile = await new Promise(
+      (resolve, reject) => {
+        const stream =
+          cloudinary.uploader.upload_stream(
+            {
+              folder:
+                'globaldigitalmarket/payment-proofs',
+              resource_type: 'auto',
+            },
+            (error, result) => {
+              if (error) {
+                reject(error);
+              } else {
+                resolve(result);
+              }
+            }
+          );
+
+        stream.end(req.file.buffer);
+      }
+    );
+
+    return res.status(201).json({
+      message:
+        'Payment proof uploaded successfully.',
+
+      proofOfPaymentUrl:
+        uploadedFile.secure_url,
+
+      publicId:
+        uploadedFile.public_id,
+
+      resourceType:
+        uploadedFile.resource_type,
+    });
+  } catch (error) {
+    logger.error(
+      'Payment proof upload error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 // ============================================================
 // EXPORTS
 // ============================================================
