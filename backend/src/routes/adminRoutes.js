@@ -46,6 +46,12 @@ const {
   // User Signal
   getUserSignal,
   updateUserSignal,
+
+  // Payment Methods
+  getPaymentMethods,
+  createPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
 } = require('../controllers/adminController');
 
 // ============================================================
@@ -63,39 +69,55 @@ const {
 const requiredHandlers = {
   adminLogin,
   adminMiddleware,
+
+  // Dashboard
   getDashboard,
 
+  // Users
   getUsers,
   getUser,
   updateUserStatus,
 
+  // Account Funding / Debit
   fundUserAccount,
   debitUserAccount,
 
+  // Transactions
   getTransactions,
   getDeposits,
   getWithdrawals,
   updateTransactionStatus,
 
+  // KYC
   getKycRequests,
 
+  // Investment Plans
   getInvestmentPlans,
   createInvestmentPlan,
   updateInvestmentPlan,
   deleteInvestmentPlan,
 
+  // Signal Plans
   getSignalPlans,
   createSignalPlan,
   updateSignalPlan,
   deleteSignalPlan,
 
+  // User Signal
   getUserSignal,
   updateUserSignal,
+
+  // Payment Methods
+  getPaymentMethods,
+  createPaymentMethod,
+  updatePaymentMethod,
+  deletePaymentMethod,
 };
 
-for (const [name, handler] of Object.entries(
-  requiredHandlers
-)) {
+for (
+  const [name, handler]
+  of Object.entries(requiredHandlers)
+) {
   if (typeof handler !== 'function') {
     throw new Error(
       `Admin route configuration error: "${name}" is not exported as a function.`
@@ -165,18 +187,6 @@ router.patch(
 //
 // POST /api/admin/users/:id/fund
 //
-// Example:
-//
-// POST /api/admin/users/25/fund
-//
-// Body:
-//
-// {
-//   "amount": 500,
-//   "currency": "USD",
-//   "description": "Admin account funding"
-// }
-//
 
 router.post(
   '/users/:id/fund',
@@ -188,18 +198,6 @@ router.post(
 // ============================================================
 //
 // POST /api/admin/users/:id/debit
-//
-// Example:
-//
-// POST /api/admin/users/25/debit
-//
-// Body:
-//
-// {
-//   "amount": 100,
-//   "currency": "USD",
-//   "description": "Admin account debit"
-// }
 //
 
 router.post(
@@ -337,6 +335,36 @@ router.patch(
 router.delete(
   '/signal-plans/:id',
   deleteSignalPlan
+);
+
+// ============================================================
+// PAYMENT METHODS
+// ============================================================
+//
+// GET    /api/admin/payment-methods
+// POST   /api/admin/payment-methods
+// PATCH  /api/admin/payment-methods/:id
+// DELETE /api/admin/payment-methods/:id
+//
+
+router.get(
+  '/payment-methods',
+  getPaymentMethods
+);
+
+router.post(
+  '/payment-methods',
+  createPaymentMethod
+);
+
+router.patch(
+  '/payment-methods/:id',
+  updatePaymentMethod
+);
+
+router.delete(
+  '/payment-methods/:id',
+  deletePaymentMethod
 );
 
 // ============================================================
