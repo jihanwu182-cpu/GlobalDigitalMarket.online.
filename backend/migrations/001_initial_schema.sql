@@ -298,7 +298,8 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP
 );
-
+ALTER TABLE transactions
+ADD COLUMN IF NOT EXISTS type VARCHAR(50);
 ALTER TABLE transactions
 ADD COLUMN IF NOT EXISTS transaction_number VARCHAR(100);
 
