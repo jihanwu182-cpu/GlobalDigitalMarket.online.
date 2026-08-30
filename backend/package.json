@@ -10,7 +10,7 @@
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.js",
     "lint:fix": "eslint src/**/*.js --fix",
-    "migrate": "node migration/migrate.js",
+    "migrate": "node migrations/migrate.js",
     "seed": "node seeds/seed.js"
   },
   "keywords": [
