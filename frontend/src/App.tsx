@@ -37,7 +37,6 @@ import ContactSupport from './pages/ContactSupport';
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminPaymentMethods from './pages/AdminPaymentMethods';
 
 // ============================================================
 // ADMIN LAYOUT
