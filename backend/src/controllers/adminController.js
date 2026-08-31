@@ -5072,7 +5072,1066 @@ const deletePaymentMethod = async (
 module.exports = {
   // Authentication
   adminLogin,
+// ============================================================
+// WITHDRAWAL CODE HELPERS
+// ============================================================
 
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
+
+const generateWithdrawalCode = () => {
+  // 8-digit administrator-generated withdrawal code
+  return String(
+    crypto.randomInt(10000000, 100000000)
+  );
+};
+
+const hashWithdrawalCode = async (code) => {
+  return bcrypt.hash(code, 12);
+};
+
+const verifyWithdrawalCode = async (
+  code,
+  hash
+) => {
+  return bcrypt.compare(code, hash);
+};
+
+// ============================================================
+// GENERATE WITHDRAWAL CODE
+// ============================================================
+//
+// ADMIN ONLY
+//
+// Creates a code for ONE specific withdrawal.
+//
+// The actual code is returned ONLY to the administrator.
+// It is NEVER returned by the normal user transaction API.
+//
+// ============================================================
+
+const generateWithdrawalCodeForTransaction = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const transactionId =
+      Number(req.params.id);
+
+    if (!isPositiveInteger(transactionId)) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal transaction ID.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const transactionResult =
+      await client.query(
+        `
+        SELECT
+          t.id,
+          t.account_id,
+          t.transaction_type,
+          t.amount,
+          t.currency,
+          t.status,
+          t.transaction_reference,
+
+          a.user_id,
+
+          u.email,
+          u.first_name,
+          u.last_name
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        WHERE t.id = $1
+
+        FOR UPDATE OF t
+        `,
+        [transactionId]
+      );
+
+    if (
+      transactionResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Withdrawal transaction not found.',
+      });
+    }
+
+    const transaction =
+      transactionResult.rows[0];
+
+    if (
+      normalizeStatus(
+        transaction.transaction_type
+      ) !== 'WITHDRAWAL'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Withdrawal code can only be generated for withdrawal transactions.',
+      });
+    }
+
+    const transactionStatus =
+      normalizeStatus(
+        transaction.status
+      );
+
+    if (
+      transactionStatus !== 'COMPLETED'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'The withdrawal must be approved before a withdrawal code can be generated.',
+      });
+    }
+
+    // --------------------------------------------------------
+    // EXPIRE OLD ACTIVE CODES
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE withdrawal_codes
+
+      SET
+        status = 'EXPIRED'
+
+      WHERE transaction_id = $1
+        AND status = 'ACTIVE'
+      `,
+      [transactionId]
+    );
+
+    // --------------------------------------------------------
+    // GENERATE NEW CODE
+    // --------------------------------------------------------
+
+    const withdrawalCode =
+      generateWithdrawalCode();
+
+    const codeHash =
+      await hashWithdrawalCode(
+        withdrawalCode
+      );
+
+    // Code expires after 24 hours.
+    const expiresAt =
+      new Date(
+        Date.now() +
+          24 * 60 * 60 * 1000
+      );
+
+    const codeResult =
+      await client.query(
+        `
+        INSERT INTO withdrawal_codes (
+          transaction_id,
+          user_id,
+          code_hash,
+          status,
+          expires_at,
+          generated_by
+        )
+
+        VALUES (
+          $1,
+          $2,
+          $3,
+          'ACTIVE',
+          $4,
+          $5
+        )
+
+        RETURNING
+          id,
+          transaction_id,
+          user_id,
+          status,
+          expires_at,
+          generated_by,
+          created_at
+        `,
+        [
+          transaction.id,
+          transaction.user_id,
+          codeHash,
+          expiresAt,
+          req.user.id,
+        ]
+      );
+
+    await client.query('COMMIT');
+
+    logger.info(
+      `Admin ${req.user.id} generated withdrawal code for transaction ${transactionId}`
+    );
+
+    return res.status(201).json({
+      message:
+        'Withdrawal code generated successfully.',
+
+      withdrawalCode: {
+        code:
+          withdrawalCode,
+
+        transactionId:
+          transaction.id,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        userId:
+          transaction.user_id,
+
+        user: {
+          firstName:
+            transaction.first_name,
+
+          lastName:
+            transaction.last_name,
+
+          email:
+            transaction.email,
+        },
+
+        amount:
+          safeNumber(
+            transaction.amount
+          ),
+
+        currency:
+          transaction.currency,
+
+        status:
+          'ACTIVE',
+
+        expiresAt:
+          codeResult.rows[0]
+            .expires_at,
+
+        generatedAt:
+          codeResult.rows[0]
+            .created_at,
+      },
+    });
+
+  } catch (error) {
+    try {
+      await client.query(
+        'ROLLBACK'
+      );
+    } catch (rollbackError) {
+      logger.error(
+        'Withdrawal code rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Generate withdrawal code error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
+// GET WITHDRAWAL DETAILS
+// ============================================================
+
+const getWithdrawalDetails = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const transactionId =
+      Number(req.params.id);
+
+    if (!isPositiveInteger(transactionId)) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal transaction ID.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          t.id,
+          t.account_id,
+          t.transaction_reference,
+          t.transaction_type,
+          t.amount,
+          t.currency,
+          t.payment_method,
+          t.status,
+          t.description,
+          t.admin_note,
+          t.verified_by,
+          t.verified_at,
+          t.created_at,
+          t.updated_at,
+
+          a.account_number,
+          a.user_id,
+
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.username,
+
+          wc.id AS withdrawal_code_id,
+          wc.status AS withdrawal_code_status,
+          wc.expires_at AS withdrawal_code_expires_at,
+          wc.used_at AS withdrawal_code_used_at,
+          wc.generated_by AS withdrawal_code_generated_by,
+          wc.created_at AS withdrawal_code_created_at
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM withdrawal_codes
+          WHERE transaction_id = t.id
+          ORDER BY created_at DESC
+          LIMIT 1
+        ) wc
+          ON TRUE
+
+        WHERE t.id = $1
+          AND t.transaction_type = 'WITHDRAWAL'
+
+        LIMIT 1
+        `,
+        [transactionId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Withdrawal not found.',
+      });
+    }
+
+    const row =
+      result.rows[0];
+
+    return res.status(200).json({
+      withdrawal: {
+        id:
+          row.id,
+
+        accountId:
+          row.account_id,
+
+        accountNumber:
+          row.account_number,
+
+        transactionReference:
+          row.transaction_reference,
+
+        amount:
+          safeNumber(row.amount),
+
+        currency:
+          row.currency,
+
+        paymentMethod:
+          row.payment_method || '',
+
+        status:
+          row.status,
+
+        description:
+          row.description || '',
+
+        adminNote:
+          row.admin_note || '',
+
+        verifiedBy:
+          row.verified_by,
+
+        verifiedAt:
+          row.verified_at,
+
+        createdAt:
+          row.created_at,
+
+        updatedAt:
+          row.updated_at,
+
+        user: {
+          id:
+            row.user_id,
+
+          firstName:
+            row.first_name,
+
+          lastName:
+            row.last_name,
+
+          email:
+            row.email,
+
+          username:
+            row.username || '',
+        },
+
+        withdrawalCode: row.withdrawal_code_id
+          ? {
+              id:
+                row.withdrawal_code_id,
+
+              status:
+                row.withdrawal_code_status,
+
+              expiresAt:
+                row.withdrawal_code_expires_at,
+
+              usedAt:
+                row.withdrawal_code_used_at,
+
+              generatedBy:
+                row.withdrawal_code_generated_by,
+
+              createdAt:
+                row.withdrawal_code_created_at,
+            }
+          : null,
+      },
+    });
+
+  } catch (error) {
+    logger.error(
+      'Get withdrawal details error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// REVERSE COMPLETED WITHDRAWAL
+// ============================================================
+//
+// ADMIN ONLY
+//
+// Reversal:
+// - puts the money back into the user's available balance
+// - puts the money back into balance
+// - records an audit action
+// - requires an administrator reason
+//
+// ============================================================
+
+const reverseWithdrawal = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const transactionId =
+      Number(req.params.id);
+
+    const reason =
+      String(
+        req.body?.reason ||
+        req.body?.adminNote ||
+        ''
+      ).trim();
+
+    if (!isPositiveInteger(transactionId)) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal transaction ID.',
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        message:
+          'A reason is required when reversing a withdrawal.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const transactionResult =
+      await client.query(
+        `
+        SELECT
+          t.id,
+          t.account_id,
+          t.transaction_reference,
+          t.transaction_type,
+          t.amount,
+          t.currency,
+          t.status,
+          t.admin_note,
+
+          a.user_id,
+          a.balance,
+          a.available_balance,
+          a.buying_power,
+          a.margin_available
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        WHERE t.id = $1
+
+        FOR UPDATE OF t, a
+        `,
+        [transactionId]
+      );
+
+    if (
+      transactionResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Withdrawal transaction not found.',
+      });
+    }
+
+    const transaction =
+      transactionResult.rows[0];
+
+    if (
+      normalizeStatus(
+        transaction.transaction_type
+      ) !== 'WITHDRAWAL'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only withdrawals can be reversed.',
+      });
+    }
+
+    if (
+      normalizeStatus(
+        transaction.status
+      ) !== 'COMPLETED'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only a completed withdrawal can be reversed.',
+      });
+    }
+
+    const amount =
+      safeNumber(
+        transaction.amount
+      );
+
+    const balanceBefore =
+      safeNumber(
+        transaction.balance
+      );
+
+    const balanceAfter =
+      balanceBefore + amount;
+
+    await client.query(
+      `
+      UPDATE accounts
+
+      SET
+        balance =
+          COALESCE(balance, 0) + $1,
+
+        available_balance =
+          COALESCE(available_balance, 0) + $1,
+
+        buying_power =
+          COALESCE(buying_power, 0) + $1,
+
+        margin_available =
+          COALESCE(margin_available, 0) + $1,
+
+        updated_at =
+          CURRENT_TIMESTAMP
+
+      WHERE id = $2
+      `,
+      [
+        amount,
+        transaction.account_id,
+      ]
+    );
+
+    await client.query(
+      `
+      UPDATE transactions
+
+      SET
+        status = 'CANCELLED',
+
+        admin_note = $1,
+
+        updated_at =
+          CURRENT_TIMESTAMP
+
+      WHERE id = $2
+      `,
+      [
+        `REVERSED: ${reason}`,
+        transactionId,
+      ]
+    );
+
+    // --------------------------------------------------------
+    // INVALIDATE ACTIVE WITHDRAWAL CODES
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE withdrawal_codes
+
+      SET
+        status = 'REVOKED'
+
+      WHERE transaction_id = $1
+        AND status = 'ACTIVE'
+      `,
+      [transactionId]
+    );
+
+    // --------------------------------------------------------
+    // AUDIT LOG
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      INSERT INTO admin_financial_actions (
+        admin_id,
+        user_id,
+        account_id,
+        action_type,
+        amount,
+        balance_before,
+        balance_after,
+        description,
+        transaction_id
+      )
+
+      VALUES (
+        $1,
+        $2,
+        $3,
+        'WITHDRAWAL_REVERSED',
+        $4,
+        $5,
+        $6,
+        $7,
+        $8
+      )
+      `,
+      [
+        req.user.id,
+        transaction.user_id,
+        transaction.account_id,
+        amount,
+        balanceBefore,
+        balanceAfter,
+        reason,
+        transactionId,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(
+      `Admin ${req.user.id} reversed withdrawal ${transactionId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Withdrawal reversed successfully.',
+
+      transaction: {
+        id:
+          transactionId,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        status:
+          'CANCELLED',
+
+        action:
+          'REVERSED',
+
+        amount,
+
+        currency:
+          transaction.currency,
+
+        reason,
+      },
+    });
+
+  } catch (error) {
+    try {
+      await client.query(
+        'ROLLBACK'
+      );
+    } catch (rollbackError) {
+      logger.error(
+        'Withdrawal reversal rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Reverse withdrawal error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
+// REJECT WITHDRAWAL
+// ============================================================
+//
+// Rejection returns the RESERVED amount to available_balance.
+//
+// IMPORTANT:
+// balance was never reduced when the user initially submitted.
+// Only available_balance was reserved.
+//
+// ============================================================
+
+const rejectWithdrawal = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const transactionId =
+      Number(req.params.id);
+
+    const reason =
+      String(
+        req.body?.reason ||
+        req.body?.adminNote ||
+        ''
+      ).trim();
+
+    if (!isPositiveInteger(transactionId)) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal transaction ID.',
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        message:
+          'A reason is required when rejecting a withdrawal.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const transactionResult =
+      await client.query(
+        `
+        SELECT
+          t.id,
+          t.account_id,
+          t.transaction_reference,
+          t.transaction_type,
+          t.amount,
+          t.status,
+
+          a.user_id,
+          a.available_balance
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        WHERE t.id = $1
+
+        FOR UPDATE OF t, a
+        `,
+        [transactionId]
+      );
+
+    if (
+      transactionResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Withdrawal transaction not found.',
+      });
+    }
+
+    const transaction =
+      transactionResult.rows[0];
+
+    if (
+      normalizeStatus(
+        transaction.transaction_type
+      ) !== 'WITHDRAWAL'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only withdrawals can be rejected.',
+      });
+    }
+
+    const currentStatus =
+      normalizeStatus(
+        transaction.status
+      );
+
+    if (
+      currentStatus !== 'PENDING' &&
+      currentStatus !== 'PROCESSING'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only pending or processing withdrawals can be rejected.',
+      });
+    }
+
+    const amount =
+      safeNumber(
+        transaction.amount
+      );
+
+    const availableBefore =
+      safeNumber(
+        transaction.available_balance
+      );
+
+    const availableAfter =
+      availableBefore + amount;
+
+    // --------------------------------------------------------
+    // RELEASE RESERVED FUNDS
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE accounts
+
+      SET
+        available_balance =
+          COALESCE(available_balance, 0) + $1,
+
+        buying_power =
+          COALESCE(buying_power, 0) + $1,
+
+        margin_available =
+          COALESCE(margin_available, 0) + $1,
+
+        updated_at =
+          CURRENT_TIMESTAMP
+
+      WHERE id = $2
+      `,
+      [
+        amount,
+        transaction.account_id,
+      ]
+    );
+
+    // --------------------------------------------------------
+    // REJECT TRANSACTION
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE transactions
+
+      SET
+        status = 'CANCELLED',
+
+        admin_note = $1,
+
+        updated_at =
+          CURRENT_TIMESTAMP
+
+      WHERE id = $2
+      `,
+      [
+        `REJECTED: ${reason}`,
+        transactionId,
+      ]
+    );
+
+    // --------------------------------------------------------
+    // INVALIDATE CODES
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE withdrawal_codes
+
+      SET
+        status = 'REVOKED'
+
+      WHERE transaction_id = $1
+        AND status = 'ACTIVE'
+      `,
+      [transactionId]
+    );
+
+    // --------------------------------------------------------
+    // AUDIT
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      INSERT INTO admin_financial_actions (
+        admin_id,
+        user_id,
+        account_id,
+        action_type,
+        amount,
+        balance_before,
+        balance_after,
+        description,
+        transaction_id
+      )
+
+      VALUES (
+        $1,
+        $2,
+        $3,
+        'WITHDRAWAL_REJECTED',
+        $4,
+        $5,
+        $6,
+        $7,
+        $8
+      )
+      `,
+      [
+        req.user.id,
+        transaction.user_id,
+        transaction.account_id,
+        amount,
+        availableBefore,
+        availableAfter,
+        reason,
+        transactionId,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(
+      `Admin ${req.user.id} rejected withdrawal ${transactionId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Withdrawal rejected successfully.',
+
+      transaction: {
+        id:
+          transactionId,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        status:
+          'CANCELLED',
+
+        action:
+          'REJECTED',
+
+        amount,
+
+        reason,
+      },
+    });
+
+  } catch (error) {
+    try {
+      await client.query(
+        'ROLLBACK'
+      );
+    } catch (rollbackError) {
+      logger.error(
+        'Withdrawal rejection rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Reject withdrawal error:',
+      error
+    );
+
+    return next(error);
+
+  } finally {
+    client.release();
+  }
+};
   // Dashboard
   getDashboard,
 
