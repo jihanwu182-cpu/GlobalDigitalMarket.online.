@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 
 import {
   Alert,
@@ -21,7 +26,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
-  Select,g
+  Select,
   Snackbar,
   Stack,
   Table,
@@ -45,13 +50,9 @@ import {
   Edit,
   Groups,
   Logout,
-  Menu,
   Payments,
   Person,
   Refresh,
-  Security,
-  Settings,
-  TrendingUp,
   VerifiedUser,
   Delete,
 } from '@mui/icons-material';
@@ -61,7 +62,6 @@ import {
 } from 'axios';
 
 import apiClient from '../services/apiClient';
-
 
 // ============================================================
 // TYPES
