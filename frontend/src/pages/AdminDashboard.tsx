@@ -15,7 +15,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  Drawer,
   FormControl,
   Grid,
   IconButton,
@@ -43,9 +42,6 @@ import {
   Assessment,
   AttachMoney,
   Block,
-  Close,
-  Dashboard as DashboardIcon,
-  Delete,
   Edit,
   Groups,
   Logout,
@@ -57,11 +53,11 @@ import {
   Settings,
   TrendingUp,
   VerifiedUser,
+  Delete,
 } from '@mui/icons-material';
 
 import axios, {
   AxiosError,
-  AxiosRequestConfig,
 } from 'axios';
 
 
@@ -72,6 +68,7 @@ import axios, {
 type Section =
   | 'dashboard'
   | 'users'
+  | 'accounts'
   | 'transactions'
   | 'deposits'
   | 'withdrawals'
@@ -252,46 +249,28 @@ interface PaymentMethod {
 // API
 // ============================================================
 
-
-
-const API_BASE =
-
-  String(
-
-    process.env.REACT_APP_API_URL || ''
-
-  ).replace(/\/$/, '');
+const API_BASE = String(
+  process.env.REACT_APP_API_URL || ''
+).replace(/\/$/, '');
 
 const api = axios.create({
-
   baseURL: API_BASE,
-
   headers: {
-
     'Content-Type': 'application/json',
-
   },
-
 });
 
 api.interceptors.request.use((config) => {
-
   const token =
-
     localStorage.getItem('adminToken') ||
-
     localStorage.getItem('accessToken') ||
-
     localStorage.getItem('token');
 
   if (token) {
-
     config.headers.Authorization = `Bearer ${token}`;
-
   }
 
   return config;
-
 });
 
 
@@ -300,15 +279,15 @@ api.interceptors.request.use((config) => {
 // ============================================================
 
 const numberValue = (value: unknown): number => {
-  const n = Number(value);
+  const number = Number(value);
 
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(number) ? number : 0;
 };
 
 const formatMoney = (
   amount: unknown,
   currency = 'USD'
-) => {
+): string => {
   const value = numberValue(amount);
 
   try {
@@ -322,8 +301,12 @@ const formatMoney = (
   }
 };
 
-const formatDate = (value?: string) => {
-  if (!value) return '—';
+const formatDate = (
+  value?: string
+): string => {
+  if (!value) {
+    return '—';
+  }
 
   const date = new Date(value);
 
@@ -334,7 +317,9 @@ const formatDate = (value?: string) => {
   return date.toLocaleString();
 };
 
-const getErrorMessage = (error: unknown) => {
+const getErrorMessage = (
+  error: unknown
+): string => {
   const axiosError =
     error as AxiosError<{
       message?: string;
@@ -388,40 +373,52 @@ const statusColor = (
 
 
 // ============================================================
-// COMPONENT
+// PROPS
 // ============================================================
 
 interface AdminDashboardProps {
   initialTab?: number;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({
+
+// ============================================================
+// COMPONENT
+// ============================================================
+
+const AdminDashboard: React.FC<
+  AdminDashboardProps
+> = ({
   initialTab = 0,
 }) => {
 
-  // ----------------------------------------------------------
-  // GENERAL
-  // ----------------------------------------------------------
+  // ==========================================================
+  // SECTION
+  // ==========================================================
 
-  const [section, setSection] =
-  useState<Section>(() => {
-    const tabs: Section[] = [
-      'dashboard',
-      'users',
-      'transactions',
-      'deposits',
-      'withdrawals',
-      'kyc',
-      'investment-plans',
-      'signal-plans',
-      'payment-methods',
-    ];
+  const sections: Section[] = [
+    'dashboard',
+    'users',
+    'accounts',
+    'transactions',
+    'deposits',
+    'withdrawals',
+    'kyc',
+    'investment-plans',
+    'signal-plans',
+    'payment-methods',
+  ];
 
-    return tabs[initialTab] || 'dashboard';
-  });
+  const sectionFromTab =
+    sections[initialTab] ||
+    'dashboard';
 
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const section =
+    sectionFromTab;
+
+
+  // ==========================================================
+  // GENERAL STATE
+  // ==========================================================
 
   const [loading, setLoading] =
     useState(false);
@@ -432,9 +429,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [success, setSuccess] =
     useState('');
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // DATA
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const [dashboard, setDashboard] =
     useState<DashboardStats | null>(null);
@@ -463,16 +461,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [paymentMethods, setPaymentMethods] =
     useState<PaymentMethod[]>([]);
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // SEARCH
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const [search, setSearch] =
     useState('');
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // USER DIALOG
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const [selectedUser, setSelectedUser] =
     useState<User | null>(null);
@@ -483,9 +483,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [userLoading, setUserLoading] =
     useState(false);
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // FUND / DEBIT
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const [moneyDialog, setMoneyDialog] =
     useState<{
@@ -510,28 +511,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [moneyLoading, setMoneyLoading] =
     useState(false);
 
-  // ----------------------------------------------------------
-  // TRANSACTION STATUS
-  // ----------------------------------------------------------
 
-  const [transactionDialogOpen, setTransactionDialogOpen] =
-    useState(false);
+  // ==========================================================
+  // TRANSACTION
+  // ==========================================================
 
-  const [selectedTransaction, setSelectedTransaction] =
-    useState<Transaction | null>(null);
+  const [
+    transactionDialogOpen,
+    setTransactionDialogOpen,
+  ] = useState(false);
 
-  const [transactionStatus, setTransactionStatus] =
-    useState<TransactionStatus>('PENDING');
+  const [
+    selectedTransaction,
+    setSelectedTransaction,
+  ] = useState<Transaction | null>(null);
 
-  const [transactionNote, setTransactionNote] =
-    useState('');
+  const [
+    transactionStatus,
+    setTransactionStatus,
+  ] = useState<TransactionStatus>('PENDING');
 
-  const [transactionLoading, setTransactionLoading] =
-    useState(false);
+  const [
+    transactionNote,
+    setTransactionNote,
+  ] = useState('');
 
-  // ----------------------------------------------------------
+  const [
+    transactionLoading,
+    setTransactionLoading,
+  ] = useState(false);
+
+
+  // ==========================================================
   // INVESTMENT PLAN
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const emptyInvestmentPlan = {
     name: '',
@@ -543,21 +556,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     status: 'ACTIVE',
   };
 
-  const [investmentDialogOpen, setInvestmentDialogOpen] =
-    useState(false);
+  const [
+    investmentDialogOpen,
+    setInvestmentDialogOpen,
+  ] = useState(false);
 
-  const [editingInvestmentPlan, setEditingInvestmentPlan] =
-    useState<InvestmentPlan | null>(null);
+  const [
+    editingInvestmentPlan,
+    setEditingInvestmentPlan,
+  ] = useState<InvestmentPlan | null>(null);
 
-  const [investmentForm, setInvestmentForm] =
-    useState(emptyInvestmentPlan);
+  const [
+    investmentForm,
+    setInvestmentForm,
+  ] = useState(emptyInvestmentPlan);
 
-  const [investmentLoading, setInvestmentLoading] =
-    useState(false);
+  const [
+    investmentLoading,
+    setInvestmentLoading,
+  ] = useState(false);
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // SIGNAL PLAN
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const emptySignalPlan = {
     name: '',
@@ -570,49 +592,75 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     status: 'ACTIVE',
   };
 
-  const [signalDialogOpen, setSignalDialogOpen] =
-    useState(false);
+  const [
+    signalDialogOpen,
+    setSignalDialogOpen,
+  ] = useState(false);
 
-  const [editingSignalPlan, setEditingSignalPlan] =
-    useState<SignalPlan | null>(null);
+  const [
+    editingSignalPlan,
+    setEditingSignalPlan,
+  ] = useState<SignalPlan | null>(null);
 
-  const [signalForm, setSignalForm] =
-    useState(emptySignalPlan);
+  const [
+    signalForm,
+    setSignalForm,
+  ] = useState(emptySignalPlan);
 
-  const [signalLoading, setSignalLoading] =
-    useState(false);
+  const [
+    signalLoading,
+    setSignalLoading,
+  ] = useState(false);
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // USER SIGNAL
-  // ----------------------------------------------------------
+  // ==========================================================
 
-  const [userSignalDialogOpen, setUserSignalDialogOpen] =
-    useState(false);
+  const [
+    userSignalDialogOpen,
+    setUserSignalDialogOpen,
+  ] = useState(false);
 
-  const [userSignalUser, setUserSignalUser] =
-    useState<User | null>(null);
+  const [
+    userSignalUser,
+    setUserSignalUser,
+  ] = useState<User | null>(null);
 
-  const [userSignal, setUserSignal] =
-    useState<UserSignal | null>(null);
+  const [
+    userSignal,
+    setUserSignal,
+  ] = useState<UserSignal | null>(null);
 
-  const [userSignalPlanId, setUserSignalPlanId] =
-    useState('');
+  const [
+    userSignalPlanId,
+    setUserSignalPlanId,
+  ] = useState('');
 
-  const [userSignalStrength, setUserSignalStrength] =
-    useState('50');
+  const [
+    userSignalStrength,
+    setUserSignalStrength,
+  ] = useState('50');
 
-  const [userSignalEnabled, setUserSignalEnabled] =
-    useState(true);
+  const [
+    userSignalEnabled,
+    setUserSignalEnabled,
+  ] = useState(true);
 
-  const [userSignalNote, setUserSignalNote] =
-    useState('');
+  const [
+    userSignalNote,
+    setUserSignalNote,
+  ] = useState('');
 
-  const [userSignalLoading, setUserSignalLoading] =
-    useState(false);
+  const [
+    userSignalLoading,
+    setUserSignalLoading,
+  ] = useState(false);
 
-  // ----------------------------------------------------------
+
+  // ==========================================================
   // PAYMENT METHOD
-  // ----------------------------------------------------------
+  // ==========================================================
 
   const emptyPaymentMethod = {
     name: '',
@@ -627,123 +675,127 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     status: 'ACTIVE',
   };
 
-  const [paymentDialogOpen, setPaymentDialogOpen] =
-    useState(false);
+  const [
+    paymentDialogOpen,
+    setPaymentDialogOpen,
+  ] = useState(false);
 
-  const [editingPaymentMethod, setEditingPaymentMethod] =
-    useState<PaymentMethod | null>(null);
+  const [
+    editingPaymentMethod,
+    setEditingPaymentMethod,
+  ] = useState<PaymentMethod | null>(null);
 
-  const [paymentForm, setPaymentForm] =
-    useState(emptyPaymentMethod);
+  const [
+    paymentForm,
+    setPaymentForm,
+  ] = useState(emptyPaymentMethod);
 
-  const [paymentLoading, setPaymentLoading] =
-    useState(false);
+  const [
+    paymentLoading,
+    setPaymentLoading,
+  ] = useState(false);
 
 
   // ==========================================================
   // LOAD DASHBOARD
   // ==========================================================
 
-  const loadDashboard = useCallback(
-    async () => {
-      try {
-        const response =
-          await api.get('/api/admin/dashboard');
-
-        setDashboard(
-          response.data?.dashboard || null
+  const loadDashboard =
+    useCallback(async () => {
+      const response =
+        await api.get(
+          '/api/admin/dashboard'
         );
-      } catch (err) {
-        throw err;
-      }
-    },
-    []
-  );
+
+      setDashboard(
+        response.data?.dashboard || null
+      );
+    }, []);
 
 
   // ==========================================================
   // LOAD USERS
   // ==========================================================
 
-  const loadUsers = useCallback(
-    async () => {
+  const loadUsers =
+    useCallback(async () => {
       const response =
-        await api.get('/api/admin/users');
+        await api.get(
+          '/api/admin/users'
+        );
 
       setUsers(
         response.data?.users || []
       );
-    },
-    []
-  );
+    }, []);
 
 
   // ==========================================================
   // LOAD TRANSACTIONS
   // ==========================================================
 
-  const loadTransactions = useCallback(
-    async () => {
+  const loadTransactions =
+    useCallback(async () => {
       const response =
-        await api.get('/api/admin/transactions');
+        await api.get(
+          '/api/admin/transactions'
+        );
 
       setTransactions(
         response.data?.transactions || []
       );
-    },
-    []
-  );
+    }, []);
 
 
   // ==========================================================
   // LOAD DEPOSITS
   // ==========================================================
 
-  const loadDeposits = useCallback(
-    async () => {
+  const loadDeposits =
+    useCallback(async () => {
       const response =
-        await api.get('/api/admin/deposits');
+        await api.get(
+          '/api/admin/deposits'
+        );
 
       setDeposits(
         response.data?.deposits || []
       );
-    },
-    []
-  );
+    }, []);
 
 
   // ==========================================================
   // LOAD WITHDRAWALS
   // ==========================================================
 
-  const loadWithdrawals = useCallback(
-    async () => {
+  const loadWithdrawals =
+    useCallback(async () => {
       const response =
-        await api.get('/api/admin/withdrawals');
+        await api.get(
+          '/api/admin/withdrawals'
+        );
 
       setWithdrawals(
         response.data?.withdrawals || []
       );
-    },
-    []
-  );
+    }, []);
 
 
   // ==========================================================
   // LOAD KYC
   // ==========================================================
 
-  const loadKyc = useCallback(
-    async () => {
+  const loadKyc =
+    useCallback(async () => {
       const response =
-        await api.get('/api/admin/kyc');
+        await api.get(
+          '/api/admin/kyc'
+        );
 
       setKycRequests(
         response.data?.requests || []
       );
-    },
-    []
-  );
+    }, []);
 
 
   // ==========================================================
@@ -751,19 +803,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // ==========================================================
 
   const loadInvestmentPlans =
-    useCallback(
-      async () => {
-        const response =
-          await api.get(
-            '/api/admin/investment-plans'
-          );
-
-        setInvestmentPlans(
-          response.data?.plans || []
+    useCallback(async () => {
+      const response =
+        await api.get(
+          '/api/admin/investment-plans'
         );
-      },
-      []
-    );
+
+      setInvestmentPlans(
+        response.data?.plans || []
+      );
+    }, []);
 
 
   // ==========================================================
@@ -771,19 +820,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // ==========================================================
 
   const loadSignalPlans =
-    useCallback(
-      async () => {
-        const response =
-          await api.get(
-            '/api/admin/signal-plans'
-          );
-
-        setSignalPlans(
-          response.data?.plans || []
+    useCallback(async () => {
+      const response =
+        await api.get(
+          '/api/admin/signal-plans'
         );
-      },
-      []
-    );
+
+      setSignalPlans(
+        response.data?.plans || []
+      );
+    }, []);
 
 
   // ==========================================================
@@ -791,27 +837,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // ==========================================================
 
   const loadPaymentMethods =
-    useCallback(
-      async () => {
-        const response =
-          await api.get(
-            '/api/admin/payment-methods'
-          );
-
-        setPaymentMethods(
-          response.data?.paymentMethods || []
+    useCallback(async () => {
+      const response =
+        await api.get(
+          '/api/admin/payment-methods'
         );
-      },
-      []
-    );
+
+      setPaymentMethods(
+        response.data?.paymentMethods || []
+      );
+    }, []);
 
 
   // ==========================================================
   // LOAD ALL
   // ==========================================================
 
-  const loadAll = useCallback(
-    async () => {
+  const loadAll =
+    useCallback(async () => {
       setLoading(true);
       setError('');
 
@@ -834,8 +877,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       } finally {
         setLoading(false);
       }
-    },
-    [
+    }, [
       loadDashboard,
       loadUsers,
       loadTransactions,
@@ -845,8 +887,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       loadInvestmentPlans,
       loadSignalPlans,
       loadPaymentMethods,
-    ]
-  );
+    ]);
 
 
   useEffect(() => {
@@ -872,8 +913,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // ==========================================================
 
   const logout = () => {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('accessToken');
+    localStorage.removeItem(
+      'adminToken'
+    );
+
+    localStorage.removeItem(
+      'accessToken'
+    );
+
+    localStorage.removeItem(
+      'token'
+    );
 
     window.location.href =
       '/admin/login';
@@ -881,14 +931,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // GET SINGLE USER
+  // OPEN USER
   // ==========================================================
 
   const openUser = async (
     user: User
   ) => {
-    setUserDialogOpen(true);
     setSelectedUser(user);
+    setUserDialogOpen(true);
     setUserLoading(true);
 
     try {
@@ -914,43 +964,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // USER STATUS
   // ==========================================================
 
-  const changeUserStatus = async (
-    user: User,
-    status: UserStatus
-  ) => {
-    try {
-      await api.patch(
-        `/api/admin/users/${user.id}/status`,
-        {
-          status,
-        }
-      );
+  const changeUserStatus =
+    async (
+      user: User,
+      status: UserStatus
+    ) => {
+      try {
+        await api.patch(
+          `/api/admin/users/${user.id}/status`,
+          {
+            status,
+          }
+        );
 
-      setSuccess(
-        `User status changed to ${status}.`
-      );
+        setSuccess(
+          `User status changed to ${status}.`
+        );
 
-      await Promise.all([
-        loadUsers(),
-        loadDashboard(),
-      ]);
+        await Promise.all([
+          loadUsers(),
+          loadDashboard(),
+        ]);
 
-      if (selectedUser?.id === user.id) {
-        setSelectedUser({
-          ...selectedUser,
-          status,
-        });
+        setSelectedUser(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  status,
+                }
+              : current
+        );
+      } catch (err) {
+        setError(
+          getErrorMessage(err)
+        );
       }
-    } catch (err) {
-      setError(
-        getErrorMessage(err)
-      );
-    }
-  };
+    };
 
 
   // ==========================================================
-  // OPEN FUND / DEBIT
+  // FUND / DEBIT DIALOG
   // ==========================================================
 
   const openMoneyDialog = (
@@ -959,8 +1013,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   ) => {
     setMoneyDialog({
       open: true,
-      user,
       type,
+      user,
     });
 
     setMoneyAmount('');
@@ -1036,15 +1090,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           loadDeposits(),
           loadWithdrawals(),
         ]);
-
-        if (
-          selectedUser?.id ===
-          moneyDialog.user.id
-        ) {
-          await openUser(
-            moneyDialog.user
-          );
-        }
       } catch (err) {
         setError(
           getErrorMessage(err)
@@ -1056,18 +1101,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // TRANSACTION STATUS DIALOG
+  // TRANSACTION DIALOG
   // ==========================================================
 
   const openTransactionStatus =
     (transaction: Transaction) => {
-      setSelectedTransaction(transaction);
+      setSelectedTransaction(
+        transaction
+      );
 
-      setTransactionStatus(
-        (
+      const currentStatus =
+        String(
           transaction.status ||
           'PENDING'
-        ) as TransactionStatus
+        ).toUpperCase();
+
+      const allowedStatuses:
+        TransactionStatus[] = [
+          'PENDING',
+          'PROCESSING',
+          'COMPLETED',
+          'FAILED',
+          'CANCELLED',
+        ];
+
+      setTransactionStatus(
+        allowedStatuses.includes(
+          currentStatus as TransactionStatus
+        )
+          ? (currentStatus as TransactionStatus)
+          : 'PENDING'
       );
 
       setTransactionNote(
@@ -1107,7 +1170,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           'Transaction updated.'
         );
 
-        setTransactionDialogOpen(false);
+        setTransactionDialogOpen(
+          false
+        );
 
         await Promise.all([
           loadDashboard(),
@@ -1127,18 +1192,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // INVESTMENT PLAN DIALOG
+  // INVESTMENT CREATE
   // ==========================================================
 
   const openInvestmentCreate =
     () => {
       setEditingInvestmentPlan(null);
+
       setInvestmentForm(
         emptyInvestmentPlan
       );
+
       setInvestmentDialogOpen(true);
     };
 
+
+  // ==========================================================
+  // INVESTMENT EDIT
+  // ==========================================================
 
   const openInvestmentEdit =
     (plan: InvestmentPlan) => {
@@ -1149,7 +1220,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         description:
           plan.description || '',
         minimumAmount:
-          String(plan.minimumAmount ?? ''),
+          String(
+            plan.minimumAmount ?? ''
+          ),
         maximumAmount:
           plan.maximumAmount === null ||
           plan.maximumAmount === undefined
@@ -1158,9 +1231,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 plan.maximumAmount
               ),
         roiPercent:
-          String(plan.roiPercent ?? ''),
+          String(
+            plan.roiPercent ?? ''
+          ),
         durationDays:
-          String(plan.durationDays ?? 30),
+          String(
+            plan.durationDays ?? 30
+          ),
         status:
           plan.status || 'ACTIVE',
       });
@@ -1170,7 +1247,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // SAVE INVESTMENT PLAN
+  // SAVE INVESTMENT
   // ==========================================================
 
   const saveInvestmentPlan =
@@ -1291,7 +1368,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           'Investment plan saved.'
         );
 
-        setInvestmentDialogOpen(false);
+        setInvestmentDialogOpen(
+          false
+        );
 
         await Promise.all([
           loadInvestmentPlans(),
@@ -1308,19 +1387,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // DELETE INVESTMENT PLAN
+  // DELETE INVESTMENT
   // ==========================================================
 
   const deleteInvestmentPlan =
     async (
       plan: InvestmentPlan
     ) => {
-      const confirmed =
-        window.confirm(
+      if (
+        !window.confirm(
           `Delete investment plan "${plan.name}"?`
-        );
-
-      if (!confirmed) return;
+        )
+      ) {
+        return;
+      }
 
       try {
         const response =
@@ -1346,18 +1426,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // SIGNAL PLAN DIALOG
+  // SIGNAL CREATE
   // ==========================================================
 
   const openSignalCreate =
     () => {
       setEditingSignalPlan(null);
+
       setSignalForm(
         emptySignalPlan
       );
+
       setSignalDialogOpen(true);
     };
 
+
+  // ==========================================================
+  // SIGNAL EDIT
+  // ==========================================================
 
   const openSignalEdit =
     (plan: SignalPlan) => {
@@ -1368,7 +1454,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         description:
           plan.description || '',
         strength:
-          String(plan.strength ?? 50),
+          String(
+            plan.strength ?? 50
+          ),
         accuracyPercent:
           String(
             plan.accuracyPercent ?? 0
@@ -1378,7 +1466,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             plan.durationDays ?? 30
           ),
         price:
-          String(plan.price ?? 0),
+          String(
+            plan.price ?? 0
+          ),
         currency:
           plan.currency || 'USD',
         status:
@@ -1390,13 +1480,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // SAVE SIGNAL PLAN
+  // SAVE SIGNAL
   // ==========================================================
 
   const saveSignalPlan =
     async () => {
       const strength =
-        Number(signalForm.strength);
+        Number(
+          signalForm.strength
+        );
 
       const accuracy =
         Number(
@@ -1409,7 +1501,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
 
       const price =
-        Number(signalForm.price);
+        Number(
+          signalForm.price
+        );
 
       if (
         !signalForm.name.trim()
@@ -1507,7 +1601,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           'Signal plan saved.'
         );
 
-        setSignalDialogOpen(false);
+        setSignalDialogOpen(
+          false
+        );
 
         await loadSignalPlans();
       } catch (err) {
@@ -1521,19 +1617,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // DELETE SIGNAL PLAN
+  // DELETE SIGNAL
   // ==========================================================
 
   const deleteSignalPlan =
     async (
       plan: SignalPlan
     ) => {
-      const confirmed =
-        window.confirm(
+      if (
+        !window.confirm(
           `Delete signal plan "${plan.name}"?`
-        );
-
-      if (!confirmed) return;
+        )
+      ) {
+        return;
+      }
 
       try {
         const response =
@@ -1564,7 +1661,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       user: User
     ) => {
       setUserSignalUser(user);
-      setUserSignalDialogOpen(true);
+
+      setUserSignalDialogOpen(
+        true
+      );
+
       setUserSignalLoading(true);
 
       try {
@@ -1574,13 +1675,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           );
 
         const signal =
-          response.data?.signal || null;
+          response.data?.signal ||
+          null;
 
         setUserSignal(signal);
 
         setUserSignalPlanId(
           signal?.plan?.id
-            ? String(signal.plan.id)
+            ? String(
+                signal.plan.id
+              )
             : ''
         );
 
@@ -1618,7 +1722,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
 
       const strength =
-        Number(userSignalStrength);
+        Number(
+          userSignalStrength
+        );
 
       if (
         !Number.isFinite(strength) ||
@@ -1665,7 +1771,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           null
         );
 
-        setUserSignalDialogOpen(false);
+        setUserSignalDialogOpen(
+          false
+        );
       } catch (err) {
         setError(
           getErrorMessage(err)
@@ -1677,29 +1785,39 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // PAYMENT METHOD
+  // PAYMENT CREATE
   // ==========================================================
 
   const openPaymentCreate =
     () => {
       setEditingPaymentMethod(null);
+
       setPaymentForm(
         emptyPaymentMethod
       );
+
       setPaymentDialogOpen(true);
     };
 
 
+  // ==========================================================
+  // PAYMENT EDIT
+  // ==========================================================
+
   const openPaymentEdit =
-    (method: PaymentMethod) => {
-      setEditingPaymentMethod(method);
+    (
+      method: PaymentMethod
+    ) => {
+      setEditingPaymentMethod(
+        method
+      );
 
       setPaymentForm({
         name:
           method.name || '',
 
         type:
-          method.type || 'OTHER',
+          method.type || 'BANK',
 
         currency:
           method.currency || 'USD',
@@ -1731,7 +1849,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // SAVE PAYMENT METHOD
+  // SAVE PAYMENT
   // ==========================================================
 
   const savePaymentMethod =
@@ -1800,7 +1918,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           'Payment method saved.'
         );
 
-        setPaymentDialogOpen(false);
+        setPaymentDialogOpen(
+          false
+        );
 
         await loadPaymentMethods();
       } catch (err) {
@@ -1814,19 +1934,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // DELETE PAYMENT METHOD
+  // DELETE PAYMENT
   // ==========================================================
 
   const deletePaymentMethod =
     async (
       method: PaymentMethod
     ) => {
-      const confirmed =
-        window.confirm(
+      if (
+        !window.confirm(
           `Delete payment method "${method.name}"?`
-        );
-
-      if (!confirmed) return;
+        )
+      ) {
+        return;
+      }
 
       try {
         const response =
@@ -1855,7 +1976,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const filteredUsers =
     useMemo(() => {
       const value =
-        search.trim().toLowerCase();
+        search
+          .trim()
+          .toLowerCase();
 
       if (!value) {
         return users;
@@ -1863,154 +1986,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       return users.filter(
         (user) =>
-          String(user.id).includes(value) ||
-          String(user.email || '')
+          String(user.id).includes(
+            value
+          ) ||
+          String(
+            user.email || ''
+          )
             .toLowerCase()
             .includes(value) ||
-          String(user.firstName || '')
+          String(
+            user.firstName || ''
+          )
             .toLowerCase()
             .includes(value) ||
-          String(user.lastName || '')
+          String(
+            user.lastName || ''
+          )
             .toLowerCase()
             .includes(value) ||
-          String(user.username || '')
+          String(
+            user.username || ''
+          )
             .toLowerCase()
             .includes(value)
       );
-    }, [users, search]);
-
-
-  // ==========================================================
-  // DRAWER
-  // ==========================================================
-
-  const menuItems: {
-    key: Section;
-    label: string;
-    icon: React.ReactNode;
-  }[] = [
-    {
-      key: 'dashboard',
-      label: 'Dashboard',
-      icon: <DashboardIcon />,
-    },
-    {
-      key: 'users',
-      label: 'Users',
-      icon: <Groups />,
-    },
-    {
-      key: 'transactions',
-      label: 'Transactions',
-      icon: <Assessment />,
-    },
-    {
-      key: 'deposits',
-      label: 'Deposits',
-      icon: <AccountBalanceWallet />,
-    },
-    {
-      key: 'withdrawals',
-      label: 'Withdrawals',
-      icon: <Payments />,
-    },
-    {
-      key: 'kyc',
-      label: 'KYC',
-      icon: <VerifiedUser />,
-    },
-    {
-      key: 'investment-plans',
-      label: 'Investment Plans',
-      icon: <TrendingUp />,
-    },
-    {
-      key: 'signal-plans',
-      label: 'Signal Plans',
-      icon: <Security />,
-    },
-    {
-      key: 'payment-methods',
-      label: 'Payment Methods',
-      icon: <AccountBalance />,
-    },
-  ];
-
-
-  const drawerContent = (
-    <Box>
-      <Box
-        sx={{
-          p: 2.5,
-          borderBottom: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Typography
-          variant="h6"
-          fontWeight={800}
-        >
-          Global Digital Market
-        </Typography>
-
-        <Typography
-          variant="caption"
-          color="text.secondary"
-        >
-          Administrator Panel
-        </Typography>
-      </Box>
-
-      <Box sx={{ p: 1.5 }}>
-        {menuItems.map((item) => (
-          <Button
-            key={item.key}
-            fullWidth
-            startIcon={item.icon}
-            onClick={() => {
-              setSection(item.key);
-              setMobileOpen(false);
-              setSearch('');
-            }}
-            sx={{
-              justifyContent:
-                'flex-start',
-              mb: 0.5,
-              px: 2,
-              py: 1.25,
-              borderRadius: 2,
-              backgroundColor:
-                section === item.key
-                  ? 'action.selected'
-                  : 'transparent',
-              fontWeight:
-                section === item.key
-                  ? 700
-                  : 500,
-            }}
-          >
-            {item.label}
-          </Button>
-        ))}
-
-        <Divider sx={{ my: 2 }} />
-
-        <Button
-          fullWidth
-          color="error"
-          startIcon={<Logout />}
-          onClick={logout}
-          sx={{
-            justifyContent:
-              'flex-start',
-            px: 2,
-          }}
-        >
-          Logout
-        </Button>
-      </Box>
-    </Box>
-  );
+    }, [
+      users,
+      search,
+    ]);
 
 
   // ==========================================================
@@ -2027,7 +2030,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     icon: React.ReactNode;
   }) => (
     <Card
-      elevation={1}
       sx={{
         height: '100%',
         borderRadius: 3,
@@ -2042,8 +2044,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         >
           <Box>
             <Typography
-              color="text.secondary"
               variant="body2"
+              color="text.secondary"
             >
               {title}
             </Typography>
@@ -2074,1305 +2076,1682 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
 
   // ==========================================================
-  // DASHBOARD VIEW
+  // DASHBOARD
   // ==========================================================
 
-  const renderDashboard = () => {
-    if (!dashboard) {
+  const renderDashboard =
+    () => {
+      if (!dashboard) {
+        return (
+          <Paper sx={{ p: 4 }}>
+            <Typography>
+              No dashboard data available.
+            </Typography>
+          </Paper>
+        );
+      }
+
       return (
-        <Paper sx={{ p: 4 }}>
-          <Typography>
-            No dashboard data available.
-          </Typography>
-        </Paper>
-      );
-    }
+        <Stack spacing={3}>
 
-    return (
-      <Stack spacing={3}>
-        <Box>
-          <Typography
-            variant="h4"
-            fontWeight={800}
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+            >
+              Admin Dashboard
+            </Typography>
+
+            <Typography
+              color="text.secondary"
+            >
+              Overview of Global Digital Market.
+            </Typography>
+          </Box>
+
+          <Grid
+            container
+            spacing={2}
           >
-            Admin Dashboard
-          </Typography>
 
-          <Typography
-            color="text.secondary"
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Total Users"
+                value={
+                  dashboard.totalUsers
+                }
+                icon={<Groups />}
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Active Users"
+                value={
+                  dashboard.activeUsers
+                }
+                icon={<Person />}
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Accounts"
+                value={
+                  dashboard.totalAccounts
+                }
+                icon={
+                  <AccountBalance />
+                }
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Transactions"
+                value={
+                  dashboard.totalTransactions
+                }
+                icon={<Assessment />}
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Total Balance"
+                value={formatMoney(
+                  dashboard.totalAccountBalance
+                )}
+                icon={
+                  <AttachMoney />
+                }
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Completed Deposits"
+                value={formatMoney(
+                  dashboard.completedDeposits
+                )}
+                icon={
+                  <AccountBalanceWallet />
+                }
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Completed Withdrawals"
+                value={formatMoney(
+                  dashboard.completedWithdrawals
+                )}
+                icon={<Payments />}
+              />
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={3}
+            >
+              <StatCard
+                title="Pending KYC"
+                value={
+                  dashboard.pendingKyc
+                }
+                icon={
+                  <VerifiedUser />
+                }
+              />
+            </Grid>
+
+          </Grid>
+
+          <Grid
+            container
+            spacing={2}
           >
-            Overview of your platform.
-          </Typography>
-        </Box>
 
-        <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Total Users"
-              value={dashboard.totalUsers}
-              icon={<Groups />}
-            />
-          </Grid>
+            <Grid
+              item
+              xs={12}
+              md={4}
+            >
+              <Card>
+                <CardContent>
+                  <Typography
+                    variant="h6"
+                    fontWeight={700}
+                  >
+                    Pending Activity
+                  </Typography>
 
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Active Users"
-              value={dashboard.activeUsers}
-              icon={<Person />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Accounts"
-              value={dashboard.totalAccounts}
-              icon={<AccountBalance />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Transactions"
-              value={dashboard.totalTransactions}
-              icon={<Assessment />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Account Balance"
-              value={formatMoney(
-                dashboard.totalAccountBalance
-              )}
-              icon={<AttachMoney />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Completed Deposits"
-              value={formatMoney(
-                dashboard.completedDeposits
-              )}
-              icon={<AccountBalanceWallet />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Completed Withdrawals"
-              value={formatMoney(
-                dashboard.completedWithdrawals
-              )}
-              icon={<Payments />}
-            />
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={3}>
-            <StatCard
-              title="Pending KYC"
-              value={dashboard.pendingKyc}
-              icon={<VerifiedUser />}
-            />
-          </Grid>
-        </Grid>
-
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                >
-                  Pending Activity
-                </Typography>
-
-                <Stack spacing={1.5} sx={{ mt: 2 }}>
                   <Stack
-                    direction="row"
-                    justifyContent="space-between"
+                    spacing={1.5}
+                    sx={{ mt: 2 }}
                   >
-                    <Typography>
-                      Transactions
-                    </Typography>
-                    <Chip
-                      label={
-                        dashboard.pendingTransactions
-                      }
-                      color="warning"
-                    />
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                    >
+                      <Typography>
+                        Transactions
+                      </Typography>
+
+                      <Chip
+                        label={
+                          dashboard.pendingTransactions
+                        }
+                        color="warning"
+                      />
+                    </Stack>
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                    >
+                      <Typography>
+                        Deposits
+                      </Typography>
+
+                      <Chip
+                        label={
+                          dashboard.pendingDeposits
+                        }
+                        color="warning"
+                      />
+                    </Stack>
+
+                    <Stack
+                      direction="row"
+                      justifyContent="space-between"
+                    >
+                      <Typography>
+                        Withdrawals
+                      </Typography>
+
+                      <Chip
+                        label={
+                          dashboard.pendingWithdrawals
+                        }
+                        color="warning"
+                      />
+                    </Stack>
                   </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
 
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
+            <Grid
+              item
+              xs={12}
+              md={4}
+            >
+              <Card>
+                <CardContent>
+                  <Typography
+                    variant="h6"
+                    fontWeight={700}
                   >
-                    <Typography>
-                      Deposits
-                    </Typography>
-                    <Chip
-                      label={
-                        dashboard.pendingDeposits
-                      }
-                      color="warning"
-                    />
-                  </Stack>
-
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                  >
-                    <Typography>
-                      Withdrawals
-                    </Typography>
-                    <Chip
-                      label={
-                        dashboard.pendingWithdrawals
-                      }
-                      color="warning"
-                    />
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                >
-                  Plans
-                </Typography>
-
-                <Typography
-                  variant="h3"
-                  fontWeight={800}
-                  sx={{ mt: 2 }}
-                >
-                  {dashboard.activeInvestmentPlans}
-                </Typography>
-
-                <Typography
-                  color="text.secondary"
-                >
-                  Active investment plans
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} md={4}>
-            <Card>
-              <CardContent>
-                <Typography
-                  variant="h6"
-                  fontWeight={700}
-                >
-                  Quick Actions
-                </Typography>
-
-                <Stack spacing={1} sx={{ mt: 2 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      setSection('users')
-                    }
-                  >
-                    Manage Users
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      setSection('deposits')
-                    }
-                  >
-                    Review Deposits
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      setSection('withdrawals')
-                    }
-                  >
-                    Review Withdrawals
-                  </Button>
-
-                  <Button
-                    variant="outlined"
-                    onClick={() =>
-                      setSection('kyc')
-                    }
-                  >
-                    Review KYC
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </Stack>
-    );
-  };
-
-
-  // ==========================================================
-  // USERS VIEW
-  // ==========================================================
-
-  const renderUsers = () => (
-    <Stack spacing={2}>
-      <Stack
-        direction={{
-          xs: 'column',
-          sm: 'row',
-        }}
-        justifyContent="space-between"
-        spacing={2}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            fontWeight={800}
-          >
-            Users
-          </Typography>
-
-          <Typography
-            color="text.secondary"
-          >
-            Manage accounts and user balances.
-          </Typography>
-        </Box>
-
-        <TextField
-          size="small"
-          label="Search users"
-          value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
-        />
-      </Stack>
-
-      <TableContainer
-        component={Paper}
-      >
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>User</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Balance</TableCell>
-              <TableCell align="right">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filteredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  {user.id}
-                </TableCell>
-
-                <TableCell>
-                  <Typography fontWeight={700}>
-                    {[
-                      user.firstName,
-                      user.lastName,
-                    ]
-                      .filter(Boolean)
-                      .join(' ') ||
-                      user.username ||
-                      'User'}
+                    Investment Plans
                   </Typography>
 
                   <Typography
-                    variant="caption"
+                    variant="h3"
+                    fontWeight={800}
+                    sx={{ mt: 2 }}
+                  >
+                    {
+                      dashboard.activeInvestmentPlans
+                    }
+                  </Typography>
+
+                  <Typography
                     color="text.secondary"
                   >
-                    {user.username || ''}
+                    Active plans
                   </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid
+              item
+              xs={12}
+              md={4}
+            >
+              <Card>
+                <CardContent>
+                  <Typography
+                    variant="h6"
+                    fontWeight={700}
+                  >
+                    Quick Actions
+                  </Typography>
+
+                  <Stack
+                    spacing={1}
+                    sx={{ mt: 2 }}
+                  >
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        window.location.href =
+                          '/admin/users';
+                      }}
+                    >
+                      Manage Users
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        window.location.href =
+                          '/admin/deposits';
+                      }}
+                    >
+                      Review Deposits
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        window.location.href =
+                          '/admin/withdrawals';
+                      }}
+                    >
+                      Review Withdrawals
+                    </Button>
+
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        window.location.href =
+                          '/admin/kyc';
+                      }}
+                    >
+                      Review KYC
+                    </Button>
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+
+          </Grid>
+
+        </Stack>
+      );
+    };
+
+
+  // ==========================================================
+  // USERS
+  // ==========================================================
+
+  const renderUsers =
+    () => (
+      <Stack spacing={2}>
+
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+            >
+              Users
+            </Typography>
+
+            <Typography
+              color="text.secondary"
+            >
+              Manage user accounts and balances.
+            </Typography>
+          </Box>
+
+          <TextField
+            size="small"
+            label="Search users"
+            value={search}
+            onChange={(event) =>
+              setSearch(
+                event.target.value
+              )
+            }
+          />
+        </Stack>
+
+        <TableContainer
+          component={Paper}
+        >
+          <Table>
+
+            <TableHead>
+              <TableRow>
+                <TableCell>
+                  ID
                 </TableCell>
 
                 <TableCell>
-                  {user.email}
+                  User
                 </TableCell>
 
                 <TableCell>
-                  <Chip
-                    size="small"
-                    label={
-                      user.status ||
-                      'unknown'
-                    }
-                    color={statusColor(
-                      user.status
-                    )}
-                  />
+                  Email
                 </TableCell>
 
                 <TableCell>
-                  {formatMoney(
-                    user.account?.balance,
-                    user.account?.currency ||
-                      user.preferredCurrency ||
-                      'USD'
-                  )}
+                  Status
+                </TableCell>
+
+                <TableCell>
+                  Balance
                 </TableCell>
 
                 <TableCell align="right">
-                  <Stack
-                    direction="row"
-                    justifyContent="flex-end"
-                    flexWrap="wrap"
-                    gap={0.5}
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+
+              {filteredUsers.map(
+                (user) => (
+                  <TableRow
+                    key={user.id}
                   >
-                    <Button
-                      size="small"
-                      onClick={() =>
-                        openUser(user)
-                      }
-                    >
-                      View
-                    </Button>
 
-                    <Button
-                      size="small"
-                      color="success"
-                      onClick={() =>
-                        openMoneyDialog(
-                          user,
-                          'fund'
-                        )
-                      }
-                    >
-                      Fund
-                    </Button>
+                    <TableCell>
+                      {user.id}
+                    </TableCell>
 
-                    <Button
-                      size="small"
-                      color="warning"
-                      onClick={() =>
-                        openMoneyDialog(
-                          user,
-                          'debit'
-                        )
-                      }
-                    >
-                      Debit
-                    </Button>
+                    <TableCell>
+                      <Typography
+                        fontWeight={700}
+                      >
+                        {[
+                          user.firstName,
+                          user.lastName,
+                        ]
+                          .filter(Boolean)
+                          .join(' ') ||
+                          user.username ||
+                          'User'}
+                      </Typography>
 
-                    <Button
-                      size="small"
-                      onClick={() =>
-                        openUserSignal(user)
-                      }
-                    >
-                      Signal
-                    </Button>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        {user.username ||
+                          ''}
+                      </Typography>
+                    </TableCell>
 
-            {filteredUsers.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  align="center"
-                >
-                  No users found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Stack>
-  );
+                    <TableCell>
+                      {user.email}
+                    </TableCell>
 
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={
+                          user.status ||
+                          'UNKNOWN'
+                        }
+                        color={statusColor(
+                          user.status
+                        )}
+                      />
+                    </TableCell>
 
-  // ==========================================================
-  // TRANSACTIONS TABLE
-  // ==========================================================
+                    <TableCell>
+                      {formatMoney(
+                        user.account
+                          ?.balance,
+                        user.account
+                          ?.currency ||
+                          user.preferredCurrency ||
+                          'USD'
+                      )}
+                    </TableCell>
 
-  const transactionTable = (
-    rows: Transaction[]
-  ) => (
-    <TableContainer
-      component={Paper}
-    >
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>ID</TableCell>
-            <TableCell>User</TableCell>
-            <TableCell>Type</TableCell>
-            <TableCell>Amount</TableCell>
-            <TableCell>Method</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell>Date</TableCell>
-            <TableCell align="right">
-              Action
-            </TableCell>
-          </TableRow>
-        </TableHead>
+                    <TableCell align="right">
 
-        <TableBody>
-          {rows.map((transaction) => (
-            <TableRow
-              key={transaction.id}
-            >
-              <TableCell>
-                {transaction.id}
-              </TableCell>
+                      <Stack
+                        direction="row"
+                        justifyContent="flex-end"
+                        flexWrap="wrap"
+                        gap={0.5}
+                      >
 
-              <TableCell>
-                {transaction.user?.firstName}{' '}
-                {transaction.user?.lastName}
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            openUser(user)
+                          }
+                        >
+                          View
+                        </Button>
 
-                <Typography
-                  variant="caption"
-                  display="block"
-                  color="text.secondary"
-                >
-                  {transaction.user?.email}
-                </Typography>
-              </TableCell>
+                        <Button
+                          size="small"
+                          color="success"
+                          onClick={() =>
+                            openMoneyDialog(
+                              user,
+                              'fund'
+                            )
+                          }
+                        >
+                          Fund
+                        </Button>
 
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={
-                    transaction.transactionType ||
-                    'UNKNOWN'
-                  }
-                />
-              </TableCell>
+                        <Button
+                          size="small"
+                          color="warning"
+                          onClick={() =>
+                            openMoneyDialog(
+                              user,
+                              'debit'
+                            )
+                          }
+                        >
+                          Debit
+                        </Button>
 
-              <TableCell>
-                {formatMoney(
-                  transaction.amount,
-                  transaction.currency ||
-                    'USD'
-                )}
-              </TableCell>
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            openUserSignal(
+                              user
+                            )
+                          }
+                        >
+                          Signal
+                        </Button>
 
-              <TableCell>
-                {transaction.paymentMethod ||
-                  '—'}
-              </TableCell>
+                      </Stack>
 
-              <TableCell>
-                <Chip
-                  size="small"
-                  label={
-                    transaction.status ||
-                    'UNKNOWN'
-                  }
-                  color={statusColor(
-                    transaction.status
-                  )}
-                />
-              </TableCell>
+                    </TableCell>
 
-              <TableCell>
-                {formatDate(
-                  transaction.createdAt
-                )}
-              </TableCell>
+                  </TableRow>
+                )
+              )}
 
-              <TableCell align="right">
-                <Button
-                  size="small"
-                  onClick={() =>
-                    openTransactionStatus(
-                      transaction
-                    )
-                  }
-                >
-                  Update
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
+              {filteredUsers.length ===
+                0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    align="center"
+                  >
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              )}
 
-          {rows.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={8}
-                align="center"
-              >
-                No transactions found.
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
+            </TableBody>
+
+          </Table>
+        </TableContainer>
+
+      </Stack>
+    );
 
 
   // ==========================================================
-  // TRANSACTIONS VIEW
+  // TRANSACTION TABLE
   // ==========================================================
 
-  const renderTransactions = () => (
-    <Stack spacing={2}>
-      <Box>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-        >
-          Transactions
-        </Typography>
-
-        <Typography color="text.secondary">
-          Review and update transaction statuses.
-        </Typography>
-      </Box>
-
-      {transactionTable(transactions)}
-    </Stack>
-  );
-
-
-  // ==========================================================
-  // DEPOSITS VIEW
-  // ==========================================================
-
-  const renderDeposits = () => (
-    <Stack spacing={2}>
-      <Box>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-        >
-          Deposits
-        </Typography>
-
-        <Typography color="text.secondary">
-          Review user deposit requests.
-        </Typography>
-      </Box>
-
-      {transactionTable(deposits)}
-    </Stack>
-  );
-
-
-  // ==========================================================
-  // WITHDRAWALS VIEW
-  // ==========================================================
-
-  const renderWithdrawals = () => (
-    <Stack spacing={2}>
-      <Box>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-        >
-          Withdrawals
-        </Typography>
-
-        <Typography color="text.secondary">
-          Review and process withdrawal requests.
-        </Typography>
-      </Box>
-
-      {transactionTable(withdrawals)}
-    </Stack>
-  );
-
-
-  // ==========================================================
-  // KYC VIEW
-  // ==========================================================
-
-  const renderKyc = () => (
-    <Stack spacing={2}>
-      <Box>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-        >
-          KYC Requests
-        </Typography>
-
-        <Typography color="text.secondary">
-          View submitted identity documents.
-        </Typography>
-      </Box>
-
-      <Alert severity="info">
-        Your current backend exposes KYC requests for
-        viewing, but it does not currently expose an
-        admin approve/reject KYC endpoint.
-      </Alert>
-
+  const transactionTable =
+    (
+      rows: Transaction[]
+    ) => (
       <TableContainer
         component={Paper}
       >
         <Table>
+
           <TableHead>
             <TableRow>
-              <TableCell>User</TableCell>
-              <TableCell>Document</TableCell>
-              <TableCell>Document Number</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Submitted</TableCell>
-              <TableCell>Document</TableCell>
+
+              <TableCell>
+                ID
+              </TableCell>
+
+              <TableCell>
+                User
+              </TableCell>
+
+              <TableCell>
+                Type
+              </TableCell>
+
+              <TableCell>
+                Amount
+              </TableCell>
+
+              <TableCell>
+                Method
+              </TableCell>
+
+              <TableCell>
+                Status
+              </TableCell>
+
+              <TableCell>
+                Date
+              </TableCell>
+
+              <TableCell align="right">
+                Action
+              </TableCell>
+
             </TableRow>
           </TableHead>
 
           <TableBody>
-            {kycRequests.map((request) => (
-              <TableRow
-                key={request.id}
-              >
-                <TableCell>
-                  <Typography fontWeight={700}>
-                    {request.user?.firstName}{' '}
-                    {request.user?.lastName}
-                  </Typography>
 
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {request.user?.email}
-                  </Typography>
-                </TableCell>
+            {rows.map(
+              (transaction) => (
+                <TableRow
+                  key={transaction.id}
+                >
 
-                <TableCell>
-                  {request.documentType ||
-                    '—'}
-                </TableCell>
+                  <TableCell>
+                    {transaction.id}
+                  </TableCell>
 
-                <TableCell>
-                  {request.documentNumber ||
-                    '—'}
-                </TableCell>
+                  <TableCell>
+                    {transaction.user
+                      ?.firstName}{' '}
+                    {transaction.user
+                      ?.lastName}
 
-                <TableCell>
-                  <Chip
-                    size="small"
-                    label={
-                      request.status ||
-                      'UNKNOWN'
-                    }
-                    color={statusColor(
-                      request.status
+                    <Typography
+                      variant="caption"
+                      display="block"
+                      color="text.secondary"
+                    >
+                      {
+                        transaction.user
+                          ?.email
+                      }
+                    </Typography>
+                  </TableCell>
+
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={
+                        transaction.transactionType ||
+                        'UNKNOWN'
+                      }
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    {formatMoney(
+                      transaction.amount,
+                      transaction.currency ||
+                        'USD'
                     )}
-                  />
-                </TableCell>
+                  </TableCell>
 
-                <TableCell>
-                  {formatDate(
-                    request.createdAt
-                  )}
-                </TableCell>
+                  <TableCell>
+                    {
+                      transaction.paymentMethod ||
+                      '—'
+                    }
+                  </TableCell>
 
-                <TableCell>
-                  {request.documentUrl ? (
+                  <TableCell>
+                    <Chip
+                      size="small"
+                      label={
+                        transaction.status ||
+                        'UNKNOWN'
+                      }
+                      color={statusColor(
+                        transaction.status
+                      )}
+                    />
+                  </TableCell>
+
+                  <TableCell>
+                    {formatDate(
+                      transaction.createdAt
+                    )}
+                  </TableCell>
+
+                  <TableCell align="right">
                     <Button
                       size="small"
-                      component="a"
-                      href={
-                        request.documentUrl
+                      onClick={() =>
+                        openTransactionStatus(
+                          transaction
+                        )
                       }
-                      target="_blank"
-                      rel="noopener noreferrer"
                     >
-                      Open
+                      Update
                     </Button>
-                  ) : (
-                    '—'
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
 
-            {kycRequests.length === 0 && (
+                </TableRow>
+              )
+            )}
+
+            {rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   align="center"
                 >
-                  No KYC requests found.
+                  No transactions found.
                 </TableCell>
               </TableRow>
             )}
+
           </TableBody>
+
         </Table>
       </TableContainer>
-    </Stack>
-  );
+    );
 
 
   // ==========================================================
-  // INVESTMENT PLANS VIEW
+  // TRANSACTIONS
   // ==========================================================
 
-  const renderInvestmentPlans = () => (
-    <Stack spacing={2}>
-      <Stack
-        direction={{
-          xs: 'column',
-          sm: 'row',
-        }}
-        justifyContent="space-between"
-        spacing={2}
-      >
+  const renderTransactions =
+    () => (
+      <Stack spacing={2}>
         <Box>
           <Typography
             variant="h4"
             fontWeight={800}
           >
-            Investment Plans
+            Transactions
           </Typography>
 
-          <Typography color="text.secondary">
-            Create and manage investment plans.
+          <Typography
+            color="text.secondary"
+          >
+            Review and update transactions.
           </Typography>
         </Box>
 
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={
-            openInvestmentCreate
-          }
-        >
-          Add Plan
-        </Button>
+        {transactionTable(
+          transactions
+        )}
       </Stack>
+    );
 
-      <Grid container spacing={2}>
-        {investmentPlans.map((plan) => (
-          <Grid
-            item
-            xs={12}
-            md={6}
-            lg={4}
-            key={plan.id}
+
+  // ==========================================================
+  // DEPOSITS
+  // ==========================================================
+
+  const renderDeposits =
+    () => (
+      <Stack spacing={2}>
+        <Box>
+          <Typography
+            variant="h4"
+            fontWeight={800}
           >
-            <Card
-              sx={{
-                height: '100%',
-                borderRadius: 3,
-              }}
+            Deposits
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+          >
+            Review user deposit requests.
+          </Typography>
+        </Box>
+
+        {transactionTable(
+          deposits
+        )}
+      </Stack>
+    );
+
+
+  // ==========================================================
+  // WITHDRAWALS
+  // ==========================================================
+
+  const renderWithdrawals =
+    () => (
+      <Stack spacing={2}>
+        <Box>
+          <Typography
+            variant="h4"
+            fontWeight={800}
+          >
+            Withdrawals
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+          >
+            Review withdrawal requests.
+          </Typography>
+        </Box>
+
+        {transactionTable(
+          withdrawals
+        )}
+      </Stack>
+    );
+
+
+  // ==========================================================
+  // KYC
+  // ==========================================================
+
+  const renderKyc =
+    () => (
+      <Stack spacing={2}>
+
+        <Box>
+          <Typography
+            variant="h4"
+            fontWeight={800}
+          >
+            KYC Requests
+          </Typography>
+
+          <Typography
+            color="text.secondary"
+          >
+            Review submitted identity documents.
+          </Typography>
+        </Box>
+
+        <Alert severity="info">
+          KYC requests can currently be
+          viewed. Approval and rejection
+          require corresponding backend
+          endpoints.
+        </Alert>
+
+        <TableContainer
+          component={Paper}
+        >
+          <Table>
+
+            <TableHead>
+              <TableRow>
+
+                <TableCell>
+                  User
+                </TableCell>
+
+                <TableCell>
+                  Document
+                </TableCell>
+
+                <TableCell>
+                  Document Number
+                </TableCell>
+
+                <TableCell>
+                  Status
+                </TableCell>
+
+                <TableCell>
+                  Submitted
+                </TableCell>
+
+                <TableCell>
+                  Document
+                </TableCell>
+
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+
+              {kycRequests.map(
+                (request) => (
+                  <TableRow
+                    key={request.id}
+                  >
+
+                    <TableCell>
+                      <Typography
+                        fontWeight={700}
+                      >
+                        {
+                          request.user
+                            ?.firstName
+                        }{' '}
+                        {
+                          request.user
+                            ?.lastName
+                        }
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        {
+                          request.user
+                            ?.email
+                        }
+                      </Typography>
+                    </TableCell>
+
+                    <TableCell>
+                      {
+                        request.documentType ||
+                        '—'
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      {
+                        request.documentNumber ||
+                        '—'
+                      }
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        label={
+                          request.status ||
+                          'UNKNOWN'
+                        }
+                        color={statusColor(
+                          request.status
+                        )}
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      {formatDate(
+                        request.createdAt
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {request.documentUrl ? (
+                        <Button
+                          size="small"
+                          component="a"
+                          href={
+                            request.documentUrl
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Open
+                        </Button>
+                      ) : (
+                        '—'
+                      )}
+                    </TableCell>
+
+                  </TableRow>
+                )
+              )}
+
+              {kycRequests.length ===
+                0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    align="center"
+                  >
+                    No KYC requests found.
+                  </TableCell>
+                </TableRow>
+              )}
+
+            </TableBody>
+
+          </Table>
+        </TableContainer>
+
+      </Stack>
+    );
+
+
+  // ==========================================================
+  // INVESTMENT PLANS
+  // ==========================================================
+
+  const renderInvestmentPlans =
+    () => (
+      <Stack spacing={2}>
+
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
             >
-              <CardContent>
-                <Stack spacing={1.5}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                  >
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      {plan.name}
-                    </Typography>
+              Investment Plans
+            </Typography>
 
-                    <Chip
-                      size="small"
-                      label={plan.status}
-                      color={statusColor(
-                        plan.status
-                      )}
-                    />
-                  </Stack>
+            <Typography
+              color="text.secondary"
+            >
+              Create and manage investment plans.
+            </Typography>
+          </Box>
 
-                  <Typography
-                    color="text.secondary"
-                  >
-                    {plan.description ||
-                      'No description'}
-                  </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={
+              openInvestmentCreate
+            }
+          >
+            Add Plan
+          </Button>
 
-                  <Divider />
+        </Stack>
 
-                  <Typography>
-                    Minimum:{' '}
-                    <strong>
-                      {formatMoney(
-                        plan.minimumAmount
-                      )}
-                    </strong>
-                  </Typography>
+        <Grid
+          container
+          spacing={2}
+        >
 
-                  <Typography>
-                    Maximum:{' '}
-                    <strong>
-                      {plan.maximumAmount ===
-                      null ||
-                      plan.maximumAmount ===
-                        undefined
-                        ? 'No limit'
-                        : formatMoney(
-                            plan.maximumAmount
+          {investmentPlans.map(
+            (plan) => (
+              <Grid
+                item
+                xs={12}
+                md={6}
+                lg={4}
+                key={plan.id}
+              >
+
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderRadius: 3,
+                  }}
+                >
+
+                  <CardContent>
+
+                    <Stack spacing={1.5}>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                      >
+                        <Typography
+                          variant="h6"
+                          fontWeight={800}
+                        >
+                          {plan.name}
+                        </Typography>
+
+                        <Chip
+                          size="small"
+                          label={
+                            plan.status
+                          }
+                          color={statusColor(
+                            plan.status
                           )}
-                    </strong>
-                  </Typography>
+                        />
+                      </Stack>
 
-                  <Typography>
-                    ROI:{' '}
-                    <strong>
-                      {plan.roiPercent}%
-                    </strong>
-                  </Typography>
+                      <Typography
+                        color="text.secondary"
+                      >
+                        {
+                          plan.description ||
+                          'No description'
+                        }
+                      </Typography>
 
-                  <Typography>
-                    Duration:{' '}
-                    <strong>
-                      {plan.durationDays} days
-                    </strong>
-                  </Typography>
+                      <Divider />
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ mt: 1 }}
-                  >
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={() =>
-                        openInvestmentEdit(
-                          plan
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
+                      <Typography>
+                        Minimum:{' '}
+                        <strong>
+                          {formatMoney(
+                            plan.minimumAmount
+                          )}
+                        </strong>
+                      </Typography>
 
-                    <Button
-                      fullWidth
-                      color="error"
-                      variant="outlined"
-                      startIcon={<Delete />}
-                      onClick={() =>
-                        deleteInvestmentPlan(
-                          plan
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                      <Typography>
+                        Maximum:{' '}
+                        <strong>
+                          {plan.maximumAmount ===
+                            null ||
+                          plan.maximumAmount ===
+                            undefined
+                            ? 'No limit'
+                            : formatMoney(
+                                plan.maximumAmount
+                              )}
+                        </strong>
+                      </Typography>
 
-        {investmentPlans.length === 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 4 }}>
-              No investment plans found.
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
-    </Stack>
-  );
+                      <Typography>
+                        ROI:{' '}
+                        <strong>
+                          {plan.roiPercent}%
+                        </strong>
+                      </Typography>
 
+                      <Typography>
+                        Duration:{' '}
+                        <strong>
+                          {
+                            plan.durationDays
+                          }{' '}
+                          days
+                        </strong>
+                      </Typography>
 
-  // ==========================================================
-  // SIGNAL PLANS VIEW
-  // ==========================================================
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                      >
 
-  const renderSignalPlans = () => (
-    <Stack spacing={2}>
-      <Stack
-        direction={{
-          xs: 'column',
-          sm: 'row',
-        }}
-        justifyContent="space-between"
-        spacing={2}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            fontWeight={800}
-          >
-            Signal Plans
-          </Typography>
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          startIcon={
+                            <Edit />
+                          }
+                          onClick={() =>
+                            openInvestmentEdit(
+                              plan
+                            )
+                          }
+                        >
+                          Edit
+                        </Button>
 
-          <Typography color="text.secondary">
-            Manage signal packages and assign them to users.
-          </Typography>
-        </Box>
+                        <Button
+                          fullWidth
+                          color="error"
+                          variant="outlined"
+                          startIcon={
+                            <Delete />
+                          }
+                          onClick={() =>
+                            deleteInvestmentPlan(
+                              plan
+                            )
+                          }
+                        >
+                          Delete
+                        </Button>
 
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={
-            openSignalCreate
-          }
-        >
-          Add Signal Plan
-        </Button>
-      </Stack>
+                      </Stack>
 
-      <Grid container spacing={2}>
-        {signalPlans.map((plan) => (
-          <Grid
-            item
-            xs={12}
-            md={6}
-            lg={4}
-            key={plan.id}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                borderRadius: 3,
-              }}
+                    </Stack>
+
+                  </CardContent>
+
+                </Card>
+
+              </Grid>
+            )
+          )}
+
+          {investmentPlans.length ===
+            0 && (
+            <Grid
+              item
+              xs={12}
             >
-              <CardContent>
-                <Stack spacing={1.5}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                  >
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      {plan.name}
-                    </Typography>
+              <Paper sx={{ p: 4 }}>
+                No investment plans found.
+              </Paper>
+            </Grid>
+          )}
 
-                    <Chip
-                      size="small"
-                      label={plan.status}
-                      color={statusColor(
-                        plan.status
-                      )}
-                    />
-                  </Stack>
+        </Grid>
 
-                  <Typography color="text.secondary">
-                    {plan.description ||
-                      'No description'}
-                  </Typography>
-
-                  <Typography>
-                    Strength:{' '}
-                    <strong>
-                      {plan.strength}%
-                    </strong>
-                  </Typography>
-
-                  <Typography>
-                    Accuracy:{' '}
-                    <strong>
-                      {plan.accuracyPercent}%
-                    </strong>
-                  </Typography>
-
-                  <Typography>
-                    Duration:{' '}
-                    <strong>
-                      {plan.durationDays} days
-                    </strong>
-                  </Typography>
-
-                  <Typography>
-                    Price:{' '}
-                    <strong>
-                      {formatMoney(
-                        plan.price,
-                        plan.currency
-                      )}
-                    </strong>
-                  </Typography>
-
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                  >
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={() =>
-                        openSignalEdit(
-                          plan
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
-
-                    <Button
-                      fullWidth
-                      color="error"
-                      variant="outlined"
-                      startIcon={<Delete />}
-                      onClick={() =>
-                        deleteSignalPlan(
-                          plan
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-
-        {signalPlans.length === 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 4 }}>
-              No signal plans found.
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
-    </Stack>
-  );
-
-
-  // ==========================================================
-  // PAYMENT METHODS VIEW
-  // ==========================================================
-
-  const renderPaymentMethods = () => (
-    <Stack spacing={2}>
-      <Stack
-        direction={{
-          xs: 'column',
-          sm: 'row',
-        }}
-        justifyContent="space-between"
-        spacing={2}
-      >
-        <Box>
-          <Typography
-            variant="h4"
-            fontWeight={800}
-          >
-            Payment Methods
-          </Typography>
-
-          <Typography color="text.secondary">
-            Configure payment methods displayed to users.
-          </Typography>
-        </Box>
-
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={
-            openPaymentCreate
-          }
-        >
-          Add Payment Method
-        </Button>
       </Stack>
+    );
 
-      <Grid container spacing={2}>
-        {paymentMethods.map((method) => (
-          <Grid
-            item
-            xs={12}
-            md={6}
-            lg={4}
-            key={method.id}
-          >
-            <Card
-              sx={{
-                height: '100%',
-                borderRadius: 3,
-              }}
+
+  // ==========================================================
+  // SIGNAL PLANS
+  // ==========================================================
+
+  const renderSignalPlans =
+    () => (
+      <Stack spacing={2}>
+
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
             >
-              <CardContent>
-                <Stack spacing={1.5}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                  >
-                    <Typography
-                      variant="h6"
-                      fontWeight={800}
-                    >
-                      {method.name}
-                    </Typography>
+              Signal Plans
+            </Typography>
 
-                    <Chip
-                      size="small"
-                      label={method.status}
-                      color={statusColor(
-                        method.status
+            <Typography
+              color="text.secondary"
+            >
+              Manage signal packages.
+            </Typography>
+          </Box>
+
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={
+              openSignalCreate
+            }
+          >
+            Add Signal Plan
+          </Button>
+
+        </Stack>
+
+        <Grid
+          container
+          spacing={2}
+        >
+
+          {signalPlans.map(
+            (plan) => (
+              <Grid
+                item
+                xs={12}
+                md={6}
+                lg={4}
+                key={plan.id}
+              >
+
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderRadius: 3,
+                  }}
+                >
+
+                  <CardContent>
+
+                    <Stack spacing={1.5}>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                      >
+
+                        <Typography
+                          variant="h6"
+                          fontWeight={800}
+                        >
+                          {plan.name}
+                        </Typography>
+
+                        <Chip
+                          size="small"
+                          label={
+                            plan.status
+                          }
+                          color={statusColor(
+                            plan.status
+                          )}
+                        />
+
+                      </Stack>
+
+                      <Typography
+                        color="text.secondary"
+                      >
+                        {
+                          plan.description ||
+                          'No description'
+                        }
+                      </Typography>
+
+                      <Typography>
+                        Strength:{' '}
+                        <strong>
+                          {plan.strength}%
+                        </strong>
+                      </Typography>
+
+                      <Typography>
+                        Accuracy:{' '}
+                        <strong>
+                          {
+                            plan.accuracyPercent
+                          }%
+                        </strong>
+                      </Typography>
+
+                      <Typography>
+                        Duration:{' '}
+                        <strong>
+                          {
+                            plan.durationDays
+                          }{' '}
+                          days
+                        </strong>
+                      </Typography>
+
+                      <Typography>
+                        Price:{' '}
+                        <strong>
+                          {formatMoney(
+                            plan.price,
+                            plan.currency
+                          )}
+                        </strong>
+                      </Typography>
+
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                      >
+
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          startIcon={
+                            <Edit />
+                          }
+                          onClick={() =>
+                            openSignalEdit(
+                              plan
+                            )
+                          }
+                        >
+                          Edit
+                        </Button>
+
+                        <Button
+                          fullWidth
+                          color="error"
+                          variant="outlined"
+                          startIcon={
+                            <Delete />
+                          }
+                          onClick={() =>
+                            deleteSignalPlan(
+                              plan
+                            )
+                          }
+                        >
+                          Delete
+                        </Button>
+
+                      </Stack>
+
+                    </Stack>
+
+                  </CardContent>
+
+                </Card>
+
+              </Grid>
+            )
+          )}
+
+          {signalPlans.length ===
+            0 && (
+            <Grid
+              item
+              xs={12}
+            >
+              <Paper sx={{ p: 4 }}>
+                No signal plans found.
+              </Paper>
+            </Grid>
+          )}
+
+        </Grid>
+
+      </Stack>
+    );
+
+
+  // ==========================================================
+  // PAYMENT METHODS
+  // ==========================================================
+
+  const renderPaymentMethods =
+    () => (
+      <Stack spacing={2}>
+
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
+          justifyContent="space-between"
+          spacing={2}
+        >
+
+          <Box>
+            <Typography
+              variant="h4"
+              fontWeight={800}
+            >
+              Payment Methods
+            </Typography>
+
+            <Typography
+              color="text.secondary"
+            >
+              Configure payment methods shown to users.
+            </Typography>
+          </Box>
+
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={
+              openPaymentCreate
+            }
+          >
+            Add Payment Method
+          </Button>
+
+        </Stack>
+
+        <Grid
+          container
+          spacing={2}
+        >
+
+          {paymentMethods.map(
+            (method) => (
+              <Grid
+                item
+                xs={12}
+                md={6}
+                lg={4}
+                key={method.id}
+              >
+
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderRadius: 3,
+                  }}
+                >
+
+                  <CardContent>
+
+                    <Stack spacing={1.5}>
+
+                      <Stack
+                        direction="row"
+                        justifyContent="space-between"
+                      >
+
+                        <Typography
+                          variant="h6"
+                          fontWeight={800}
+                        >
+                          {method.name}
+                        </Typography>
+
+                        <Chip
+                          size="small"
+                          label={
+                            method.status
+                          }
+                          color={statusColor(
+                            method.status
+                          )}
+                        />
+
+                      </Stack>
+
+                      <Typography>
+                        Type:{' '}
+                        <strong>
+                          {method.type}
+                        </strong>
+                      </Typography>
+
+                      <Typography>
+                        Currency:{' '}
+                        <strong>
+                          {method.currency}
+                        </strong>
+                      </Typography>
+
+                      {method.bankName && (
+                        <Typography>
+                          Bank:{' '}
+                          <strong>
+                            {
+                              method.bankName
+                            }
+                          </strong>
+                        </Typography>
                       )}
-                    />
-                  </Stack>
 
-                  <Typography>
-                    Type:{' '}
-                    <strong>
-                      {method.type}
-                    </strong>
-                  </Typography>
+                      {method.accountName && (
+                        <Typography>
+                          Account Name:{' '}
+                          <strong>
+                            {
+                              method.accountName
+                            }
+                          </strong>
+                        </Typography>
+                      )}
 
-                  <Typography>
-                    Currency:{' '}
-                    <strong>
-                      {method.currency}
-                    </strong>
-                  </Typography>
+                      {method.accountNumber && (
+                        <Typography>
+                          Account Number:{' '}
+                          <strong>
+                            {
+                              method.accountNumber
+                            }
+                          </strong>
+                        </Typography>
+                      )}
 
-                  {method.bankName && (
-                    <Typography>
-                      Bank:{' '}
-                      <strong>
-                        {method.bankName}
-                      </strong>
-                    </Typography>
-                  )}
+                      {method.walletAddress && (
+                        <Typography
+                          sx={{
+                            wordBreak:
+                              'break-word',
+                          }}
+                        >
+                          Wallet:{' '}
+                          <strong>
+                            {
+                              method.walletAddress
+                            }
+                          </strong>
+                        </Typography>
+                      )}
 
-                  {method.accountName && (
-                    <Typography>
-                      Account Name:{' '}
-                      <strong>
-                        {method.accountName}
-                      </strong>
-                    </Typography>
-                  )}
+                      {method.details && (
+                        <Typography
+                          color="text.secondary"
+                        >
+                          {
+                            method.details
+                          }
+                        </Typography>
+                      )}
 
-                  {method.accountNumber && (
-                    <Typography>
-                      Account Number:{' '}
-                      <strong>
-                        {method.accountNumber}
-                      </strong>
-                    </Typography>
-                  )}
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                      >
 
-                  {method.walletAddress && (
-                    <Typography
-                      sx={{
-                        wordBreak:
-                          'break-word',
-                      }}
-                    >
-                      Wallet:{' '}
-                      <strong>
-                        {method.walletAddress}
-                      </strong>
-                    </Typography>
-                  )}
+                        <Button
+                          fullWidth
+                          variant="outlined"
+                          startIcon={
+                            <Edit />
+                          }
+                          onClick={() =>
+                            openPaymentEdit(
+                              method
+                            )
+                          }
+                        >
+                          Edit
+                        </Button>
 
-                  {method.details && (
-                    <Typography
-                      color="text.secondary"
-                    >
-                      {method.details}
-                    </Typography>
-                  )}
+                        <Button
+                          fullWidth
+                          color="error"
+                          variant="outlined"
+                          startIcon={
+                            <Delete />
+                          }
+                          onClick={() =>
+                            deletePaymentMethod(
+                              method
+                            )
+                          }
+                        >
+                          Delete
+                        </Button>
 
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                  >
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<Edit />}
-                      onClick={() =>
-                        openPaymentEdit(
-                          method
-                        )
-                      }
-                    >
-                      Edit
-                    </Button>
+                      </Stack>
 
-                    <Button
-                      fullWidth
-                      color="error"
-                      variant="outlined"
-                      startIcon={<Delete />}
-                      onClick={() =>
-                        deletePaymentMethod(
-                          method
-                        )
-                      }
-                    >
-                      Delete
-                    </Button>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                    </Stack>
 
-        {paymentMethods.length === 0 && (
-          <Grid item xs={12}>
-            <Paper sx={{ p: 4 }}>
-              No payment methods found.
-            </Paper>
-          </Grid>
-        )}
-      </Grid>
-    </Stack>
-  );
+                  </CardContent>
+
+                </Card>
+
+              </Grid>
+            )
+          )}
+
+          {paymentMethods.length ===
+            0 && (
+            <Grid
+              item
+              xs={12}
+            >
+              <Paper sx={{ p: 4 }}>
+                No payment methods found.
+              </Paper>
+            </Grid>
+          )}
+
+        </Grid>
+
+      </Stack>
+    );
 
 
   // ==========================================================
-  // CURRENT VIEW
+  // CURRENT SECTION
   // ==========================================================
 
-  const renderSection = () => {
-    switch (section) {
-      case 'users':
-        return renderUsers();
+  const renderSection =
+    () => {
+      switch (section) {
 
-      case 'transactions':
-        return renderTransactions();
+        case 'users':
+          return renderUsers();
 
-      case 'deposits':
-        return renderDeposits();
+        case 'transactions':
+          return renderTransactions();
 
-      case 'withdrawals':
-        return renderWithdrawals();
+        case 'deposits':
+          return renderDeposits();
 
-      case 'kyc':
-        return renderKyc();
+        case 'withdrawals':
+          return renderWithdrawals();
 
-      case 'investment-plans':
-        return renderInvestmentPlans();
+        case 'kyc':
+          return renderKyc();
 
-      case 'signal-plans':
-        return renderSignalPlans();
+        case 'investment-plans':
+          return renderInvestmentPlans();
 
-      case 'payment-methods':
-        return renderPaymentMethods();
+        case 'signal-plans':
+          return renderSignalPlans();
 
-      case 'dashboard':
-      default:
-        return renderDashboard();
-    }
-  };
+        case 'payment-methods':
+          return renderPaymentMethods();
+
+        case 'accounts':
+          return renderUsers();
+
+        case 'dashboard':
+        default:
+          return renderDashboard();
+      }
+    };
 
 
   // ==========================================================
@@ -3382,162 +3761,91 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   return (
     <Box
       sx={{
-        display: 'flex',
         minHeight: '100vh',
         backgroundColor:
           'background.default',
       }}
     >
 
-      {/* DESKTOP DRAWER */}
-      <Box
-        component="nav"
-        sx={{
-          width: {
-            md: 260,
-          },
-          flexShrink: {
-            md: 0,
-          },
-          display: {
-            xs: 'none',
-            md: 'block',
-          },
-        }}
+      {/* ======================================================
+          TOP BAR
+      ====================================================== */}
+
+      <AppBar
+        position="sticky"
+        color="inherit"
+        elevation={1}
       >
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: {
-              xs: 'none',
-              md: 'block',
-            },
-            '& .MuiDrawer-paper': {
-              width: 260,
-              boxSizing: 'border-box',
-            },
-          }}
-          open
-        >
-          {drawerContent}
-        </Drawer>
-      </Box>
+        <Toolbar>
 
+          <Typography
+            sx={{
+              flexGrow: 1,
+              fontWeight: 800,
+            }}
+          >
+            Administrator
+          </Typography>
 
-      {/* MOBILE DRAWER */}
-      <Drawer
-        open={mobileOpen}
-        onClose={() =>
-          setMobileOpen(false)
-        }
-        sx={{
-          display: {
-            xs: 'block',
-            md: 'none',
-          },
-          '& .MuiDrawer-paper': {
-            width: 280,
-          },
-        }}
-      >
-        {drawerContent}
-      </Drawer>
+          <IconButton
+            onClick={refreshData}
+            disabled={loading}
+          >
+            <Refresh />
+          </IconButton>
 
+          <IconButton
+            onClick={logout}
+          >
+            <Logout />
+          </IconButton>
 
-      {/* MAIN */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          width: {
-            md: `calc(100% - 260px)`,
-          },
-        }}
-      >
-
-        <AppBar
-          position="sticky"
-          color="inherit"
-          elevation={1}
-        >
-          <Toolbar>
-            <IconButton
-              edge="start"
-              onClick={() =>
-                setMobileOpen(true)
-              }
-              sx={{
-                mr: 1,
-                display: {
-                  md: 'none',
-                },
-              }}
-            >
-              <Menu />
-            </IconButton>
-
-            <Typography
-              sx={{
-                flexGrow: 1,
-                fontWeight: 800,
-              }}
-            >
-              Administrator
-            </Typography>
-
-            <IconButton
-              onClick={refreshData}
-              disabled={loading}
-            >
-              <Refresh />
-            </IconButton>
-
-            <IconButton>
-              <Settings />
-            </IconButton>
-          </Toolbar>
-        </AppBar>
-
-
-        <Container
-          maxWidth="xl"
-          sx={{
-            py: 3,
-          }}
-        >
-
-          {error && (
-            <Alert
-              severity="error"
-              sx={{ mb: 2 }}
-              onClose={() =>
-                setError('')
-              }
-            >
-              {error}
-            </Alert>
-          )}
-
-          {loading && (
-            <Box
-              sx={{
-                display: 'flex',
-                justifyContent:
-                  'center',
-                py: 3,
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          )}
-
-          {renderSection()}
-        </Container>
-      </Box>
+        </Toolbar>
+      </AppBar>
 
 
       {/* ======================================================
-          USER DETAILS DIALOG
+          CONTENT
+      ====================================================== */}
+
+      <Container
+        maxWidth="xl"
+        sx={{
+          py: 3,
+        }}
+      >
+
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 2 }}
+            onClose={() =>
+              setError('')
+            }
+          >
+            {error}
+          </Alert>
+        )}
+
+        {loading && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'center',
+              py: 3,
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
+
+        {renderSection()}
+
+      </Container>
+
+
+      {/* ======================================================
+          USER DETAILS
       ====================================================== */}
 
       <Dialog
@@ -3548,17 +3856,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fullWidth
         maxWidth="md"
       >
+
         <DialogTitle>
           User Details
         </DialogTitle>
 
         <DialogContent dividers>
+
           {userLoading ? (
             <Box
               sx={{
                 display: 'flex',
-                justifyContent:
-                  'center',
+                justifyContent: 'center',
                 py: 5,
               }}
             >
@@ -3566,33 +3875,60 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </Box>
           ) : selectedUser ? (
             <Stack spacing={3}>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+
+              <Grid
+                container
+                spacing={2}
+              >
+
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
                     Name
                   </Typography>
 
-                  <Typography fontWeight={700}>
-                    {selectedUser.firstName}{' '}
-                    {selectedUser.lastName}
+                  <Typography
+                    fontWeight={700}
+                  >
+                    {
+                      selectedUser.firstName
+                    }{' '}
+                    {
+                      selectedUser.lastName
+                    }
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
                     Email
                   </Typography>
 
-                  <Typography fontWeight={700}>
-                    {selectedUser.email}
+                  <Typography
+                    fontWeight={700}
+                  >
+                    {
+                      selectedUser.email
+                    }
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
@@ -3600,12 +3936,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </Typography>
 
                   <Typography>
-                    {selectedUser.username ||
-                      '—'}
+                    {
+                      selectedUser.username ||
+                      '—'
+                    }
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
@@ -3613,12 +3955,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </Typography>
 
                   <Typography>
-                    {selectedUser.phone ||
-                      '—'}
+                    {
+                      selectedUser.phone ||
+                      '—'
+                    }
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
@@ -3626,12 +3974,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </Typography>
 
                   <Typography>
-                    {selectedUser.country ||
-                      '—'}
+                    {
+                      selectedUser.country ||
+                      '—'
+                    }
                   </Typography>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                >
                   <Typography
                     color="text.secondary"
                   >
@@ -3648,6 +4002,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     )}
                   />
                 </Grid>
+
               </Grid>
 
               <Divider />
@@ -3660,23 +4015,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </Typography>
 
               {selectedUser.account ? (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
+                <Grid
+                  container
+                  spacing={2}
+                >
+
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
                       Account Number
                     </Typography>
 
-                    <Typography fontWeight={700}>
+                    <Typography
+                      fontWeight={700}
+                    >
                       {
                         selectedUser.account
-                          .accountNumber
+                          .accountNumber ||
+                        '—'
                       }
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
@@ -3686,12 +4056,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <Typography>
                       {
                         selectedUser.account
-                          .currency
+                          .currency ||
+                        'USD'
                       }
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
@@ -3712,7 +4087,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
@@ -3733,7 +4112,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
@@ -3751,7 +4134,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </Typography>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
+                  <Grid
+                    item
+                    xs={12}
+                    sm={6}
+                  >
                     <Typography
                       color="text.secondary"
                     >
@@ -3768,6 +4155,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       )}
                     </Typography>
                   </Grid>
+
                 </Grid>
               ) : (
                 <Alert severity="warning">
@@ -3789,6 +4177,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 flexWrap="wrap"
                 gap={1}
               >
+
                 <Button
                   color="success"
                   variant="contained"
@@ -3878,9 +4267,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 >
                   Manage Signal
                 </Button>
+
               </Stack>
+
             </Stack>
           ) : null}
+
         </DialogContent>
 
         <DialogActions>
@@ -3892,11 +4284,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             Close
           </Button>
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          FUND / DEBIT DIALOG
+          FUND / DEBIT
       ====================================================== */}
 
       <Dialog
@@ -3911,6 +4304,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           {moneyDialog.type === 'fund'
             ? 'Fund User Account'
@@ -3918,11 +4312,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </DialogTitle>
 
         <DialogContent dividers>
+
           <Stack spacing={2}>
+
             <Alert
               severity={
-                moneyDialog.type ===
-                'fund'
+                moneyDialog.type === 'fund'
                   ? 'info'
                   : 'warning'
               }
@@ -3937,9 +4332,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               label="Amount"
               type="number"
               value={moneyAmount}
-              onChange={(e) =>
+              onChange={(event) =>
                 setMoneyAmount(
-                  e.target.value
+                  event.target.value
                 )
               }
               inputProps={{
@@ -3952,9 +4347,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               fullWidth
               label="Currency"
               value={moneyCurrency}
-              onChange={(e) =>
+              onChange={(event) =>
                 setMoneyCurrency(
-                  e.target.value
+                  event.target.value
                 )
               }
             />
@@ -3965,16 +4360,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               minRows={3}
               label="Description"
               value={moneyDescription}
-              onChange={(e) =>
+              onChange={(event) =>
                 setMoneyDescription(
-                  e.target.value
+                  event.target.value
                 )
               }
             />
+
           </Stack>
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setMoneyDialog({
@@ -3990,8 +4388,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <Button
             variant="contained"
             color={
-              moneyDialog.type ===
-              'fund'
+              moneyDialog.type === 'fund'
                 ? 'success'
                 : 'warning'
             }
@@ -4009,12 +4406,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Debit Account'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          TRANSACTION STATUS DIALOG
+          TRANSACTION STATUS
       ====================================================== */}
 
       <Dialog
@@ -4025,16 +4424,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           Update Transaction
         </DialogTitle>
 
         <DialogContent dividers>
+
           <Stack spacing={2}>
+
             {selectedTransaction && (
               <Alert severity="info">
                 Transaction #
-                {selectedTransaction.id}
+                {
+                  selectedTransaction.id
+                }
                 {' — '}
                 {formatMoney(
                   selectedTransaction.amount,
@@ -4051,10 +4455,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               <Select
                 label="Status"
-                value={transactionStatus}
-                onChange={(e) =>
+                value={
+                  transactionStatus
+                }
+                onChange={(event) =>
                   setTransactionStatus(
-                    e.target
+                    event.target
                       .value as TransactionStatus
                   )
                 }
@@ -4086,17 +4492,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               multiline
               minRows={3}
               label="Admin Note"
-              value={transactionNote}
-              onChange={(e) =>
+              value={
+                transactionNote
+              }
+              onChange={(event) =>
                 setTransactionNote(
-                  e.target.value
+                  event.target.value
                 )
               }
             />
+
           </Stack>
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setTransactionDialogOpen(
@@ -4112,7 +4523,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={
               updateTransaction
             }
-            disabled={transactionLoading}
+            disabled={
+              transactionLoading
+            }
           >
             {transactionLoading ? (
               <CircularProgress size={22} />
@@ -4120,22 +4533,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Save Status'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          INVESTMENT PLAN DIALOG
+          INVESTMENT PLAN
       ====================================================== */}
 
       <Dialog
         open={investmentDialogOpen}
         onClose={() =>
-          setInvestmentDialogOpen(false)
+          setInvestmentDialogOpen(
+            false
+          )
         }
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           {editingInvestmentPlan
             ? 'Edit Investment Plan'
@@ -4143,17 +4561,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </DialogTitle>
 
         <DialogContent dividers>
+
           <Stack spacing={2}>
+
             <TextField
               fullWidth
               label="Plan Name"
               value={
                 investmentForm.name
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
-                  name: e.target.value,
+                  name:
+                    event.target.value,
                 })
               }
             />
@@ -4166,11 +4587,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 investmentForm.description
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
                   description:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4182,11 +4603,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 investmentForm.minimumAmount
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
                   minimumAmount:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4198,11 +4619,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 investmentForm.maximumAmount
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
                   maximumAmount:
-                    e.target.value,
+                    event.target.value,
                 })
               }
               helperText="Leave blank for no maximum."
@@ -4215,11 +4636,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 investmentForm.roiPercent
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
                   roiPercent:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4231,11 +4652,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 investmentForm.durationDays
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setInvestmentForm({
                   ...investmentForm,
                   durationDays:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4250,11 +4671,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   investmentForm.status
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setInvestmentForm({
                     ...investmentForm,
                     status:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               >
@@ -4267,10 +4688,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </MenuItem>
               </Select>
             </FormControl>
+
           </Stack>
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setInvestmentDialogOpen(
@@ -4296,12 +4720,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Save Plan'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          SIGNAL PLAN DIALOG
+          SIGNAL PLAN
       ====================================================== */}
 
       <Dialog
@@ -4312,6 +4738,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           {editingSignalPlan
             ? 'Edit Signal Plan'
@@ -4319,17 +4746,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </DialogTitle>
 
         <DialogContent dividers>
+
           <Stack spacing={2}>
+
             <TextField
               fullWidth
               label="Signal Plan Name"
               value={
                 signalForm.name
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
-                  name: e.target.value,
+                  name:
+                    event.target.value,
                 })
               }
             />
@@ -4342,11 +4772,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.description
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   description:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4358,11 +4788,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.strength
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   strength:
-                    e.target.value,
+                    event.target.value,
                 })
               }
               inputProps={{
@@ -4378,11 +4808,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.accuracyPercent
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   accuracyPercent:
-                    e.target.value,
+                    event.target.value,
                 })
               }
               inputProps={{
@@ -4398,11 +4828,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.durationDays
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   durationDays:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4414,11 +4844,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.price
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   price:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4429,11 +4859,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               value={
                 signalForm.currency
               }
-              onChange={(e) =>
+              onChange={(event) =>
                 setSignalForm({
                   ...signalForm,
                   currency:
-                    e.target.value,
+                    event.target.value,
                 })
               }
             />
@@ -4448,11 +4878,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   signalForm.status
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setSignalForm({
                     ...signalForm,
                     status:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               >
@@ -4465,10 +4895,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </MenuItem>
               </Select>
             </FormControl>
+
           </Stack>
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setSignalDialogOpen(false)
@@ -4482,7 +4915,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={
               saveSignalPlan
             }
-            disabled={signalLoading}
+            disabled={
+              signalLoading
+            }
           >
             {signalLoading ? (
               <CircularProgress size={22} />
@@ -4490,33 +4925,38 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Save Signal Plan'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          USER SIGNAL DIALOG
+          USER SIGNAL
       ====================================================== */}
 
       <Dialog
         open={userSignalDialogOpen}
         onClose={() =>
-          setUserSignalDialogOpen(false)
+          setUserSignalDialogOpen(
+            false
+          )
         }
         fullWidth
         maxWidth="sm"
       >
+
         <DialogTitle>
           Manage User Signal
         </DialogTitle>
 
         <DialogContent dividers>
+
           {userSignalLoading ? (
             <Box
               sx={{
                 display: 'flex',
-                justifyContent:
-                  'center',
+                justifyContent: 'center',
                 py: 5,
               }}
             >
@@ -4524,10 +4964,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </Box>
           ) : (
             <Stack spacing={2}>
+
               <Alert severity="info">
                 User:{' '}
-                {userSignalUser?.email ||
-                  ''}
+                {
+                  userSignalUser?.email ||
+                  ''
+                }
               </Alert>
 
               <FormControl fullWidth>
@@ -4540,12 +4983,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   value={
                     userSignalPlanId
                   }
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setUserSignalPlanId(
-                      e.target.value
+                      event.target.value
                     )
                   }
                 >
+
                   <MenuItem value="">
                     No Signal Plan
                   </MenuItem>
@@ -4558,17 +5002,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         ).toUpperCase() ===
                         'ACTIVE'
                     )
-                    .map((plan) => (
-                      <MenuItem
-                        key={plan.id}
-                        value={String(
-                          plan.id
-                        )}
-                      >
-                        {plan.name} —{' '}
-                        {plan.strength}%
-                      </MenuItem>
-                    ))}
+                    .map(
+                      (plan) => (
+                        <MenuItem
+                          key={
+                            plan.id
+                          }
+                          value={String(
+                            plan.id
+                          )}
+                        >
+                          {plan.name}
+                          {' — '}
+                          {
+                            plan.strength
+                          }%
+                        </MenuItem>
+                      )
+                    )}
+
                 </Select>
               </FormControl>
 
@@ -4579,9 +5031,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   userSignalStrength
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setUserSignalStrength(
-                    e.target.value
+                    event.target.value
                   )
                 }
                 inputProps={{
@@ -4602,9 +5054,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       ? 'ACTIVE'
                       : 'INACTIVE'
                   }
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setUserSignalEnabled(
-                      e.target.value ===
+                      event.target.value ===
                         'ACTIVE'
                     )
                   }
@@ -4627,9 +5079,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   userSignalNote
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setUserSignalNote(
-                    e.target.value
+                    event.target.value
                   )
                 }
               />
@@ -4637,16 +5089,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {userSignal && (
                 <Alert severity="success">
                   Current signal:{' '}
-                  {userSignal.strength}%
+                  {
+                    userSignal.strength
+                  }%
                   {' — '}
-                  {userSignal.status}
+                  {
+                    userSignal.status
+                  }
                 </Alert>
               )}
+
             </Stack>
           )}
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setUserSignalDialogOpen(
@@ -4662,7 +5121,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={
               saveUserSignal
             }
-            disabled={userSignalLoading}
+            disabled={
+              userSignalLoading
+            }
           >
             {userSignalLoading ? (
               <CircularProgress size={22} />
@@ -4670,12 +5131,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Save Signal'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          PAYMENT METHOD DIALOG
+          PAYMENT METHOD
       ====================================================== */}
 
       <Dialog
@@ -4686,6 +5149,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fullWidth
         maxWidth="md"
       >
+
         <DialogTitle>
           {editingPaymentMethod
             ? 'Edit Payment Method'
@@ -4693,127 +5157,161 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </DialogTitle>
 
         <DialogContent dividers>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+
+          <Grid
+            container
+            spacing={2}
+          >
+
+            <Grid
+              item
+              xs={12}
+              sm={6}
+            >
               <TextField
                 fullWidth
                 label="Name"
                 value={
                   paymentForm.name
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     name:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12} sm={3}>
+            <Grid
+              item
+              xs={12}
+              sm={3}
+            >
               <TextField
                 fullWidth
                 label="Type"
                 value={
                   paymentForm.type
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     type:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12} sm={3}>
+            <Grid
+              item
+              xs={12}
+              sm={3}
+            >
               <TextField
                 fullWidth
                 label="Currency"
                 value={
                   paymentForm.currency
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     currency:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid
+              item
+              xs={12}
+              sm={6}
+            >
               <TextField
                 fullWidth
                 label="Bank Name"
                 value={
                   paymentForm.bankName
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     bankName:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid
+              item
+              xs={12}
+              sm={6}
+            >
               <TextField
                 fullWidth
                 label="Account Name"
                 value={
                   paymentForm.accountName
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     accountName:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid
+              item
+              xs={12}
+            >
               <TextField
                 fullWidth
                 label="Account Number"
                 value={
                   paymentForm.accountNumber
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     accountNumber:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid
+              item
+              xs={12}
+            >
               <TextField
                 fullWidth
                 label="Wallet Address"
                 value={
                   paymentForm.walletAddress
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     walletAddress:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid
+              item
+              xs={12}
+            >
               <TextField
                 fullWidth
                 multiline
@@ -4822,17 +5320,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   paymentForm.details
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     details:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid
+              item
+              xs={12}
+            >
               <TextField
                 fullWidth
                 multiline
@@ -4841,17 +5342,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 value={
                   paymentForm.instructions
                 }
-                onChange={(e) =>
+                onChange={(event) =>
                   setPaymentForm({
                     ...paymentForm,
                     instructions:
-                      e.target.value,
+                      event.target.value,
                   })
                 }
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid
+              item
+              xs={12}
+            >
               <FormControl fullWidth>
                 <InputLabel>
                   Status
@@ -4862,11 +5366,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   value={
                     paymentForm.status
                   }
-                  onChange={(e) =>
+                  onChange={(event) =>
                     setPaymentForm({
                       ...paymentForm,
                       status:
-                        e.target.value,
+                        event.target.value,
                     })
                   }
                 >
@@ -4880,10 +5384,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </Select>
               </FormControl>
             </Grid>
+
           </Grid>
+
         </DialogContent>
 
         <DialogActions>
+
           <Button
             onClick={() =>
               setPaymentDialogOpen(
@@ -4899,7 +5406,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             onClick={
               savePaymentMethod
             }
-            disabled={paymentLoading}
+            disabled={
+              paymentLoading
+            }
           >
             {paymentLoading ? (
               <CircularProgress size={22} />
@@ -4907,12 +5416,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
               'Save Payment Method'
             )}
           </Button>
+
         </DialogActions>
+
       </Dialog>
 
 
       {/* ======================================================
-          NOTIFICATIONS
+          SUCCESS MESSAGE
       ====================================================== */}
 
       <Snackbar
