@@ -252,36 +252,46 @@ interface PaymentMethod {
 // API
 // ============================================================
 
+
+
 const API_BASE =
+
   String(
+
     process.env.REACT_APP_API_URL || ''
+
   ).replace(/\/$/, '');
 
 const api = axios.create({
-  baseURL: API_BASE,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
-const api = axios.create({
   baseURL: API_BASE,
+
   headers: {
+
     'Content-Type': 'application/json',
+
   },
+
 });
 
 api.interceptors.request.use((config) => {
+
   const token =
+
     localStorage.getItem('adminToken') ||
+
     localStorage.getItem('accessToken') ||
+
     localStorage.getItem('token');
 
   if (token) {
+
     config.headers.Authorization = `Bearer ${token}`;
+
   }
 
   return config;
+
 });
 
 
