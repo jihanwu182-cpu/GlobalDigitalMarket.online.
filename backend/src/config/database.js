@@ -486,12 +486,37 @@ const initializeDatabase = async () => {
             'PROCESSING',
             'COMPLETED',
             'FAILED',
-            'CANCELLED'
+            'CANCELLED',
+            'REVERSED'
           )
         ),
 
         CONSTRAINT transactions_amount_check
         CHECK (amount > 0)
+      );
+    `);
+
+    // ========================================================
+    // TRANSACTION STATUS MIGRATION
+    // ========================================================
+
+    await pool.query(`
+      ALTER TABLE transactions
+      DROP CONSTRAINT IF EXISTS transactions_status_check;
+    `);
+
+    await pool.query(`
+      ALTER TABLE transactions
+      ADD CONSTRAINT transactions_status_check
+      CHECK (
+        status IN (
+          'PENDING',
+          'PROCESSING',
+          'COMPLETED',
+          'FAILED',
+          'CANCELLED',
+          'REVERSED'
+        )
       );
     `);
 
@@ -522,12 +547,24 @@ const initializeDatabase = async () => {
     // ========================================================
     // WITHDRAWAL CODES
     // ========================================================
+    //
+    // IMPORTANT WORKFLOW:
+    //
+    // ADMIN generates the code first.
+    //
+    // transaction_id is therefore allowed to be NULL
+    // until the user submits the withdrawal request.
+    //
+    // The actual code is NEVER stored as plain text.
+    // Only code_hash is stored.
+    //
+    // ========================================================
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS withdrawal_codes (
         id SERIAL PRIMARY KEY,
 
-        transaction_id INTEGER NOT NULL
+        transaction_id INTEGER
           REFERENCES transactions(id)
           ON DELETE CASCADE,
 
@@ -544,21 +581,61 @@ const initializeDatabase = async () => {
 
         used_at TIMESTAMP,
 
-        generated_by INTEGER,
+        generated_by INTEGER
+          REFERENCES users(id)
+          ON DELETE SET NULL,
 
         created_at TIMESTAMP
           NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
+    // ========================================================
+    // WITHDRAWAL CODE MIGRATIONS
+    // ========================================================
+
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_transaction
+      ALTER TABLE withdrawal_codes
+      ALTER COLUMN transaction_id DROP NOT NULL;
+    `);
+
+    await pool.query(`
+      ALTER TABLE withdrawal_codes
+      ADD COLUMN IF NOT EXISTS generated_by INTEGER;
+    `);
+
+    await pool.query(`
+      ALTER TABLE withdrawal_codes
+      ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE withdrawal_codes
+      ADD COLUMN IF NOT EXISTS used_at TIMESTAMP;
+    `);
+
+    await pool.query(`
+      ALTER TABLE withdrawal_codes
+      ADD COLUMN IF NOT EXISTS created_at TIMESTAMP
+      DEFAULT CURRENT_TIMESTAMP;
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_withdrawal_codes_transaction
       ON withdrawal_codes(transaction_id);
     `);
 
     await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_user
+      CREATE INDEX IF NOT EXISTS
+      idx_withdrawal_codes_user
       ON withdrawal_codes(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_withdrawal_codes_active_user
+      ON withdrawal_codes(user_id, status);
     `);
 
     logger.info(
@@ -617,7 +694,6 @@ const initializeDatabase = async () => {
 
     // ========================================================
     // INVESTMENT PLANS
-    // ADMIN CREATES THESE
     // ========================================================
 
     await pool.query(`
@@ -783,7 +859,6 @@ const initializeDatabase = async () => {
 
     // ========================================================
     // SIGNAL PLANS
-    // ADMIN CREATES THESE
     // ========================================================
 
     await pool.query(`
@@ -875,7 +950,6 @@ const initializeDatabase = async () => {
 
     // ========================================================
     // USER SIGNAL SETTINGS
-    // ADMIN CAN CONTROL USER SIGNAL STRENGTH
     // ========================================================
 
     await pool.query(`
@@ -942,7 +1016,6 @@ const initializeDatabase = async () => {
 
     // ========================================================
     // NOTIFICATIONS
-    // ADMIN CAN SEND NOTIFICATIONS TO USERS
     // ========================================================
 
     await pool.query(`
@@ -1104,8 +1177,12 @@ const initializeDatabase = async () => {
       ON email_logs(created_at DESC);
     `);
 
+    logger.info(
+      'Email logs table is ready'
+    );
+
     // ========================================================
-    // ADMIN IMPERSONATION / USER LOGIN AUDIT
+    // ADMIN USER ACCESS LOG
     // ========================================================
 
     await pool.query(`
