@@ -185,10 +185,12 @@ const Login: React.FC = () => {
         );
 
       setSuccessMessage(
-        safeSuccessMessage
-      );
+  safeSuccessMessage
+);
 
-      setLoading(false);
+setLoading(false);
+
+navigate('/dashboard');
 
     } catch (error: unknown) {
       console.error(
