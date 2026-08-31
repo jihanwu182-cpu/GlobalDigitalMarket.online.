@@ -36,7 +36,6 @@ import ContactSupport from './pages/ContactSupport';
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import AdminLayout from './layouts/AdminLayout';
 
 // ============================================================
 // PROTECTED USER ROUTE
@@ -46,21 +45,13 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-const ProtectedRoute: React.FC<
-  ProtectedRouteProps
-> = ({ children }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+}) => {
   const token =
     localStorage.getItem('authToken') ||
     localStorage.getItem('accessToken') ||
     localStorage.getItem('token');
-
-  /*
-   * The login page stores the token as:
-   *
-   * localStorage.setItem('authToken', data.accessToken)
-   *
-   * Therefore authToken is checked first.
-   */
 
   if (!token) {
     return (
@@ -82,13 +73,13 @@ interface AdminSectionProps {
   tab: number;
 }
 
-const AdminSection: React.FC<
-  AdminSectionProps
-> = ({ tab }) => {
+const AdminSection: React.FC<AdminSectionProps> = ({
+  tab,
+}) => {
   return (
-    <AdminLayout>
-      <AdminDashboard initialTab={tab} />
-    </AdminLayout>
+    <AdminDashboard
+      initialTab={tab}
+    />
   );
 };
 
@@ -231,8 +222,7 @@ class ErrorBoundary extends React.Component<
               onClick={this.handleHome}
               style={{
                 padding: '12px 20px',
-                border:
-                  '1px solid #1976d2',
+                border: '1px solid #1976d2',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 background: '#ffffff',
@@ -396,10 +386,6 @@ const App: React.FC = () => {
               }
             />
 
-            {/* ==================================================
-                SETTINGS
-            ================================================== */}
-
             <Route
               path="/settings"
               element={
@@ -439,51 +425,18 @@ const App: React.FC = () => {
             <Route
               path="/admin/users"
               element={
-                <AdminSection tab={0} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN ACCOUNTS
-            ================================================== */}
-
-            <Route
-              path="/admin/accounts"
-              element={
-                <AdminSection tab={7} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN KYC
-            ================================================== */}
-
-            <Route
-              path="/admin/kyc"
-              element={
-                <AdminSection tab={4} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN DEPOSITS
-            ================================================== */}
-
-            <Route
-              path="/admin/deposits"
-              element={
                 <AdminSection tab={1} />
               }
             />
 
             {/* ==================================================
-                ADMIN WITHDRAWALS
+                ADMIN ACCOUNTS / FUNDING
             ================================================== */}
 
             <Route
-              path="/admin/withdrawals"
+              path="/admin/accounts"
               element={
-                <AdminSection tab={2} />
+                <AdminSection tab={1} />
               }
             />
 
@@ -494,7 +447,40 @@ const App: React.FC = () => {
             <Route
               path="/admin/transactions"
               element={
+                <AdminSection tab={2} />
+              }
+            />
+
+            {/* ==================================================
+                ADMIN DEPOSITS
+            ================================================== */}
+
+            <Route
+              path="/admin/deposits"
+              element={
                 <AdminSection tab={3} />
+              }
+            />
+
+            {/* ==================================================
+                ADMIN WITHDRAWALS
+            ================================================== */}
+
+            <Route
+              path="/admin/withdrawals"
+              element={
+                <AdminSection tab={4} />
+              }
+            />
+
+            {/* ==================================================
+                ADMIN KYC
+            ================================================== */}
+
+            <Route
+              path="/admin/kyc"
+              element={
+                <AdminSection tab={5} />
               }
             />
 
@@ -505,7 +491,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/investments"
               element={
-                <AdminSection tab={5} />
+                <AdminSection tab={6} />
               }
             />
 
@@ -516,40 +502,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/signals"
               element={
-                <AdminSection tab={6} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN EMAIL
-            ================================================== */}
-
-            <Route
-              path="/admin/email"
-              element={
-                <AdminSection tab={8} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN NOTIFICATIONS
-            ================================================== */}
-
-            <Route
-              path="/admin/notifications"
-              element={
-                <AdminSection tab={9} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN SETTINGS
-            ================================================== */}
-
-            <Route
-              path="/admin/settings"
-              element={
-                <AdminSection tab={10} />
+                <AdminSection tab={7} />
               }
             />
 
@@ -560,7 +513,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/settings/payment-methods"
               element={
-                <AdminSection tab={11} />
+                <AdminSection tab={8} />
               }
             />
 
