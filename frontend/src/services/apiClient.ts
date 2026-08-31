@@ -1,8 +1,11 @@
 import axios from 'axios';
 
-const API_URL =
+const RAW_API_URL =
   process.env.REACT_APP_API_URL ||
-  'https://globalmarket-com.onrender.com/api';
+  'https://globalmarket-com.onrender.com/';
+
+// Always make sure the API URL ends with /api
+const API_URL = `${RAW_API_URL.replace(/\/+$/, '')}/api`;
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -42,21 +45,16 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // ADD AUTHORIZATION HEADER
+    // AUTHORIZATION HEADER
     // ========================================================
 
-    if (token && config.headers) {
+    if (token) {
       config.headers.Authorization =
         `Bearer ${token}`;
     }
 
     // ========================================================
     // FORM DATA
-    // ========================================================
-    // IMPORTANT:
-    // Do NOT manually set Content-Type for FormData.
-    // The browser/Axios will automatically add:
-    // multipart/form-data; boundary=...
     // ========================================================
 
     if (
@@ -70,7 +68,7 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // NORMAL JSON REQUESTS
+    // JSON REQUESTS
     // ========================================================
 
     else {
