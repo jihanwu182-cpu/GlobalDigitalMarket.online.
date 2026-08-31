@@ -14,6 +14,7 @@ import {
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import CandlestickChartIcon from '@mui/icons-material/CandlestickChart';
 
 import { useNavigate } from 'react-router-dom';
@@ -23,10 +24,11 @@ interface Holding {
   id: string | number;
   symbol: string;
   quantity: number;
-  avgCost: number;
+  averageCost: number;
   currentPrice: number;
   marketValue: number;
-  gain: number;
+  gainLoss: number;
+  gainLossPercent: number;
 }
 
 interface PortfolioState {
@@ -51,89 +53,101 @@ const Portfolio: React.FC = () => {
         setLoading(true);
         setError('');
 
-        const response = await apiClient.get('/portfolio');
+        /*
+         * The backend does NOT have:
+         * GET /portfolio
+         *
+         * It has:
+         * GET /portfolio/holdings
+         * GET /portfolio/account
+         */
 
-        const data = response.data || {};
-        const source = data.portfolio || data.data || data;
+        const [holdingsResponse, accountResponse] =
+          await Promise.all([
+            apiClient.get('/portfolio/holdings'),
+            apiClient.get('/portfolio/account'),
+          ]);
 
-        const rawHoldings = Array.isArray(source.holdings)
-          ? source.holdings
-          : Array.isArray(source.positions)
-          ? source.positions
+        const rawHoldings = Array.isArray(
+          holdingsResponse.data?.holdings
+        )
+          ? holdingsResponse.data.holdings
           : [];
 
         const holdings: Holding[] = rawHoldings
           .map((item: any, index: number) => {
-            const quantity = Number(item.quantity || item.qty || 0);
+            const quantity = Number(item.quantity || 0);
 
-            const avgCost = Number(
-              item.avgCost ||
-                item.averageCost ||
-                item.average_price ||
-                0
+            const averageCost = Number(
+              item.average_cost || 0
             );
 
             const currentPrice = Number(
-              item.currentPrice ||
-                item.current_price ||
-                item.price ||
-                0
+              item.current_price || 0
             );
 
             const marketValue = Number(
-              item.marketValue ||
-                item.market_value ||
-                item.value ||
-                quantity * currentPrice
+              item.market_value || 0
             );
 
-            const gain = Number(
-              item.gain ||
-                item.profitLoss ||
-                item.profit_loss ||
-                marketValue - quantity * avgCost
+            const gainLoss = Number(
+              item.gain_loss || 0
+            );
+
+            const gainLossPercent = Number(
+              item.gain_loss_percent || 0
             );
 
             return {
-              id: item.id || item._id || index,
-              symbol: String(
-                item.symbol ||
-                  item.asset ||
-                  item.ticker ||
-                  ''
-              ),
+              id: item.id || index,
+              symbol: String(item.symbol || ''),
               quantity,
-              avgCost,
+              averageCost,
               currentPrice,
               marketValue,
-              gain,
+              gainLoss,
+              gainLossPercent,
             };
           })
-          .filter((item: Holding) => item.symbol !== '');
+          .filter(
+            (item: Holding) =>
+              item.symbol.trim() !== ''
+          );
+
+        const account =
+          accountResponse.data?.account || null;
 
         const cashAvailable = Number(
-          source.availableBalance ||
-            source.available_balance ||
-            source.cashAvailable ||
-            source.cash_available ||
-            0
+          account?.availableBalance || 0
         );
 
         setPortfolio({
           holdings,
           cashAvailable,
         });
-      } catch (err) {
-        console.error('Portfolio error:', err);
+      } catch (err: any) {
+        console.error(
+          'Portfolio loading error:',
+          err
+        );
+
+        if (
+          err?.response?.status === 401
+        ) {
+          setError(
+            'Your login session has expired. Please login again.'
+          );
+        } else {
+          setError(
+            err?.response?.data?.message ||
+              'Your portfolio data is currently unavailable.'
+          );
+        }
 
         setPortfolio({
           holdings: [],
           cashAvailable: 0,
         });
-
-        setError(
-          'Your portfolio data is currently unavailable.'
-        );
       } finally {
         setLoading(false);
       }
@@ -142,21 +156,28 @@ const Portfolio: React.FC = () => {
     loadPortfolio();
   }, []);
 
-  const totalValue = portfolio.holdings.reduce(
-    (total, holding) => total + holding.marketValue,
-    0
-  );
+  const totalValue =
+    portfolio.holdings.reduce(
+      (total, holding) =>
+        total + holding.marketValue,
+      0
+    );
 
-  const totalGain = portfolio.holdings.reduce(
-    (total, holding) => total + holding.gain,
-    0
-  );
+  const totalGain =
+    portfolio.holdings.reduce(
+      (total, holding) =>
+        total + holding.gainLoss,
+      0
+    );
 
-  const investedAmount = portfolio.holdings.reduce(
-    (total, holding) =>
-      total + holding.quantity * holding.avgCost,
-    0
-  );
+  const investedAmount =
+    portfolio.holdings.reduce(
+      (total, holding) =>
+        total +
+        holding.quantity *
+          holding.averageCost,
+      0
+    );
 
   const gainPercentage =
     investedAmount > 0
@@ -164,10 +185,17 @@ const Portfolio: React.FC = () => {
       : 0;
 
   const money = (value: number) => {
-    return `$${value.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
+    if (!Number.isFinite(value)) {
+      return '$0.00';
+    }
+
+    return `$${value.toLocaleString(
+      'en-US',
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }
+    )}`;
   };
 
   if (loading) {
@@ -182,10 +210,21 @@ const Portfolio: React.FC = () => {
             'linear-gradient(180deg, #02071f 0%, #071453 100%)',
         }}
       >
-        <Stack spacing={2} alignItems="center">
-          <CircularProgress sx={{ color: '#5ce8ff' }} />
+        <Stack
+          spacing={2}
+          alignItems="center"
+        >
+          <CircularProgress
+            sx={{
+              color: '#5ce8ff',
+            }}
+          />
 
-          <Typography sx={{ color: '#fff' }}>
+          <Typography
+            sx={{
+              color: '#fff',
+            }}
+          >
             Loading portfolio...
           </Typography>
         </Stack>
@@ -203,18 +242,36 @@ const Portfolio: React.FC = () => {
         pb: 6,
       }}
     >
-      <Container maxWidth="xl" sx={{ pt: 4 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          pt: 4,
+        }}
+      >
+        {/* HEADER */}
+
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
           justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          alignItems={{
+            xs: 'flex-start',
+            sm: 'center',
+          }}
           spacing={2}
-          sx={{ mb: 4 }}
+          sx={{
+            mb: 4,
+          }}
         >
           <Box>
             <Typography
               sx={{
-                fontSize: { xs: 30, md: 42 },
+                fontSize: {
+                  xs: 30,
+                  md: 42,
+                },
                 fontWeight: 900,
               }}
             >
@@ -227,17 +284,24 @@ const Portfolio: React.FC = () => {
                 mt: 0.5,
               }}
             >
-              Your real investment holdings and account assets.
+              Your real investment holdings
+              and account assets.
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={1}>
+          <Stack
+            direction="row"
+            spacing={1}
+          >
             <Button
               variant="outlined"
-              onClick={() => navigate('/wallet')}
+              onClick={() =>
+                navigate('/wallet')
+              }
               sx={{
                 color: '#fff',
-                borderColor: 'rgba(255,255,255,0.35)',
+                borderColor:
+                  'rgba(255,255,255,0.35)',
                 textTransform: 'none',
               }}
             >
@@ -246,8 +310,12 @@ const Portfolio: React.FC = () => {
 
             <Button
               variant="contained"
-              startIcon={<CandlestickChartIcon />}
-              onClick={() => navigate('/trading')}
+              startIcon={
+                <CandlestickChartIcon />
+              }
+              onClick={() =>
+                navigate('/trading')
+              }
               sx={{
                 textTransform: 'none',
                 fontWeight: 800,
@@ -258,18 +326,26 @@ const Portfolio: React.FC = () => {
           </Stack>
         </Stack>
 
+        {/* ERROR */}
+
         {error && (
           <Alert
             severity="info"
             sx={{
               mb: 3,
               color: '#fff',
-              background: 'rgba(33,150,243,0.15)',
+              background:
+                'rgba(33,150,243,0.15)',
             }}
+            onClose={() =>
+              setError('')
+            }
           >
             {error}
           </Alert>
         )}
+
+        {/* STATS */}
 
         <Box
           sx={{
@@ -287,33 +363,62 @@ const Portfolio: React.FC = () => {
             title="Portfolio Value"
             value={money(totalValue)}
             subtitle="Current holdings value"
-            icon={<AccountBalanceWalletIcon />}
+            icon={
+              <AccountBalanceWalletIcon />
+            }
           />
 
           <StatCard
             title="Gain / Loss"
-            value={`${totalGain >= 0 ? '+' : ''}${money(totalGain)}`}
-            subtitle={`${gainPercentage >= 0 ? '+' : ''}${gainPercentage.toFixed(2)}%`}
-            icon={<TrendingUpIcon />}
-            positive={totalGain >= 0}
+            value={`${
+              totalGain >= 0
+                ? '+'
+                : ''
+            }${money(totalGain)}`}
+            subtitle={`${
+              gainPercentage >= 0
+                ? '+'
+                : ''
+            }${gainPercentage.toFixed(2)}%`}
+            icon={
+              totalGain >= 0 ? (
+                <TrendingUpIcon />
+              ) : (
+                <TrendingDownIcon />
+              )
+            }
+            positive={
+              totalGain >= 0
+            }
           />
 
           <StatCard
             title="Holdings"
-            value={String(portfolio.holdings.length)}
+            value={String(
+              portfolio.holdings.length
+            )}
             subtitle="Real portfolio assets"
-            icon={<ShowChartIcon />}
+            icon={
+              <ShowChartIcon />
+            }
           />
 
           <StatCard
             title="Cash Available"
-            value={money(portfolio.cashAvailable)}
+            value={money(
+              portfolio.cashAvailable
+            )}
             subtitle="Available account balance"
-            icon={<AccountBalanceWalletIcon />}
+            icon={
+              <AccountBalanceWalletIcon />
+            }
           />
         </Box>
 
-        {portfolio.holdings.length === 0 ? (
+        {/* HOLDINGS */}
+
+        {portfolio.holdings.length ===
+        0 ? (
           <Card
             sx={{
               borderRadius: 4,
@@ -357,16 +462,21 @@ const Portfolio: React.FC = () => {
                   mb: 3,
                 }}
               >
-                There are currently no real investment
-                holdings in your account. When you make a
-                real investment, your assets will appear
-                here automatically.
+                There are currently no
+                investment holdings in your
+                account. When holdings are
+                added to your account, they
+                will appear here automatically.
               </Typography>
 
               <Button
                 variant="contained"
-                startIcon={<CandlestickChartIcon />}
-                onClick={() => navigate('/trading')}
+                startIcon={
+                  <CandlestickChartIcon />
+                }
+                onClick={() =>
+                  navigate('/trading')
+                }
                 sx={{
                   textTransform: 'none',
                   fontWeight: 800,
@@ -408,6 +518,8 @@ const Portfolio: React.FC = () => {
                     minWidth: 850,
                   }}
                 >
+                  {/* TABLE HEADER */}
+
                   <Box
                     sx={{
                       display: 'grid',
@@ -418,93 +530,131 @@ const Portfolio: React.FC = () => {
                       color: '#8198df',
                       fontSize: 12,
                       fontWeight: 900,
-                      textTransform: 'uppercase',
+                      textTransform:
+                        'uppercase',
                     }}
                   >
-                    <Box>Asset</Box>
-                    <Box>Quantity</Box>
-                    <Box>Average Cost</Box>
-                    <Box>Current Price</Box>
-                    <Box>Value</Box>
-                    <Box>Gain / Loss</Box>
+                    <Box>
+                      Asset
+                    </Box>
+
+                    <Box>
+                      Quantity
+                    </Box>
+
+                    <Box>
+                      Average Cost
+                    </Box>
+
+                    <Box>
+                      Current Price
+                    </Box>
+
+                    <Box>
+                      Value
+                    </Box>
+
+                    <Box>
+                      Gain / Loss
+                    </Box>
                   </Box>
 
-                  {portfolio.holdings.map((holding) => {
-                    const cost =
-                      holding.quantity * holding.avgCost;
+                  {/* HOLDINGS */}
 
-                    const percentage =
-                      cost > 0
-                        ? (holding.gain / cost) * 100
-                        : 0;
-
-                    return (
-                      <Box
-                        key={holding.id}
-                        sx={{
-                          display: 'grid',
-                          gridTemplateColumns:
-                            '1.2fr 1fr 1fr 1fr 1.2fr 1.2fr',
-                          gap: 2,
-                          p: 2,
-                          borderTop:
-                            '1px solid rgba(255,255,255,0.08)',
-                        }}
-                      >
-                        <Typography
+                  {portfolio.holdings.map(
+                    (holding) => {
+                      return (
+                        <Box
+                          key={holding.id}
                           sx={{
-                            fontWeight: 900,
+                            display:
+                              'grid',
+                            gridTemplateColumns:
+                              '1.2fr 1fr 1fr 1fr 1.2fr 1.2fr',
+                            gap: 2,
+                            p: 2,
+                            borderTop:
+                              '1px solid rgba(255,255,255,0.08)',
                           }}
                         >
-                          {holding.symbol}
-                        </Typography>
-
-                        <Typography>
-                          {holding.quantity}
-                        </Typography>
-
-                        <Typography>
-                          {money(holding.avgCost)}
-                        </Typography>
-
-                        <Typography>
-                          {money(holding.currentPrice)}
-                        </Typography>
-
-                        <Typography>
-                          {money(holding.marketValue)}
-                        </Typography>
-
-                        <Box>
                           <Typography
                             sx={{
-                              fontWeight: 800,
-                              color:
-                                holding.gain >= 0
-                                  ? '#4df28d'
-                                  : '#ff6b7a',
+                              fontWeight: 900,
                             }}
                           >
-                            {holding.gain >= 0 ? '+' : ''}
-                            {money(holding.gain)}
+                            {
+                              holding.symbol
+                            }
                           </Typography>
 
-                          <Typography
-                            sx={{
-                              fontSize: 11,
-                              color:
-                                holding.gain >= 0
-                                  ? '#4df28d'
-                                  : '#ff6b7a',
-                            }}
-                          >
-                            {percentage >= 0 ? '+' : ''}
-                            {percentage.toFixed(2)}%
+                          <Typography>
+                            {
+                              holding.quantity
+                            }
                           </Typography>
+
+                          <Typography>
+                            {money(
+                              holding.averageCost
+                            )}
+                          </Typography>
+
+                          <Typography>
+                            {money(
+                              holding.currentPrice
+                            )}
+                          </Typography>
+
+                          <Typography>
+                            {money(
+                              holding.marketValue
+                            )}
+                          </Typography>
+
+                          <Box>
+                            <Typography
+                              sx={{
+                                fontWeight: 800,
+                                color:
+                                  holding.gainLoss >=
+                                  0
+                                    ? '#4df28d'
+                                    : '#ff6b7a',
+                              }}
+                            >
+                              {holding.gainLoss >=
+                              0
+                                ? '+'
+                                : ''}
+                              {money(
+                                holding.gainLoss
+                              )}
+                            </Typography>
+
+                            <Typography
+                              sx={{
+                                fontSize: 11,
+                                color:
+                                  holding.gainLoss >=
+                                  0
+                                    ? '#4df28d'
+                                    : '#ff6b7a',
+                              }}
+                            >
+                              {holding.gainLossPercent >=
+                              0
+                                ? '+'
+                                : ''}
+                              {holding.gainLossPercent.toFixed(
+                                2
+                              )}
+                              %
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
-                    );
-                  })}
+                      );
+                    }
+                  )}
                 </Box>
               </Box>
             </CardContent>
@@ -515,6 +665,10 @@ const Portfolio: React.FC = () => {
   );
 };
 
+/* ============================================================
+   STAT CARD
+============================================================ */
+
 interface StatCardProps {
   title: string;
   value: string;
@@ -523,7 +677,9 @@ interface StatCardProps {
   positive?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({
+const StatCard: React.FC<
+  StatCardProps
+> = ({
   title,
   value,
   subtitle,
@@ -553,7 +709,8 @@ const StatCard: React.FC<StatCardProps> = ({
               color: '#8198df',
               fontSize: 12,
               fontWeight: 800,
-              textTransform: 'uppercase',
+              textTransform:
+                'uppercase',
             }}
           >
             {title}
@@ -561,9 +718,10 @@ const StatCard: React.FC<StatCardProps> = ({
 
           <Box
             sx={{
-              color: positive === false
-                ? '#ff6b7a'
-                : '#5ce8ff',
+              color:
+                positive === false
+                  ? '#ff6b7a'
+                  : '#5ce8ff',
               display: 'flex',
             }}
           >
