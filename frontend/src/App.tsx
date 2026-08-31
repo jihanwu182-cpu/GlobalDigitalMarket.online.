@@ -340,11 +340,7 @@ const App: React.FC = () => {
             <Route
               path="/admin"
               element={
-                <AdminLayout>
-                  <AdminDashboard
-                    initialTab={0}
-                  />
-                </AdminLayout>
+                <AdminSection tab={0} />
               }
             />
 
@@ -360,13 +356,13 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                ADMIN ACCOUNTS
+                ADMIN ACCOUNTS / FUNDING
             ================================================== */}
 
             <Route
               path="/admin/accounts"
               element={
-                <AdminSection tab={0} />
+                <AdminSection tab={7} />
               }
             />
 
@@ -437,13 +433,35 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
+                ADMIN EMAIL
+            ================================================== */}
+
+            <Route
+              path="/admin/email"
+              element={
+                <AdminSection tab={8} />
+              }
+            />
+
+            {/* ==================================================
+                ADMIN NOTIFICATIONS
+            ================================================== */}
+
+            <Route
+              path="/admin/notifications"
+              element={
+                <AdminSection tab={9} />
+              }
+            />
+
+            {/* ==================================================
                 ADMIN SETTINGS
             ================================================== */}
 
             <Route
               path="/admin/settings"
               element={
-                <AdminSection tab={0} />
+                <AdminSection tab={10} />
               }
             />
 
@@ -454,7 +472,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/settings/payment-methods"
               element={
-                <AdminSection tab={0} />
+                <AdminSection tab={11} />
               }
             />
 
