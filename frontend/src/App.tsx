@@ -36,12 +36,43 @@ import ContactSupport from './pages/ContactSupport';
 
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-
-// ============================================================
-// ADMIN LAYOUT
-// ============================================================
-
 import AdminLayout from './layouts/AdminLayout';
+
+// ============================================================
+// PROTECTED USER ROUTE
+// ============================================================
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+}
+
+const ProtectedRoute: React.FC<
+  ProtectedRouteProps
+> = ({ children }) => {
+  const token =
+    localStorage.getItem('authToken') ||
+    localStorage.getItem('accessToken') ||
+    localStorage.getItem('token');
+
+  /*
+   * The login page stores the token as:
+   *
+   * localStorage.setItem('authToken', data.accessToken)
+   *
+   * Therefore authToken is checked first.
+   */
+
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
+  }
+
+  return <>{children}</>;
+};
 
 // ============================================================
 // ADMIN SECTION
@@ -51,9 +82,9 @@ interface AdminSectionProps {
   tab: number;
 }
 
-const AdminSection: React.FC<AdminSectionProps> = ({
-  tab,
-}) => {
+const AdminSection: React.FC<
+  AdminSectionProps
+> = ({ tab }) => {
   return (
     <AdminLayout>
       <AdminDashboard initialTab={tab} />
@@ -78,7 +109,9 @@ class ErrorBoundary extends React.Component<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  constructor(props: ErrorBoundaryProps) {
+  constructor(
+    props: ErrorBoundaryProps
+  ) {
     super(props);
 
     this.state = {
@@ -198,7 +231,8 @@ class ErrorBoundary extends React.Component<
               onClick={this.handleHome}
               style={{
                 padding: '12px 20px',
-                border: '1px solid #1976d2',
+                border:
+                  '1px solid #1976d2',
                 borderRadius: '6px',
                 cursor: 'pointer',
                 background: '#ffffff',
@@ -256,7 +290,7 @@ const App: React.FC = () => {
           <Routes>
 
             {/* ==================================================
-                USER ROUTES
+                PUBLIC USER ROUTES
             ================================================== */}
 
             <Route
@@ -274,53 +308,107 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
+            {/* ==================================================
+                PROTECTED USER ROUTES
+            ================================================== */}
+
             <Route
               path="/dashboard"
-              element={<Dashboard />}
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/profile"
-              element={<Profile />}
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/account-statement"
-              element={<AccountStatement />}
+              element={
+                <ProtectedRoute>
+                  <AccountStatement />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/portfolio"
-              element={<Portfolio />}
+              element={
+                <ProtectedRoute>
+                  <Portfolio />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/wallet"
-              element={<Wallet />}
+              element={
+                <ProtectedRoute>
+                  <Wallet />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/trading"
-              element={<Trading />}
+              element={
+                <ProtectedRoute>
+                  <Trading />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/market"
-              element={<Market />}
+              element={
+                <ProtectedRoute>
+                  <Market />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/support"
-              element={<ContactSupport />}
+              element={
+                <ProtectedRoute>
+                  <ContactSupport />
+                </ProtectedRoute>
+              }
             />
 
             <Route
               path="/security"
               element={
-                <Navigate
-                  to="/profile"
-                  replace
-                />
+                <ProtectedRoute>
+                  <Navigate
+                    to="/profile"
+                    replace
+                  />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ==================================================
+                SETTINGS
+            ================================================== */}
+
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Navigate
+                    to="/profile"
+                    replace
+                  />
+                </ProtectedRoute>
               }
             />
 
@@ -356,7 +444,7 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                ADMIN ACCOUNTS / FUNDING
+                ADMIN ACCOUNTS
             ================================================== */}
 
             <Route
