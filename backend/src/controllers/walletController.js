@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const logger = require('../utils/logger');
+const { comparePassword } = require('../utils/bcrypt');
 
 // ============================================================
 // HELPERS
@@ -78,40 +79,26 @@ const getBalance = async (
           'Active trading account not found.',
 
         balance: 0,
-
         deposit: 0,
-
         profits: 0,
-
         availableBalance: 0,
-
         bonus: 0,
-
         referrerBonus: 0,
-
         buyingPower: 0,
-
         marginAvailable: 0,
-
         currency: 'USD',
       });
     }
 
     return res.status(200).json({
       balance:
-        numberValue(
-          account.balance
-        ),
+        numberValue(account.balance),
 
       deposit:
-        numberValue(
-          account.deposit
-        ),
+        numberValue(account.deposit),
 
       profits:
-        numberValue(
-          account.profits
-        ),
+        numberValue(account.profits),
 
       availableBalance:
         numberValue(
@@ -119,9 +106,7 @@ const getBalance = async (
         ),
 
       bonus:
-        numberValue(
-          account.bonus
-        ),
+        numberValue(account.bonus),
 
       referrerBonus:
         numberValue(
@@ -167,17 +152,6 @@ const getBalance = async (
 // ============================================================
 // DEPOSIT FUNDS
 // ============================================================
-//
-// User submits:
-//
-// {
-//   amount,
-//   method,
-//   proofOfPaymentUrl
-// }
-//
-// Deposit stays PENDING until admin approval.
-// ============================================================
 
 const depositFunds = async (
   req,
@@ -196,14 +170,8 @@ const depositFunds = async (
     const numericAmount =
       Number(amount);
 
-    // --------------------------------------------------------
-    // VALIDATE AMOUNT
-    // --------------------------------------------------------
-
     if (
-      !Number.isFinite(
-        numericAmount
-      ) ||
+      !Number.isFinite(numericAmount) ||
       numericAmount <= 0
     ) {
       return res.status(400).json({
@@ -219,18 +187,12 @@ const depositFunds = async (
       });
     }
 
-    if (
-      numericAmount > 1000000
-    ) {
+    if (numericAmount > 1000000) {
       return res.status(400).json({
         message:
           'Deposit amount exceeds the maximum allowed amount.',
       });
     }
-
-    // --------------------------------------------------------
-    // PAYMENT METHOD
-    // --------------------------------------------------------
 
     if (
       typeof method !== 'string' ||
@@ -242,13 +204,8 @@ const depositFunds = async (
       });
     }
 
-    // --------------------------------------------------------
-    // PROOF OF PAYMENT
-    // --------------------------------------------------------
-
     if (
-      typeof proofOfPaymentUrl !==
-        'string' ||
+      typeof proofOfPaymentUrl !== 'string' ||
       !proofOfPaymentUrl.trim()
     ) {
       return res.status(400).json({
@@ -256,10 +213,6 @@ const depositFunds = async (
           'Proof of payment is required for every deposit.',
       });
     }
-
-    // --------------------------------------------------------
-    // ACCOUNT
-    // --------------------------------------------------------
 
     const account =
       await getAccount(userId);
@@ -275,10 +228,6 @@ const depositFunds = async (
       createTransactionReference(
         'DEPOSIT'
       );
-
-    // --------------------------------------------------------
-    // CREATE PENDING DEPOSIT
-    // --------------------------------------------------------
 
     const result =
       await pool.query(
@@ -328,8 +277,7 @@ const depositFunds = async (
 
           numericAmount.toFixed(2),
 
-          account.currency ||
-            'USD',
+          account.currency || 'USD',
 
           method.trim(),
 
@@ -337,8 +285,7 @@ const depositFunds = async (
 
           JSON.stringify({
             userId,
-            accountId:
-              account.id,
+            accountId: account.id,
           }),
 
           proofOfPaymentUrl.trim(),
@@ -401,21 +348,20 @@ const depositFunds = async (
 // WITHDRAW FUNDS
 // ============================================================
 //
-// USER FLOW:
+// USER WORKFLOW:
 //
-// 1. User enters amount.
-// 2. User selects withdrawal method.
-// 3. User provides verified ID number.
-// 4. Backend checks KYC.
-// 5. Backend checks available balance.
-// 6. Withdrawal is created as PENDING.
-// 7. Amount is RESERVED from available_balance.
-// 8. Admin reviews it.
-// 9. Admin approves/rejects.
-// 10. Admin approval generates withdrawal code.
+// 1. Admin generates a withdrawal code for the user.
+// 2. User enters the code when requesting withdrawal.
+// 3. Backend verifies the code.
+// 4. Code must be ACTIVE and not expired.
+// 5. Code is linked to this withdrawal.
+// 6. Code becomes USED.
+// 7. Withdrawal becomes PENDING.
+// 8. Available balance is reserved.
+// 9. Admin reviews the withdrawal.
 //
 // IMPORTANT:
-// The withdrawal code is NOT generated here.
+// The actual withdrawal code is NEVER returned to the user.
 // ============================================================
 
 const withdrawFunds = async (
@@ -434,19 +380,18 @@ const withdrawFunds = async (
       amount,
       method,
       identityDocumentNumber,
+      withdrawalCode,
     } = req.body || {};
-
-    const numericAmount =
-      Number(amount);
 
     // ========================================================
     // VALIDATE AMOUNT
     // ========================================================
 
+    const numericAmount =
+      Number(amount);
+
     if (
-      !Number.isFinite(
-        numericAmount
-      ) ||
+      !Number.isFinite(numericAmount) ||
       numericAmount <= 0
     ) {
       return res.status(400).json({
@@ -477,7 +422,7 @@ const withdrawFunds = async (
     }
 
     // ========================================================
-    // REQUIRE VERIFIED ID NUMBER
+    // VALIDATE ID NUMBER
     // ========================================================
 
     if (
@@ -492,7 +437,34 @@ const withdrawFunds = async (
     }
 
     // ========================================================
-    // START DATABASE TRANSACTION
+    // VALIDATE WITHDRAWAL CODE
+    // ========================================================
+
+    if (
+      typeof withdrawalCode !== 'string' ||
+      !withdrawalCode.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          'A withdrawal authorization code is required before submitting your withdrawal request.',
+      });
+    }
+
+    const submittedCode =
+      withdrawalCode.trim();
+
+    if (
+      submittedCode.length < 4 ||
+      submittedCode.length > 100
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal authorization code.',
+      });
+    }
+
+    // ========================================================
+    // START TRANSACTION
     // ========================================================
 
     await client.query('BEGIN');
@@ -595,7 +567,7 @@ const withdrawFunds = async (
       documentResult.rows[0];
 
     // ========================================================
-    // VERIFY DOCUMENT NUMBER
+    // VERIFY ID NUMBER
     // ========================================================
 
     if (
@@ -662,7 +634,7 @@ const withdrawFunds = async (
       );
 
     // ========================================================
-    // CHECK AVAILABLE BALANCE
+    // CHECK BALANCE
     // ========================================================
 
     if (
@@ -724,6 +696,102 @@ const withdrawFunds = async (
     }
 
     // ========================================================
+    // FIND ADMIN-GENERATED WITHDRAWAL CODE
+    // ========================================================
+    //
+    // The code must:
+    //
+    // - belong to this user
+    // - be ACTIVE
+    // - not be used
+    // - not be expired
+    //
+    // We lock the row so two requests cannot use
+    // the same code simultaneously.
+    // ========================================================
+
+    const codeResult =
+      await client.query(
+        `
+        SELECT
+          id,
+          user_id,
+          code_hash,
+          status,
+          expires_at,
+          used_at,
+          generated_by
+        FROM withdrawal_codes
+        WHERE user_id = $1
+          AND UPPER(status) = 'ACTIVE'
+          AND used_at IS NULL
+          AND (
+            expires_at IS NULL
+            OR expires_at > CURRENT_TIMESTAMP
+          )
+        ORDER BY created_at DESC
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [userId]
+      );
+
+    if (
+      codeResult.rows.length === 0
+    ) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(403).json({
+        message:
+          'No active withdrawal authorization code is available for your account. Please contact the administrator.',
+      });
+    }
+
+    const storedCode =
+      codeResult.rows[0];
+
+    // ========================================================
+    // VERIFY CODE
+    // ========================================================
+
+    let codeMatches = false;
+
+    try {
+      codeMatches =
+        await comparePassword(
+          submittedCode,
+          storedCode.code_hash
+        );
+    } catch (codeError) {
+      logger.error(
+        'Withdrawal code comparison error:',
+        codeError
+      );
+
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(500).json({
+        message:
+          'Unable to verify withdrawal authorization code.',
+      });
+    }
+
+    if (!codeMatches) {
+      await client.query(
+        'ROLLBACK'
+      );
+
+      return res.status(403).json({
+        message:
+          'The withdrawal authorization code is incorrect.',
+      });
+    }
+
+    // ========================================================
     // CREATE WITHDRAWAL REFERENCE
     // ========================================================
 
@@ -781,8 +849,7 @@ const withdrawFunds = async (
 
           numericAmount.toFixed(2),
 
-          account.currency ||
-            'USD',
+          account.currency || 'USD',
 
           method.trim(),
 
@@ -799,26 +866,46 @@ const withdrawFunds = async (
 
             identityDocumentType:
               verifiedDocument.document_type,
+
+            withdrawalCodeId:
+              storedCode.id,
           }),
         ]
       );
 
+    const transaction =
+      result.rows[0];
+
     // ========================================================
-    // RESERVE FUNDS
+    // LINK CODE TO WITHDRAWAL
+    // ========================================================
+
+    await client.query(
+      `
+      UPDATE withdrawal_codes
+
+      SET
+        transaction_id = $1,
+        status = 'USED',
+        used_at = CURRENT_TIMESTAMP
+
+      WHERE id = $2
+      `,
+      [
+        transaction.id,
+        storedCode.id,
+      ]
+    );
+
+    // ========================================================
+    // RESERVE AVAILABLE BALANCE
     // ========================================================
     //
-    // IMPORTANT:
+    // balance remains unchanged.
     //
-    // We reduce ONLY available_balance here.
-    //
-    // balance remains unchanged until admin approval.
-    //
-    // If admin approves:
-    //   balance is reduced.
-    //
-    // If admin rejects/cancels:
-    //   available_balance is restored.
-    //
+    // available_balance is reduced so the user cannot
+    // spend the same funds again while the admin reviews
+    // the withdrawal.
     // ========================================================
 
     await client.query(
@@ -852,11 +939,13 @@ const withdrawFunds = async (
       'COMMIT'
     );
 
-    const transaction =
-      result.rows[0];
-
     // ========================================================
     // RESPONSE
+    // ========================================================
+    //
+    // IMPORTANT:
+    // Never return the withdrawal code.
+    // Never return code_hash.
     // ========================================================
 
     return res.status(201).json({
@@ -902,12 +991,8 @@ const withdrawFunds = async (
           verifiedDocument.document_type,
       },
 
-      // Code does NOT exist yet.
-      withdrawalCode:
-        null,
-
       messageForUser:
-        'Your withdrawal is pending administrator approval. A withdrawal code will be generated if the request is approved.',
+        'Your withdrawal request has been submitted and is awaiting administrator review.',
     });
 
   } catch (error) {
@@ -935,7 +1020,7 @@ const withdrawFunds = async (
 };
 
 // ============================================================
-// GET TRANSACTIONS
+// GET USER TRANSACTIONS
 // ============================================================
 
 const getTransactions = async (
@@ -970,7 +1055,6 @@ const getTransactions = async (
           description,
           proof_of_payment_url,
           admin_note,
-          withdrawal_code,
           created_at,
           updated_at
 
@@ -1025,14 +1109,6 @@ const getTransactions = async (
             transaction.admin_note ||
             null,
 
-          // ==================================================
-          // WITHDRAWAL CODE
-          // ==================================================
-
-          withdrawalCode:
-            transaction.withdrawal_code ||
-            null,
-
           createdAt:
             transaction.created_at,
 
@@ -1054,15 +1130,21 @@ const getTransactions = async (
     return next(error);
   }
 };
+
 // ============================================================
 // UPLOAD PAYMENT PROOF
 // ============================================================
 
-const uploadProofOfPayment = async (req, res, next) => {
+const uploadProofOfPayment = async (
+  req,
+  res,
+  next
+) => {
   try {
     if (!req.file) {
       return res.status(400).json({
-        message: 'Please select a payment proof file.',
+        message:
+          'Please select a payment proof file.',
       });
     }
 
@@ -1073,36 +1155,47 @@ const uploadProofOfPayment = async (req, res, next) => {
       'application/pdf',
     ];
 
-    if (!allowedTypes.includes(req.file.mimetype)) {
+    if (
+      !allowedTypes.includes(
+        req.file.mimetype
+      )
+    ) {
       return res.status(400).json({
         message:
           'Only JPG, PNG, WebP images and PDF files are allowed.',
       });
     }
 
-    const cloudinary = require('../config/cloudinary');
+    const cloudinary =
+      require('../config/cloudinary');
 
-    const uploadedFile = await new Promise(
-      (resolve, reject) => {
-        const stream =
-          cloudinary.uploader.upload_stream(
-            {
-              folder:
-                'globaldigitalmarket/payment-proofs',
-              resource_type: 'auto',
-            },
-            (error, result) => {
-              if (error) {
-                reject(error);
-              } else {
-                resolve(result);
+    const uploadedFile =
+      await new Promise(
+        (resolve, reject) => {
+          const stream =
+            cloudinary.uploader.upload_stream(
+              {
+                folder:
+                  'globaldigitalmarket/payment-proofs',
+
+                resource_type:
+                  'auto',
+              },
+
+              (error, result) => {
+                if (error) {
+                  reject(error);
+                } else {
+                  resolve(result);
+                }
               }
-            }
-          );
+            );
 
-        stream.end(req.file.buffer);
-      }
-    );
+          stream.end(
+            req.file.buffer
+          );
+        }
+      );
 
     return res.status(201).json({
       message:
@@ -1117,6 +1210,7 @@ const uploadProofOfPayment = async (req, res, next) => {
       resourceType:
         uploadedFile.resource_type,
     });
+
   } catch (error) {
     logger.error(
       'Payment proof upload error:',
@@ -1126,10 +1220,10 @@ const uploadProofOfPayment = async (req, res, next) => {
     return next(error);
   }
 };
+
 // ============================================================
 // EXPORTS
 // ============================================================
-
 
 module.exports = {
   getBalance,
