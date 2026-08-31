@@ -39,7 +39,6 @@ import AdminDashboard from './pages/AdminDashboard';
 
 // ============================================================
 // ADMIN LAYOUT
-// IMPORTANT: YOUR FOLDER IS "layouts"
 // ============================================================
 
 import AdminLayout from './layouts/AdminLayout';
@@ -49,20 +48,15 @@ import AdminLayout from './layouts/AdminLayout';
 // ============================================================
 
 interface AdminSectionProps {
-  title: string;
   tab: number;
 }
 
 const AdminSection: React.FC<AdminSectionProps> = ({
-  title,
   tab,
 }) => {
   return (
     <AdminLayout>
-      <AdminDashboard
-        initialTab={tab}
-        sectionTitle={title}
-      />
+      <AdminDashboard initialTab={tab} />
     </AdminLayout>
   );
 };
@@ -262,17 +256,13 @@ const App: React.FC = () => {
           <Routes>
 
             {/* ==================================================
-                HOME
+                USER ROUTES
             ================================================== */}
 
             <Route
               path="/"
               element={<Home />}
             />
-
-            {/* ==================================================
-                AUTHENTICATION
-            ================================================== */}
 
             <Route
               path="/login"
@@ -284,81 +274,45 @@ const App: React.FC = () => {
               element={<Register />}
             />
 
-            {/* ==================================================
-                USER DASHBOARD
-            ================================================== */}
-
             <Route
               path="/dashboard"
               element={<Dashboard />}
             />
-
-            {/* ==================================================
-                PROFILE
-            ================================================== */}
 
             <Route
               path="/profile"
               element={<Profile />}
             />
 
-            {/* ==================================================
-                ACCOUNT STATEMENT
-            ================================================== */}
-
             <Route
               path="/account-statement"
               element={<AccountStatement />}
             />
-
-            {/* ==================================================
-                PORTFOLIO
-            ================================================== */}
 
             <Route
               path="/portfolio"
               element={<Portfolio />}
             />
 
-            {/* ==================================================
-                WALLET
-            ================================================== */}
-
             <Route
               path="/wallet"
               element={<Wallet />}
             />
-
-            {/* ==================================================
-                TRADING
-            ================================================== */}
 
             <Route
               path="/trading"
               element={<Trading />}
             />
 
-            {/* ==================================================
-                MARKET
-            ================================================== */}
-
             <Route
               path="/market"
               element={<Market />}
             />
 
-            {/* ==================================================
-                SUPPORT
-            ================================================== */}
-
             <Route
               path="/support"
               element={<ContactSupport />}
             />
-
-            {/* ==================================================
-                SECURITY
-            ================================================== */}
 
             <Route
               path="/security"
@@ -389,7 +343,6 @@ const App: React.FC = () => {
                 <AdminLayout>
                   <AdminDashboard
                     initialTab={0}
-                    sectionTitle="Dashboard"
                   />
                 </AdminLayout>
               }
@@ -402,10 +355,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/users"
               element={
-                <AdminSection
-                  title="Users"
-                  tab={0}
-                />
+                <AdminSection tab={0} />
               }
             />
 
@@ -416,10 +366,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/accounts"
               element={
-                <AdminSection
-                  title="Accounts / Funding"
-                  tab={0}
-                />
+                <AdminSection tab={0} />
               }
             />
 
@@ -430,10 +377,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/kyc"
               element={
-                <AdminSection
-                  title="KYC"
-                  tab={4}
-                />
+                <AdminSection tab={4} />
               }
             />
 
@@ -444,10 +388,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/deposits"
               element={
-                <AdminSection
-                  title="Deposits"
-                  tab={1}
-                />
+                <AdminSection tab={1} />
               }
             />
 
@@ -458,10 +399,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/withdrawals"
               element={
-                <AdminSection
-                  title="Withdrawals"
-                  tab={2}
-                />
+                <AdminSection tab={2} />
               }
             />
 
@@ -472,10 +410,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/transactions"
               element={
-                <AdminSection
-                  title="Transactions"
-                  tab={3}
-                />
+                <AdminSection tab={3} />
               }
             />
 
@@ -486,10 +421,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/investments"
               element={
-                <AdminSection
-                  title="Investments"
-                  tab={5}
-                />
+                <AdminSection tab={5} />
               }
             />
 
@@ -500,10 +432,7 @@ const App: React.FC = () => {
             <Route
               path="/admin/signals"
               element={
-                <AdminSection
-                  title="Signals"
-                  tab={6}
-                />
+                <AdminSection tab={6} />
               }
             />
 
@@ -514,24 +443,18 @@ const App: React.FC = () => {
             <Route
               path="/admin/settings"
               element={
-                <AdminSection
-                  title="Settings"
-                  tab={0}
-                />
+                <AdminSection tab={0} />
               }
             />
 
             {/* ==================================================
-                PAYMENT METHODS
+                ADMIN PAYMENT METHODS
             ================================================== */}
 
             <Route
               path="/admin/settings/payment-methods"
               element={
-                <AdminSection
-                  title="Payment Methods"
-                  tab={0}
-                />
+                <AdminSection tab={0} />
               }
             />
 
