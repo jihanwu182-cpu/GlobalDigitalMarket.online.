@@ -5067,11 +5067,7 @@ const deletePaymentMethod = async (
     return next(error);
   }
 };
-// ============================================================
 
-module.exports = {
-  // Authentication
-  adminLogin,
 // ============================================================
 // WITHDRAWAL CODE HELPERS
 // ============================================================
@@ -6132,6 +6128,14 @@ const rejectWithdrawal = async (
     client.release();
   }
 };
+  // ============================================================
+// MODULE EXPORTS
+// ============================================================
+
+module.exports = {
+  // Authentication
+  adminLogin,
+
   // Dashboard
   getDashboard,
 
@@ -6167,13 +6171,19 @@ const rejectWithdrawal = async (
   updateSignalPlan,
   deleteSignalPlan,
 
-    // User signal
+  // User signal
   getUserSignal,
   updateUserSignal,
 
-  // Payment Methods
+  // Payment methods
   getPaymentMethods,
   createPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
+
+  // Withdrawal codes
+  generateWithdrawalCodeForTransaction,
+  getWithdrawalDetails,
+  reverseWithdrawal,
+  rejectWithdrawal,
 };
