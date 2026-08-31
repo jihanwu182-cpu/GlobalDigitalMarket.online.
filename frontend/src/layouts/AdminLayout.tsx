@@ -24,10 +24,10 @@ import {
   TrendingUp,
   SignalCellularAlt,
   Settings,
-  Email,
-  Notifications,
   Menu as MenuIcon,
   Close as CloseIcon,
+  Email,
+  Notifications,
 } from '@mui/icons-material';
 
 import {
@@ -41,12 +41,6 @@ interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-interface MenuItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-}
-
 const AdminLayout: React.FC<AdminLayoutProps> = ({
   children,
 }) => {
@@ -56,11 +50,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
   const [mobileOpen, setMobileOpen] =
     useState(false);
 
-  // ==========================================================
-  // ADMIN MENU
-  // ==========================================================
-
-  const menuItems: MenuItem[] = [
+  const menuItems = [
     {
       label: 'Dashboard',
       path: '/admin',
@@ -123,81 +113,38 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     },
   ];
 
-  // ==========================================================
-  // NAVIGATION
-  // ==========================================================
-
-  const handleNavigation = (path: string) => {
-    if (location.pathname !== path) {
-      navigate(path);
-    }
-
+  const handleNavigation = (
+    path: string
+  ) => {
+    navigate(path);
     setMobileOpen(false);
   };
-
-  // ==========================================================
-  // ACTIVE MENU
-  // ==========================================================
-
-  const isSelected = (path: string) => {
-    if (path === '/admin') {
-      return location.pathname === '/admin';
-    }
-
-    return (
-      location.pathname === path ||
-      location.pathname.startsWith(`${path}/`)
-    );
-  };
-
-  // ==========================================================
-  // DRAWER CONTENT
-  // ==========================================================
 
   const drawerContent = (
     <Box
       sx={{
         height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
         background:
-          'linear-gradient(180deg,#07143d 0%,#02071f 100%)',
+          'linear-gradient(180deg, #07143d 0%, #02071f 100%)',
         color: '#fff',
       }}
     >
-      {/* HEADER */}
-
       <Toolbar
         sx={{
           minHeight: 72,
           display: 'flex',
           justifyContent: 'space-between',
-          px: 2,
         }}
       >
-        <Box>
-          <Typography
-            sx={{
-              fontWeight: 900,
-              fontSize: 18,
-              color: '#5ce8ff',
-              lineHeight: 1.2,
-            }}
-          >
-            Admin Panel
-          </Typography>
-
-          <Typography
-            sx={{
-              color: '#7186c3',
-              fontSize: 9,
-              letterSpacing: 1,
-              mt: 0.4,
-            }}
-          >
-            GLOBAL DIGITAL MARKET
-          </Typography>
-        </Box>
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 900,
+            color: '#5ce8ff',
+          }}
+        >
+          Admin Panel
+        </Typography>
 
         <IconButton
           onClick={() =>
@@ -222,29 +169,22 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         }}
       />
 
-      {/* MENU */}
-
       <List
         sx={{
           px: 1,
           py: 2,
-          overflowY: 'auto',
-          flexGrow: 1,
         }}
       >
         {menuItems.map((item) => {
-          const selected = isSelected(
-            item.path
-          );
+          const selected =
+            location.pathname === item.path;
 
           return (
             <ListItemButton
               key={item.path}
               selected={selected}
               onClick={() =>
-                handleNavigation(
-                  item.path
-                )
+                handleNavigation(item.path)
               }
               sx={{
                 mb: 0.5,
@@ -298,10 +238,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
     </Box>
   );
 
-  // ==========================================================
-  // LAYOUT
-  // ==========================================================
-
   return (
     <Box
       sx={{
@@ -310,9 +246,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         background: '#02071f',
       }}
     >
-      {/* ======================================================
-          MOBILE MENU BUTTON
-      ====================================================== */}
+      {/* MOBILE MENU BUTTON */}
 
       <Box
         sx={{
@@ -349,9 +283,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         </IconButton>
       </Box>
 
-      {/* ======================================================
-          DESKTOP SIDEBAR
-      ====================================================== */}
+      {/* DESKTOP SIDEBAR */}
 
       <Drawer
         variant="permanent"
@@ -368,7 +300,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
             width: drawerWidth,
             boxSizing: 'border-box',
             background:
-              'linear-gradient(180deg,#07143d 0%,#02071f 100%)',
+              'linear-gradient(180deg, #07143d 0%, #02071f 100%)',
             color: '#fff',
             borderRight:
               '1px solid rgba(125,150,255,0.14)',
@@ -378,9 +310,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         {drawerContent}
       </Drawer>
 
-      {/* ======================================================
-          MOBILE SIDEBAR
-      ====================================================== */}
+      {/* MOBILE SIDEBAR */}
 
       <Drawer
         variant="temporary"
@@ -401,7 +331,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
             width: drawerWidth,
             boxSizing: 'border-box',
             background:
-              'linear-gradient(180deg,#07143d 0%,#02071f 100%)',
+              'linear-gradient(180deg, #07143d 0%, #02071f 100%)',
             color: '#fff',
           },
         }}
@@ -409,9 +339,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({
         {drawerContent}
       </Drawer>
 
-      {/* ======================================================
-          MAIN CONTENT
-      ====================================================== */}
+      {/* MAIN CONTENT */}
 
       <Box
         component="main"
