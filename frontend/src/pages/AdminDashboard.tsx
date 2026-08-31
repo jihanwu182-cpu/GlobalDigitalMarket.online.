@@ -374,14 +374,34 @@ const statusColor = (
 // COMPONENT
 // ============================================================
 
-const AdminDashboard: React.FC = () => {
+interface AdminDashboardProps {
+  initialTab?: number;
+}
+
+const AdminDashboard: React.FC<AdminDashboardProps> = ({
+  initialTab = 0,
+}) => {
 
   // ----------------------------------------------------------
   // GENERAL
   // ----------------------------------------------------------
 
   const [section, setSection] =
-    useState<Section>('dashboard');
+  useState<Section>(() => {
+    const tabs: Section[] = [
+      'dashboard',
+      'users',
+      'transactions',
+      'deposits',
+      'withdrawals',
+      'kyc',
+      'investment-plans',
+      'signal-plans',
+      'payment-methods',
+    ];
+
+    return tabs[initialTab] || 'dashboard';
+  });
 
   const [mobileOpen, setMobileOpen] =
     useState(false);
