@@ -11,6 +11,10 @@ const {
   comparePassword,
 } = require('../utils/bcrypt');
 
+const {
+  sendEmail,
+} = require('../utils/email');
+
 
 // ============================================================
 // SUPPORTED CURRENCIES
@@ -85,7 +89,7 @@ const register = async (req, res, next) => {
       preferredCurrency,
       phone,
       referrerCode,
-    } = req.body;
+    } = req.body || {};
 
     // --------------------------------------------------------
     // REQUIRED FIELDS
@@ -139,7 +143,10 @@ const register = async (req, res, next) => {
     // BASIC VALIDATION
     // --------------------------------------------------------
 
-    if (!normalizedEmail.includes('@')) {
+    if (
+      !normalizedEmail.includes('@') ||
+      !normalizedEmail.includes('.')
+    ) {
       return res.status(400).json({
         message:
           'Please provide a valid email address.',
@@ -220,7 +227,7 @@ const register = async (req, res, next) => {
         `
         SELECT id
         FROM users
-        WHERE email = $1
+        WHERE LOWER(email) = LOWER($1)
         LIMIT 1
         `,
         [normalizedEmail]
@@ -515,11 +522,103 @@ const register = async (req, res, next) => {
     await client.query('COMMIT');
 
     // --------------------------------------------------------
+    // SEND WELCOME EMAIL
+    // --------------------------------------------------------
+
+    try {
+      await sendEmail({
+        to: normalizedEmail,
+
+        subject:
+          'Welcome to Global Digital Market',
+
+        html: `
+          <div
+            style="
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 30px;
+            "
+          >
+            <h2>
+              Welcome to Global Digital Market
+            </h2>
+
+            <p>
+              Hello ${normalizedFirstName},
+            </p>
+
+            <p>
+              Your Global Digital Market account
+              has been created successfully.
+            </p>
+
+            <p>
+              <strong>Username:</strong>
+              ${normalizedUsername}
+            </p>
+
+            <p>
+              <strong>Email:</strong>
+              ${normalizedEmail}
+            </p>
+
+            <p>
+              You can now log in to your account
+              using the credentials you created.
+            </p>
+
+            <p>
+              Thank you for choosing
+              Global Digital Market.
+            </p>
+
+            <p>
+              Regards,<br>
+              Global Digital Market Support
+            </p>
+          </div>
+        `,
+
+        text: `
+Welcome to Global Digital Market.
+
+Hello ${normalizedFirstName},
+
+Your Global Digital Market account has been created successfully.
+
+Username: ${normalizedUsername}
+Email: ${normalizedEmail}
+
+You can now log in to your account using the credentials you created.
+
+Thank you for choosing Global Digital Market.
+
+Regards,
+Global Digital Market Support
+        `,
+      });
+
+      logger.info(
+        `Welcome email sent successfully to ${normalizedEmail}`
+      );
+
+    } catch (emailError) {
+      logger.error(
+        `Welcome email failed for ${normalizedEmail}:`,
+        emailError
+      );
+    }
+
+    // --------------------------------------------------------
     // USER RESPONSE OBJECT
     // --------------------------------------------------------
 
     const user = {
-      id: databaseUser.id,
+      id:
+        databaseUser.id,
 
       email:
         databaseUser.email,
@@ -663,7 +762,7 @@ const login = async (req, res, next) => {
     const {
       email,
       password,
-    } = req.body;
+    } = req.body || {};
 
     if (!email || !password) {
       return res.status(400).json({
@@ -711,7 +810,7 @@ const login = async (req, res, next) => {
         LEFT JOIN accounts a
           ON a.user_id = u.id
 
-        WHERE u.email = $1
+        WHERE LOWER(u.email) = LOWER($1)
 
         LIMIT 1
         `,
@@ -906,6 +1005,7 @@ const logout = async (
       message:
         'Logout successful.',
     });
+
   } catch (error) {
     return next(error);
   }
@@ -923,8 +1023,8 @@ const refreshToken = async (
 ) => {
   try {
     const token =
-      req.body.refreshToken ||
-      req.body.token;
+      req.body?.refreshToken ||
+      req.body?.token;
 
     if (!token) {
       return res.status(401).json({
