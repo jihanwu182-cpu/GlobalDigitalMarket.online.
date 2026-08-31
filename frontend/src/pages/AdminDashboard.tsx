@@ -21,7 +21,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
-  Select,
+  Select,g
   Snackbar,
   Stack,
   Table,
@@ -56,9 +56,11 @@ import {
   Delete,
 } from '@mui/icons-material';
 
-import axios, {
+import {
   AxiosError,
 } from 'axios';
+
+import apiClient from '../services/apiClient';
 
 
 // ============================================================
@@ -249,7 +251,7 @@ interface PaymentMethod {
 // API
 // ============================================================
 
-const API_BASE = String(
+const api = apiClient;= String(
   process.env.REACT_APP_API_URL || ''
 ).replace(/\/$/, '');
 
