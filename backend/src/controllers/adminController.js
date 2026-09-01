@@ -18,7 +18,6 @@ const {
 
 const safeNumber = (value) => {
   const number = Number(value);
-
   return Number.isFinite(number) ? number : 0;
 };
 
@@ -32,6 +31,14 @@ const normalizeUserStatus = (value) => {
   return String(value || '')
     .trim()
     .toLowerCase();
+};
+
+const cleanString = (value) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  return String(value).trim();
 };
 
 const isPositiveInteger = (value) => {
@@ -48,12 +55,64 @@ const getSignalStrength = (value) => {
   return Math.max(0, Math.min(100, strength));
 };
 
-const cleanString = (value) => {
-  if (value === undefined || value === null) {
-    return '';
-  }
+// ============================================================
+// FINANCIAL CATEGORY HELPERS
+// ============================================================
+//
+// These are the categories available from Admin Credit/Debit.
+//
+// DEPOSIT
+// PROFIT
+// BONUS
+// REFERRAL_BONUS
+//
 
-  return String(value).trim();
+const normalizeFinancialCategory = (value) => {
+  const category = cleanString(value)
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  const aliases = {
+    DEPOSIT: 'DEPOSIT',
+    DEPOSITS: 'DEPOSIT',
+
+    PROFIT: 'PROFIT',
+    PROFITS: 'PROFIT',
+
+    BONUS: 'BONUS',
+
+    REFERRAL: 'REFERRAL_BONUS',
+    REFERRAL_BONUS: 'REFERRAL_BONUS',
+    REFERRER_BONUS: 'REFERRAL_BONUS',
+  };
+
+  return aliases[category] || '';
+};
+
+const FINANCIAL_CATEGORIES = [
+  'DEPOSIT',
+  'PROFIT',
+  'BONUS',
+  'REFERRAL_BONUS',
+];
+
+const getAccountCategoryColumn = (category) => {
+  switch (category) {
+    case 'DEPOSIT':
+      return 'deposit';
+
+    case 'PROFIT':
+      return 'profits';
+
+    case 'BONUS':
+      return 'bonus';
+
+    case 'REFERRAL_BONUS':
+      return 'referrer_bonus';
+
+    default:
+      return null;
+  }
 };
 
 // ============================================================
@@ -705,10 +764,6 @@ const updateUserStatus = async (
       });
     }
 
-    logger.info(
-      `Admin ${req.user.id} changed user ${userId} status to ${status}`
-    );
-
     return res.status(200).json({
       message:
         'User status updated successfully.',
@@ -727,7 +782,25 @@ const updateUserStatus = async (
 };
 
 // ============================================================
-// FUND USER ACCOUNT
+// FUND / CREDIT USER ACCOUNT
+// ============================================================
+//
+// POST /api/admin/users/:id/fund
+//
+// Body:
+// {
+//   "amount": 1000,
+//   "currency": "USD",
+//   "category": "DEPOSIT",
+//   "description": "Manual admin credit"
+// }
+//
+// Categories:
+// DEPOSIT
+// PROFIT
+// BONUS
+// REFERRAL_BONUS
+//
 // ============================================================
 
 const fundUserAccount = async (
@@ -750,11 +823,18 @@ const fundUserAccount = async (
         req.body?.currency || 'USD'
       ).toUpperCase();
 
+    const category =
+      normalizeFinancialCategory(
+        req.body?.category ||
+        req.body?.type ||
+        req.body?.fundingType
+      );
+
     const description =
       cleanString(
         req.body?.description
       ) ||
-      'Account funded by administrator.';
+      'Account credited by administrator.';
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -769,17 +849,26 @@ const fundUserAccount = async (
     ) {
       return res.status(400).json({
         message:
-          'Funding amount must be greater than zero.',
+          'Credit amount must be greater than zero.',
       });
     }
 
-    if (
-      currency.length < 3 ||
-      currency.length > 10
-    ) {
+    if (!FINANCIAL_CATEGORIES.includes(category)) {
       return res.status(400).json({
         message:
-          'Invalid currency.',
+          'A valid credit category is required.',
+        allowedCategories:
+          FINANCIAL_CATEGORIES,
+      });
+    }
+
+    const accountColumn =
+      getAccountCategoryColumn(category);
+
+    if (!accountColumn) {
+      return res.status(400).json({
+        message:
+          'Invalid account credit category.',
       });
     }
 
@@ -849,7 +938,7 @@ const fundUserAccount = async (
 
       return res.status(400).json({
         message:
-          `Account currency is ${accountCurrency}. Funding currency must match the account currency.`,
+          `Account currency is ${accountCurrency}. Credit currency must match the account currency.`,
 
         accountCurrency,
 
@@ -859,7 +948,7 @@ const fundUserAccount = async (
     }
 
     const reference =
-      `ADMIN-FUND-${Date.now()}-${userId}-${crypto.randomInt(
+      `ADMIN-CREDIT-${Date.now()}-${userId}-${crypto.randomInt(
         10000,
         99999
       )}`;
@@ -887,12 +976,12 @@ const fundUserAccount = async (
           'DEPOSIT',
           $3,
           $4,
-          'ADMIN_FUNDING',
-          'COMPLETED',
           $5,
+          'COMPLETED',
           $6,
+          $7,
           CURRENT_TIMESTAMP,
-          $5
+          $6
         )
 
         RETURNING *
@@ -902,6 +991,7 @@ const fundUserAccount = async (
           reference,
           amount,
           currency,
+          `ADMIN_CREDIT_${category}`,
           description,
           req.user.id,
         ]
@@ -916,8 +1006,8 @@ const fundUserAccount = async (
           balance =
             COALESCE(balance, 0) + $1,
 
-          deposit =
-            COALESCE(deposit, 0) + $1,
+          ${accountColumn} =
+            COALESCE(${accountColumn}, 0) + $1,
 
           available_balance =
             COALESCE(available_balance, 0) + $1,
@@ -950,23 +1040,34 @@ const fundUserAccount = async (
       updatedAccountResult.rows[0];
 
     logger.info(
-      `Admin ${req.user.id} funded user ${userId} with ${amount} ${currency}`
+      `Admin ${req.user.id} credited user ${userId} ${amount} ${currency} as ${category}`
     );
 
     return res.status(200).json({
       message:
-        'User account funded successfully.',
+        'User account credited successfully.',
 
-      funding: {
+      credit: {
         userId,
+
         accountId:
           account.account_id,
+
         accountNumber:
           account.account_number,
+
         amount,
+
         currency,
+
+        category,
+
+        accountField:
+          accountColumn,
+
         transactionReference:
           transaction.transaction_reference,
+
         status:
           'COMPLETED',
       },
@@ -1038,13 +1139,13 @@ const fundUserAccount = async (
       await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
-        'Funding rollback error:',
+        'Credit rollback error:',
         rollbackError
       );
     }
 
     logger.error(
-      'Admin fund account error:',
+      'Admin credit account error:',
       error
     );
 
@@ -1056,6 +1157,18 @@ const fundUserAccount = async (
 
 // ============================================================
 // DEBIT USER ACCOUNT
+// ============================================================
+//
+// POST /api/admin/users/:id/debit
+//
+// Body:
+// {
+//   "amount": 100,
+//   "currency": "USD",
+//   "category": "BONUS",
+//   "description": "Manual admin debit"
+// }
+//
 // ============================================================
 
 const debitUserAccount = async (
@@ -1077,6 +1190,13 @@ const debitUserAccount = async (
       cleanString(
         req.body?.currency || 'USD'
       ).toUpperCase();
+
+    const category =
+      normalizeFinancialCategory(
+        req.body?.category ||
+        req.body?.type ||
+        req.body?.fundingType
+      );
 
     const description =
       cleanString(
@@ -1101,6 +1221,18 @@ const debitUserAccount = async (
       });
     }
 
+    if (!FINANCIAL_CATEGORIES.includes(category)) {
+      return res.status(400).json({
+        message:
+          'A valid debit category is required.',
+        allowedCategories:
+          FINANCIAL_CATEGORIES,
+      });
+    }
+
+    const accountColumn =
+      getAccountCategoryColumn(category);
+
     await client.query('BEGIN');
 
     const accountResult =
@@ -1114,7 +1246,13 @@ const debitUserAccount = async (
           a.account_number,
           a.currency,
           a.balance,
-          a.available_balance
+          a.deposit,
+          a.profits,
+          a.bonus,
+          a.referrer_bonus,
+          a.available_balance,
+          a.buying_power,
+          a.margin_available
 
         FROM users u
 
@@ -1157,6 +1295,11 @@ const debitUserAccount = async (
       return res.status(400).json({
         message:
           `Account currency is ${accountCurrency}. Debit currency must match the account currency.`,
+
+        accountCurrency,
+
+        requestedCurrency:
+          currency,
       });
     }
 
@@ -1168,6 +1311,27 @@ const debitUserAccount = async (
         account.available_balance
       );
 
+    const categoryBalance =
+      safeNumber(
+        account[accountColumn]
+      );
+
+    if (categoryBalance < amount) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          `Insufficient ${category.toLowerCase().replace('_', ' ')} balance.`,
+
+        category,
+
+        categoryBalance,
+
+        requestedAmount:
+          amount,
+      });
+    }
+
     if (
       balance < amount ||
       availableBalance < amount
@@ -1176,7 +1340,7 @@ const debitUserAccount = async (
 
       return res.status(400).json({
         message:
-          'Insufficient account balance.',
+          'Insufficient available account balance.',
 
         balance,
 
@@ -1216,12 +1380,12 @@ const debitUserAccount = async (
           'WITHDRAWAL',
           $3,
           $4,
-          'ADMIN_DEBIT',
-          'COMPLETED',
           $5,
+          'COMPLETED',
           $6,
+          $7,
           CURRENT_TIMESTAMP,
-          $5
+          $6
         )
 
         RETURNING *
@@ -1231,6 +1395,7 @@ const debitUserAccount = async (
           reference,
           amount,
           currency,
+          `ADMIN_DEBIT_${category}`,
           description,
           req.user.id,
         ]
@@ -1244,6 +1409,9 @@ const debitUserAccount = async (
         SET
           balance =
             COALESCE(balance, 0) - $1,
+
+          ${accountColumn} =
+            COALESCE(${accountColumn}, 0) - $1,
 
           available_balance =
             COALESCE(available_balance, 0) - $1,
@@ -1269,9 +1437,39 @@ const debitUserAccount = async (
 
     await client.query('COMMIT');
 
+    logger.info(
+      `Admin ${req.user.id} debited user ${userId} ${amount} ${currency} as ${category}`
+    );
+
     return res.status(200).json({
       message:
         'User account debited successfully.',
+
+      debit: {
+        userId,
+
+        accountId:
+          account.account_id,
+
+        accountNumber:
+          account.account_number,
+
+        amount,
+
+        currency,
+
+        category,
+
+        accountField:
+          accountColumn,
+
+        transactionReference:
+          transactionResult.rows[0]
+            .transaction_reference,
+
+        status:
+          'COMPLETED',
+      },
 
       transaction:
         transactionResult.rows[0],
@@ -1416,6 +1614,9 @@ const getTransactions = async (
 // ============================================================
 // GET DEPOSITS
 // ============================================================
+//
+// This includes the payment proof so Admin can review it.
+//
 
 const getDeposits = async (
   req,
@@ -1432,7 +1633,10 @@ const getDeposits = async (
           u.first_name,
           u.last_name,
           u.email,
-          u.username
+          u.username,
+
+          a.account_number,
+          a.currency AS account_currency
 
         FROM transactions t
 
@@ -1458,6 +1662,9 @@ const getDeposits = async (
           accountId:
             row.account_id,
 
+          accountNumber:
+            row.account_number,
+
           transactionReference:
             row.transaction_reference,
 
@@ -1466,6 +1673,9 @@ const getDeposits = async (
 
           currency:
             row.currency,
+
+          accountCurrency:
+            row.account_currency,
 
           paymentMethod:
             row.payment_method || '',
@@ -1482,8 +1692,17 @@ const getDeposits = async (
           adminNote:
             row.admin_note || '',
 
+          verifiedBy:
+            row.verified_by,
+
+          verifiedAt:
+            row.verified_at,
+
           createdAt:
             row.created_at,
+
+          updatedAt:
+            row.updated_at,
 
           user: {
             id:
@@ -1510,6 +1729,217 @@ const getDeposits = async (
     );
 
     return next(error);
+  }
+};
+
+// ============================================================
+// REJECT DEPOSIT
+// ============================================================
+//
+// PATCH /api/admin/deposits/:id/reject
+//
+// Body:
+// {
+//   "reason": "Payment proof could not be verified."
+// }
+//
+// IMPORTANT:
+// Rejection does NOT credit the user's account.
+//
+
+const rejectDeposit = async (
+  req,
+  res,
+  next
+) => {
+  const client =
+    await pool.connect();
+
+  try {
+    const transactionId =
+      Number(req.params.id);
+
+    const reason =
+      cleanString(
+        req.body?.reason ||
+        req.body?.adminNote
+      );
+
+    if (
+      !isPositiveInteger(
+        transactionId
+      )
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid deposit transaction ID.',
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        message:
+          'A reason is required when rejecting a deposit.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const result =
+      await client.query(
+        `
+        SELECT
+          t.id,
+          t.account_id,
+          t.transaction_reference,
+          t.transaction_type,
+          t.amount,
+          t.currency,
+          t.status,
+          t.proof_of_payment_url,
+
+          a.user_id,
+          a.account_number,
+
+          u.email,
+          u.first_name,
+          u.last_name
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        WHERE t.id = $1
+
+        FOR UPDATE OF t
+        `,
+        [transactionId]
+      );
+
+    if (
+      result.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Deposit transaction not found.',
+      });
+    }
+
+    const transaction =
+      result.rows[0];
+
+    if (
+      normalizeStatus(
+        transaction.transaction_type
+      ) !== 'DEPOSIT'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only deposit transactions can be rejected using this endpoint.',
+      });
+    }
+
+    const currentStatus =
+      normalizeStatus(
+        transaction.status
+      );
+
+    if (
+      currentStatus !== 'PENDING' &&
+      currentStatus !== 'PROCESSING'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Only pending or processing deposits can be rejected.',
+      });
+    }
+
+    await client.query(
+      `
+      UPDATE transactions
+
+      SET
+        status = 'CANCELLED',
+
+        admin_note = $1,
+
+        verified_by = $2,
+
+        verified_at = CURRENT_TIMESTAMP,
+
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $3
+      `,
+      [
+        `REJECTED: ${reason}`,
+        req.user.id,
+        transactionId,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(
+      `Admin ${req.user.id} rejected deposit ${transactionId}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Deposit rejected successfully.',
+
+      deposit: {
+        id:
+          transaction.id,
+
+        transactionReference:
+          transaction.transaction_reference,
+
+        status:
+          'CANCELLED',
+
+        action:
+          'REJECTED',
+
+        amount:
+          safeNumber(
+            transaction.amount
+          ),
+
+        currency:
+          transaction.currency,
+
+        reason,
+      },
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Deposit rejection rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin reject deposit error:',
+      error
+    );
+
+    return next(error);
+  } finally {
+    client.release();
   }
 };
 
@@ -1584,8 +2014,20 @@ const getWithdrawals = async (
           adminNote:
             row.admin_note || '',
 
+          proofOfPaymentUrl:
+            row.proof_of_payment_url || '',
+
+          verifiedBy:
+            row.verified_by,
+
+          verifiedAt:
+            row.verified_at,
+
           createdAt:
             row.created_at,
+
+          updatedAt:
+            row.updated_at,
 
           user: {
             id:
@@ -1616,112 +2058,18 @@ const getWithdrawals = async (
 };
 
 // ============================================================
-// GET KYC REQUESTS
-// ============================================================
-
-const getKycRequests = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const result =
-      await pool.query(`
-        SELECT
-          d.id,
-          d.user_id,
-          d.document_type,
-          d.document_number,
-          d.document_url,
-          d.status,
-          d.reviewed_by,
-          d.reviewed_at,
-          d.rejection_reason,
-          d.created_at,
-          d.updated_at,
-
-          u.first_name,
-          u.last_name,
-          u.email,
-          u.username,
-          u.country
-
-        FROM identity_documents d
-
-        INNER JOIN users u
-          ON u.id = d.user_id
-
-        ORDER BY
-          d.created_at DESC
-      `);
-
-    return res.status(200).json({
-      requests:
-        result.rows.map((row) => ({
-          id:
-            row.id,
-
-          userId:
-            row.user_id,
-
-          documentType:
-            row.document_type,
-
-          documentNumber:
-            row.document_number || '',
-
-          documentUrl:
-            row.document_url,
-
-          status:
-            row.status,
-
-          reviewedBy:
-            row.reviewed_by,
-
-          reviewedAt:
-            row.reviewed_at,
-
-          rejectionReason:
-            row.rejection_reason || '',
-
-          createdAt:
-            row.created_at,
-
-          updatedAt:
-            row.updated_at,
-
-          user: {
-            firstName:
-              row.first_name,
-
-            lastName:
-              row.last_name,
-
-            email:
-              row.email,
-
-            username:
-              row.username || '',
-
-            country:
-              row.country || '',
-          },
-        })),
-    });
-  } catch (error) {
-    logger.error(
-      'Admin KYC error:',
-      error
-    );
-
-    return next(error);
-  }
-};
-
-// ============================================================
 // UPDATE TRANSACTION STATUS
 // ============================================================
+//
+// Used for:
+// - Deposit approval
+// - Withdrawal approval
+// - Processing
+// - Failed
+// - Cancelled
+//
+// Deposit approval credits the account exactly once.
+//
 
 const updateTransactionStatus = async (
   req,
@@ -1742,7 +2090,8 @@ const updateTransactionStatus = async (
 
     const adminNote =
       cleanString(
-        req.body?.adminNote
+        req.body?.adminNote ||
+        req.body?.reason
       );
 
     const allowedStatuses = [
@@ -1877,7 +2226,7 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // COMPLETING A DEPOSIT
+    // APPROVE / COMPLETE DEPOSIT
     // --------------------------------------------------------
 
     if (
@@ -1918,7 +2267,7 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // COMPLETING A WITHDRAWAL
+    // APPROVE / COMPLETE WITHDRAWAL
     // --------------------------------------------------------
 
     if (
@@ -1949,12 +2298,11 @@ const updateTransactionStatus = async (
       }
 
       /*
-       * The normal withdrawal flow reserves
-       * available_balance when the withdrawal
-       * is submitted.
+       * The normal withdrawal process reserves
+       * available_balance when submitted.
        *
-       * Therefore completing it only reduces
-       * the actual balance.
+       * Therefore completion reduces the actual
+       * balance only.
        */
 
       await client.query(
@@ -2052,6 +2400,110 @@ const updateTransactionStatus = async (
     return next(error);
   } finally {
     client.release();
+  }
+};
+
+// ============================================================
+// KYC
+// ============================================================
+
+const getKycRequests = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await pool.query(`
+        SELECT
+          d.id,
+          d.user_id,
+          d.document_type,
+          d.document_number,
+          d.document_url,
+          d.status,
+          d.reviewed_by,
+          d.reviewed_at,
+          d.rejection_reason,
+          d.created_at,
+          d.updated_at,
+
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.username,
+          u.country
+
+        FROM identity_documents d
+
+        INNER JOIN users u
+          ON u.id = d.user_id
+
+        ORDER BY
+          d.created_at DESC
+      `);
+
+    return res.status(200).json({
+      requests:
+        result.rows.map((row) => ({
+          id:
+            row.id,
+
+          userId:
+            row.user_id,
+
+          documentType:
+            row.document_type,
+
+          documentNumber:
+            row.document_number || '',
+
+          documentUrl:
+            row.document_url,
+
+          status:
+            row.status,
+
+          reviewedBy:
+            row.reviewed_by,
+
+          reviewedAt:
+            row.reviewed_at,
+
+          rejectionReason:
+            row.rejection_reason || '',
+
+          createdAt:
+            row.created_at,
+
+          updatedAt:
+            row.updated_at,
+
+          user: {
+            firstName:
+              row.first_name,
+
+            lastName:
+              row.last_name,
+
+            email:
+              row.email,
+
+            username:
+              row.username || '',
+
+            country:
+              row.country || '',
+          },
+        })),
+    });
+  } catch (error) {
+    logger.error(
+      'Admin KYC error:',
+      error
+    );
+
+    return next(error);
   }
 };
 
@@ -2533,7 +2985,7 @@ const deleteInvestmentPlan = async (
 };
 
 // ============================================================
-// SIGNAL PLANS
+// SIGNAL TABLES
 // ============================================================
 
 const ensureSignalTables = async () => {
@@ -2605,6 +3057,10 @@ const ensureSignalTables = async () => {
     )
   `);
 };
+
+// ============================================================
+// SIGNAL PLANS
+// ============================================================
 
 const getSignalPlans = async (
   req,
@@ -3298,8 +3754,7 @@ const updateUserSignal = async (
     const userResult =
       await pool.query(
         `
-        SELECT
-          id
+        SELECT id
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -4162,10 +4617,6 @@ const generateWithdrawalCodeForTransaction =
 
       await client.query('COMMIT');
 
-      logger.info(
-        `Admin ${req.user.id} generated withdrawal code for transaction ${transactionId}`
-      );
-
       return res.status(201).json({
         message:
           'Withdrawal code generated successfully.',
@@ -4811,14 +5262,6 @@ const rejectWithdrawal = async (
     const availableAfter =
       availableBefore + amount;
 
-    /*
-     * The normal withdrawal flow reserves
-     * available_balance when submitted.
-     *
-     * Rejection therefore releases the
-     * reserved amount.
-     */
-
     await client.query(
       `
       UPDATE accounts
@@ -4976,7 +5419,7 @@ module.exports = {
   getUser,
   updateUserStatus,
 
-  // Account
+  // Account Credit / Debit
   fundUserAccount,
   debitUserAccount,
 
@@ -4985,6 +5428,9 @@ module.exports = {
   getDeposits,
   getWithdrawals,
   updateTransactionStatus,
+
+  // Deposits
+  rejectDeposit,
 
   // KYC
   getKycRequests,
