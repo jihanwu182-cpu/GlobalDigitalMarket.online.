@@ -613,5 +613,85 @@ CREATE INDEX IF NOT EXISTS idx_payment_methods_status
 ON payment_methods(status);
 
 -- ============================================================
+-- PAYMENT METHODS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  ...
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_methods_status
+ON payment_methods(status);
+
+
+-- ============================================================
+-- WITHDRAWAL CODES
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS withdrawal_codes (
+  id SERIAL PRIMARY KEY,
+
+  transaction_id INTEGER NOT NULL
+    REFERENCES transactions(id)
+    ON DELETE CASCADE,
+
+  user_id INTEGER NOT NULL
+    REFERENCES users(id)
+    ON DELETE CASCADE,
+
+  code_hash VARCHAR(255) NOT NULL,
+
+  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+
+  expires_at TIMESTAMP NOT NULL,
+
+  used_at TIMESTAMP,
+
+  generated_by INTEGER
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ============================================================
+-- ADMIN FINANCIAL ACTIONS
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS admin_financial_actions (
+  id SERIAL PRIMARY KEY,
+
+  admin_id INTEGER
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  user_id INTEGER
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  account_id INTEGER
+    REFERENCES accounts(id)
+    ON DELETE SET NULL,
+
+  action_type VARCHAR(100) NOT NULL,
+
+  amount DECIMAL(20, 2) NOT NULL DEFAULT 0,
+
+  balance_before DECIMAL(20, 2),
+
+  balance_after DECIMAL(20, 2),
+
+  description TEXT,
+
+  transaction_id INTEGER
+    REFERENCES transactions(id)
+    ON DELETE SET NULL,
+
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- ============================================================
 -- DONE
 -- ============================================================
