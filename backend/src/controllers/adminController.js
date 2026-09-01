@@ -56,16 +56,8 @@ const getSignalStrength = (value) => {
 };
 
 // ============================================================
-// FINANCIAL CATEGORY HELPERS
+// FINANCIAL CATEGORIES
 // ============================================================
-//
-// These are the categories available from Admin Credit/Debit.
-//
-// DEPOSIT
-// PROFIT
-// BONUS
-// REFERRAL_BONUS
-//
 
 const normalizeFinancialCategory = (value) => {
   const category = cleanString(value)
@@ -133,8 +125,7 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    const normalizedEmail = cleanString(email)
-      .toLowerCase();
+    const normalizedEmail = cleanString(email).toLowerCase();
 
     const result = await pool.query(
       `
@@ -164,11 +155,10 @@ const adminLogin = async (req, res, next) => {
 
     const admin = result.rows[0];
 
-    const passwordMatches =
-      await comparePassword(
-        password,
-        admin.password_hash
-      );
+    const passwordMatches = await comparePassword(
+      password,
+      admin.password_hash
+    );
 
     if (!passwordMatches) {
       return res.status(401).json({
@@ -177,8 +167,7 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    const role = cleanString(admin.role)
-      .toLowerCase();
+    const role = cleanString(admin.role).toLowerCase();
 
     if (
       role !== 'admin' &&
@@ -191,8 +180,7 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    const status = cleanString(admin.status)
-      .toLowerCase();
+    const status = cleanString(admin.status).toLowerCase();
 
     if (
       status === 'blocked' ||
@@ -205,12 +193,11 @@ const adminLogin = async (req, res, next) => {
       });
     }
 
-    const accessToken =
-      generateAccessToken({
-        id: admin.id,
-        email: admin.email,
-        role: admin.role,
-      });
+    const accessToken = generateAccessToken({
+      id: admin.id,
+      email: admin.email,
+      role: admin.role,
+    });
 
     logger.info(
       `Successful admin login for email: ${normalizedEmail}`
@@ -587,7 +574,8 @@ const getUser = async (req, res, next) => {
 
     return res.status(200).json({
       user: {
-        id: user.id,
+        id:
+          user.id,
 
         email:
           user.email,
@@ -728,9 +716,7 @@ const updateUserStatus = async (
       });
     }
 
-    if (
-      !allowedStatuses.includes(status)
-    ) {
+    if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         message:
           'Invalid user status.',
@@ -783,24 +769,6 @@ const updateUserStatus = async (
 
 // ============================================================
 // FUND / CREDIT USER ACCOUNT
-// ============================================================
-//
-// POST /api/admin/users/:id/fund
-//
-// Body:
-// {
-//   "amount": 1000,
-//   "currency": "USD",
-//   "category": "DEPOSIT",
-//   "description": "Manual admin credit"
-// }
-//
-// Categories:
-// DEPOSIT
-// PROFIT
-// BONUS
-// REFERRAL_BONUS
-//
 // ============================================================
 
 const fundUserAccount = async (
@@ -912,9 +880,7 @@ const fundUserAccount = async (
         [userId]
       );
 
-    if (
-      accountResult.rows.length === 0
-    ) {
+    if (accountResult.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -931,9 +897,7 @@ const fundUserAccount = async (
         account.currency || 'USD'
       ).toUpperCase();
 
-    if (
-      accountCurrency !== currency
-    ) {
+    if (accountCurrency !== currency) {
       await client.query('ROLLBACK');
 
       return res.status(400).json({
@@ -1157,22 +1121,7 @@ const fundUserAccount = async (
 
 // ============================================================
 // DEBIT USER ACCOUNT
-// ============================================================
-//
-// POST /api/admin/users/:id/debit
-//
-// Allowed debit categories:
-// PROFIT
-//
-// NOT allowed:
-// DEPOSIT
-// BONUS
-// REFERRAL_BONUS
-//
-// IMPORTANT:
-// Deposit money can NEVER be removed using the
-// Admin Debit function.
-//
+// ONLY PROFIT CAN BE DEBITED
 // ============================================================
 
 const debitUserAccount = async (
@@ -1180,97 +1129,70 @@ const debitUserAccount = async (
   res,
   next
 ) => {
-  const client = await pool.connect();
+  const client =
+    await pool.connect();
 
   try {
-    const userId = Number(req.params.id);
+    const userId =
+      Number(req.params.id);
 
-    const amount = Number(req.body?.amount);
+    const amount =
+      Number(req.body?.amount);
 
-    const currency = cleanString(
-      req.body?.currency || 'USD'
-    ).toUpperCase();
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
 
-    const category = normalizeFinancialCategory(
-      req.body?.category ||
-      req.body?.type ||
-      req.body?.fundingType
-    );
+    const category =
+      normalizeFinancialCategory(
+        req.body?.category ||
+        req.body?.type ||
+        req.body?.fundingType
+      );
 
     const description =
-      cleanString(req.body?.description) ||
+      cleanString(
+        req.body?.description
+      ) ||
       'Account debited by administrator.';
-
-    // --------------------------------------------------------
-    // BASIC VALIDATION
-    // --------------------------------------------------------
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
-        message: 'Invalid user ID.',
+        message:
+          'Invalid user ID.',
       });
     }
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
       return res.status(400).json({
         message:
           'Debit amount must be greater than zero.',
       });
     }
 
-    if (!FINANCIAL_CATEGORIES.includes(category)) {
-      return res.status(400).json({
-        message:
-          'A valid debit category is required.',
-        allowedCategories: [
-          'PROFIT',
-        ],
-      });
-    }
-
-    // --------------------------------------------------------
-    // CRITICAL SECURITY RULE
-    // --------------------------------------------------------
-    //
-    // Admin Debit is ONLY allowed against PROFIT.
-    //
-    // Deposit:
-    // NEVER debit through this endpoint.
-    //
-    // Bonus:
-    // NEVER debit through this endpoint.
-    //
-    // Referral Bonus:
-    // NEVER debit through this endpoint.
-    //
-    // --------------------------------------------------------
+    // ========================================================
+    // CRITICAL RULE:
+    // ADMIN DEBIT CAN ONLY REMOVE PROFIT
+    // ========================================================
 
     if (category !== 'PROFIT') {
       return res.status(403).json({
         message:
           'Admin Debit is only allowed for Profit. Deposit, Bonus and Referral Bonus cannot be debited.',
+
         category,
+
         allowedDebitCategories: [
           'PROFIT',
         ],
       });
     }
 
-    const accountColumn =
-      getAccountCategoryColumn(category);
-
-    if (accountColumn !== 'profits') {
-      return res.status(403).json({
-        message:
-          'This financial category cannot be debited.',
-      });
-    }
-
     await client.query('BEGIN');
-
-    // --------------------------------------------------------
-    // LOCK USER ACCOUNT
-    // --------------------------------------------------------
 
     const accountResult =
       await client.query(
@@ -1322,10 +1244,6 @@ const debitUserAccount = async (
     const account =
       accountResult.rows[0];
 
-    // --------------------------------------------------------
-    // CURRENCY CHECK
-    // --------------------------------------------------------
-
     const accountCurrency =
       cleanString(
         account.currency || 'USD'
@@ -1340,13 +1258,10 @@ const debitUserAccount = async (
 
         accountCurrency,
 
-        requestedCurrency: currency,
+        requestedCurrency:
+          currency,
       });
     }
-
-    // --------------------------------------------------------
-    // PROFIT BALANCE CHECK
-    // --------------------------------------------------------
 
     const profitBalance =
       safeNumber(account.profits);
@@ -1364,17 +1279,15 @@ const debitUserAccount = async (
         message:
           'Insufficient profit balance.',
 
-        category: 'PROFIT',
+        category:
+          'PROFIT',
 
         profitBalance,
 
-        requestedAmount: amount,
+        requestedAmount:
+          amount,
       });
     }
-
-    // --------------------------------------------------------
-    // TOTAL ACCOUNT BALANCE CHECK
-    // --------------------------------------------------------
 
     if (currentBalance < amount) {
       await client.query('ROLLBACK');
@@ -1383,9 +1296,11 @@ const debitUserAccount = async (
         message:
           'Insufficient account balance.',
 
-        balance: currentBalance,
+        balance:
+          currentBalance,
 
-        requestedAmount: amount,
+        requestedAmount:
+          amount,
       });
     }
 
@@ -1398,13 +1313,10 @@ const debitUserAccount = async (
 
         availableBalance,
 
-        requestedAmount: amount,
+        requestedAmount:
+          amount,
       });
     }
-
-    // --------------------------------------------------------
-    // CREATE ADMIN DEBIT TRANSACTION
-    // --------------------------------------------------------
 
     const reference =
       `ADMIN-DEBIT-${Date.now()}-${userId}-${crypto.randomInt(
@@ -1454,24 +1366,6 @@ const debitUserAccount = async (
           req.user.id,
         ]
       );
-
-    // --------------------------------------------------------
-    // REMOVE PROFIT ONLY
-    // --------------------------------------------------------
-    //
-    // Deposit is deliberately NOT changed.
-    //
-    // Bonus is deliberately NOT changed.
-    //
-    // Referral bonus is deliberately NOT changed.
-    //
-    // Only:
-    //
-    // profits
-    //
-    // is reduced.
-    //
-    // --------------------------------------------------------
 
     const updatedAccountResult =
       await client.query(
@@ -1748,9 +1642,6 @@ const getTransactions = async (
 // ============================================================
 // GET DEPOSITS
 // ============================================================
-//
-// This includes the payment proof so Admin can review it.
-//
 
 const getDeposits = async (
   req,
@@ -1869,17 +1760,6 @@ const getDeposits = async (
 // ============================================================
 // REJECT DEPOSIT
 // ============================================================
-//
-// PATCH /api/admin/deposits/:id/reject
-//
-// Body:
-// {
-//   "reason": "Payment proof could not be verified."
-// }
-//
-// IMPORTANT:
-// Rejection does NOT credit the user's account.
-//
 
 const rejectDeposit = async (
   req,
@@ -1899,11 +1779,7 @@ const rejectDeposit = async (
         req.body?.adminNote
       );
 
-    if (
-      !isPositiveInteger(
-        transactionId
-      )
-    ) {
+    if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
         message:
           'Invalid deposit transaction ID.',
@@ -1954,9 +1830,7 @@ const rejectDeposit = async (
         [transactionId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -2194,16 +2068,6 @@ const getWithdrawals = async (
 // ============================================================
 // UPDATE TRANSACTION STATUS
 // ============================================================
-//
-// Used for:
-// - Deposit approval
-// - Withdrawal approval
-// - Processing
-// - Failed
-// - Cancelled
-//
-// Deposit approval credits the account exactly once.
-//
 
 const updateTransactionStatus = async (
   req,
@@ -2236,20 +2100,14 @@ const updateTransactionStatus = async (
       'CANCELLED',
     ];
 
-    if (
-      !isPositiveInteger(
-        transactionId
-      )
-    ) {
+    if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
         message:
           'Invalid transaction ID.',
       });
     }
 
-    if (
-      !allowedStatuses.includes(status)
-    ) {
+    if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
         message:
           'Invalid transaction status.',
@@ -2282,9 +2140,7 @@ const updateTransactionStatus = async (
         [transactionId]
       );
 
-    if (
-      transactionResult.rows.length === 0
-    ) {
+    if (transactionResult.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -2311,6 +2167,10 @@ const updateTransactionStatus = async (
         transaction.amount
       );
 
+    // --------------------------------------------------------
+    // COMPLETED TRANSACTIONS CANNOT BE CHANGED
+    // --------------------------------------------------------
+
     if (
       previousStatus === 'COMPLETED' &&
       status !== 'COMPLETED'
@@ -2323,9 +2183,11 @@ const updateTransactionStatus = async (
       });
     }
 
-    if (
-      previousStatus === status
-    ) {
+    // --------------------------------------------------------
+    // SAME STATUS
+    // --------------------------------------------------------
+
+    if (previousStatus === status) {
       const result =
         await client.query(
           `
@@ -2360,14 +2222,31 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // APPROVE / COMPLETE DEPOSIT
+    // COMPLETE DEPOSIT
     // --------------------------------------------------------
+    //
+    // Only PENDING or PROCESSING deposits can be completed.
+    // The account is credited exactly once.
+    //
 
     if (
       status === 'COMPLETED' &&
-      previousStatus !== 'COMPLETED' &&
       transactionType === 'DEPOSIT'
     ) {
+      if (
+        previousStatus !== 'PENDING' &&
+        previousStatus !== 'PROCESSING'
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'Only pending or processing deposits can be completed.',
+          currentStatus:
+            previousStatus,
+        });
+      }
+
       await client.query(
         `
         UPDATE accounts
@@ -2401,22 +2280,39 @@ const updateTransactionStatus = async (
     }
 
     // --------------------------------------------------------
-    // APPROVE / COMPLETE WITHDRAWAL
+    // COMPLETE WITHDRAWAL
     // --------------------------------------------------------
+    //
+    // The normal withdrawal process should already reserve
+    // available_balance when the withdrawal is submitted.
+    //
+    // Completion therefore reduces actual balance only.
+    //
 
     if (
       status === 'COMPLETED' &&
-      previousStatus !== 'COMPLETED' &&
       transactionType === 'WITHDRAWAL'
     ) {
+      if (
+        previousStatus !== 'PENDING' &&
+        previousStatus !== 'PROCESSING'
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'Only pending or processing withdrawals can be completed.',
+          currentStatus:
+            previousStatus,
+        });
+      }
+
       const currentBalance =
         safeNumber(
           transaction.balance
         );
 
-      if (
-        currentBalance < amount
-      ) {
+      if (currentBalance < amount) {
         await client.query('ROLLBACK');
 
         return res.status(400).json({
@@ -2430,14 +2326,6 @@ const updateTransactionStatus = async (
             amount,
         });
       }
-
-      /*
-       * The normal withdrawal process reserves
-       * available_balance when submitted.
-       *
-       * Therefore completion reduces the actual
-       * balance only.
-       */
 
       await client.query(
         `
@@ -3036,9 +2924,7 @@ const updateInvestmentPlan = async (
         ]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -3092,9 +2978,7 @@ const deleteInvestmentPlan = async (
         [planId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -3607,9 +3491,7 @@ const updateSignalPlan = async (
         ]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3661,9 +3543,7 @@ const deleteSignalPlan = async (
         [planId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3752,9 +3632,7 @@ const getUserSignal = async (
         [userId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -3896,9 +3774,7 @@ const updateUserSignal = async (
         [userId]
       );
 
-    if (
-      userResult.rows.length === 0
-    ) {
+    if (userResult.rows.length === 0) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -3926,9 +3802,7 @@ const updateUserSignal = async (
 
     let planStrength = null;
 
-    if (
-      signalPlanId !== null
-    ) {
+    if (signalPlanId !== null) {
       const planResult =
         await pool.query(
           `
@@ -3943,9 +3817,7 @@ const updateUserSignal = async (
           [signalPlanId]
         );
 
-      if (
-        planResult.rows.length === 0
-      ) {
+      if (planResult.rows.length === 0) {
         return res.status(404).json({
           message:
             'Signal plan not found.',
@@ -4493,9 +4365,7 @@ const updatePaymentMethod = async (
         ]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Payment method not found.',
@@ -4551,9 +4421,7 @@ const deletePaymentMethod = async (
         [methodId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Payment method not found.',
@@ -4599,11 +4467,7 @@ const generateWithdrawalCodeForTransaction =
       const transactionId =
         Number(req.params.id);
 
-      if (
-        !isPositiveInteger(
-          transactionId
-        )
-      ) {
+      if (!isPositiveInteger(transactionId)) {
         return res.status(400).json({
           message:
             'Invalid withdrawal transaction ID.',
@@ -4645,9 +4509,7 @@ const generateWithdrawalCodeForTransaction =
           [transactionId]
         );
 
-      if (
-        result.rows.length === 0
-      ) {
+      if (result.rows.length === 0) {
         await client.query('ROLLBACK');
 
         return res.status(404).json({
@@ -4790,12 +4652,10 @@ const generateWithdrawalCodeForTransaction =
             'ACTIVE',
 
           expiresAt:
-            codeResult.rows[0]
-              .expires_at,
+            codeResult.rows[0].expires_at,
 
           generatedAt:
-            codeResult.rows[0]
-              .created_at,
+            codeResult.rows[0].created_at,
         },
       });
     } catch (error) {
@@ -4832,11 +4692,7 @@ const getWithdrawalDetails = async (
     const transactionId =
       Number(req.params.id);
 
-    if (
-      !isPositiveInteger(
-        transactionId
-      )
-    ) {
+    if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -4892,9 +4748,7 @@ const getWithdrawalDetails = async (
         [transactionId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message:
           'Withdrawal not found.',
@@ -5021,11 +4875,7 @@ const reverseWithdrawal = async (
         req.body?.adminNote
       );
 
-    if (
-      !isPositiveInteger(
-        transactionId
-      )
-    ) {
+    if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -5071,9 +4921,7 @@ const reverseWithdrawal = async (
         [transactionId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -5293,11 +5141,7 @@ const rejectWithdrawal = async (
         req.body?.adminNote
       );
 
-    if (
-      !isPositiveInteger(
-        transactionId
-      )
-    ) {
+    if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -5339,9 +5183,7 @@ const rejectWithdrawal = async (
         [transactionId]
       );
 
-    if (
-      result.rows.length === 0
-    ) {
+    if (result.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
