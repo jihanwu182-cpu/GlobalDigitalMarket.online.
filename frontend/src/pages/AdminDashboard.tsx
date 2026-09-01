@@ -4,6 +4,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   Alert,
@@ -363,6 +364,7 @@ const AdminDashboard: React.FC<
 > = ({
   initialTab = 0,
 }) => {
+  const navigate = useNavigate();
   const sections = [
     'dashboard',
     'users',
