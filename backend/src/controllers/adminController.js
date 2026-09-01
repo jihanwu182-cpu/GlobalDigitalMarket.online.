@@ -4458,225 +4458,409 @@ const generateWithdrawalCode = () => {
   );
 };
 
-const generateWithdrawalCodeForTransaction =
-  async (req, res, next) => {
-    const client =
-      await pool.connect();
+// ============================================================
+// ADMIN GENERATES CODE FOR USER
+// ============================================================
 
+const generateWithdrawalCodeForUser = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const userId = Number(
+      req.body?.userId || req.body?.user_id
+    );
+
+    if (!isPositiveInteger(userId)) {
+      return res.status(400).json({
+        message: 'A valid user ID is required.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const userResult = await client.query(
+      `
+      SELECT
+        u.id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.username
+      FROM users u
+      WHERE u.id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message: 'User not found.',
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // --------------------------------------------------------
+    // EXPIRE ANY PREVIOUS ACTIVE CODE FOR THIS USER
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE withdrawal_codes
+      SET
+        status = 'REVOKED',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = $1
+        AND status = 'ACTIVE'
+      `,
+      [userId]
+    );
+
+    const code = generateWithdrawalCode();
+
+    const codeHash = await hashPassword(code);
+
+    // Code valid for 24 hours.
+    const expiresAt = new Date(
+      Date.now() + 24 * 60 * 60 * 1000
+    );
+
+    const codeResult = await client.query(
+      `
+      INSERT INTO withdrawal_codes (
+        transaction_id,
+        user_id,
+        code_hash,
+        status,
+        expires_at,
+        generated_by,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        NULL,
+        $1,
+        $2,
+        'ACTIVE',
+        $3,
+        $4,
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      RETURNING
+        id,
+        user_id,
+        status,
+        expires_at,
+        generated_by,
+        created_at
+      `,
+      [
+        userId,
+        codeHash,
+        expiresAt,
+        req.user.id,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    logger.info(
+      `Admin ${req.user.id} generated withdrawal code ${codeResult.rows[0].id} for user ${userId}`
+    );
+
+    return res.status(201).json({
+      message:
+        'Withdrawal code generated successfully.',
+
+      withdrawalCode: {
+        id:
+          codeResult.rows[0].id,
+
+        code,
+
+        userId: user.id,
+
+        user: {
+          firstName:
+            user.first_name,
+
+          lastName:
+            user.last_name,
+
+          username:
+            user.username || '',
+
+          email:
+            user.email,
+        },
+
+        status:
+          'ACTIVE',
+
+        expiresAt:
+          codeResult.rows[0].expires_at,
+
+        generatedAt:
+          codeResult.rows[0].created_at,
+      },
+    });
+  } catch (error) {
     try {
-      const transactionId =
-        Number(req.params.id);
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Withdrawal code generation rollback error:',
+        rollbackError
+      );
+    }
 
-      if (!isPositiveInteger(transactionId)) {
-        return res.status(400).json({
-          message:
-            'Invalid withdrawal transaction ID.',
-        });
-      }
+    logger.error(
+      'Generate withdrawal code for user error:',
+      error
+    );
 
-      await client.query('BEGIN');
+    return next(error);
+  } finally {
+    client.release();
+  }
+};
 
-      const result =
-        await client.query(
-          `
-          SELECT
-            t.id,
-            t.account_id,
-            t.transaction_type,
-            t.amount,
-            t.currency,
-            t.status,
-            t.transaction_reference,
+// ============================================================
+// ADMIN SENDS CODE TO USER EMAIL
+// ============================================================
+//
+// IMPORTANT:
+// The plaintext code is NOT stored in the database.
+// The admin frontend sends the code that was just generated.
+// The endpoint verifies that the supplied code matches the
+// active hashed code before sending it.
+//
 
-            a.user_id,
+const sendWithdrawalCodeEmail = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const codeId = Number(
+      req.params.id
+    );
 
-            u.email,
-            u.first_name,
-            u.last_name
+    const code = cleanString(
+      req.body?.code
+    );
 
-          FROM transactions t
+    if (!isPositiveInteger(codeId)) {
+      return res.status(400).json({
+        message:
+          'Invalid withdrawal code ID.',
+      });
+    }
 
-          INNER JOIN accounts a
-            ON a.id = t.account_id
+    if (!code) {
+      return res.status(400).json({
+        message:
+          'The withdrawal code is required.',
+      });
+    }
 
-          INNER JOIN users u
-            ON u.id = a.user_id
+    const result = await pool.query(
+      `
+      SELECT
+        wc.id,
+        wc.user_id,
+        wc.code_hash,
+        wc.status,
+        wc.expires_at,
 
-          WHERE t.id = $1
+        u.email,
+        u.first_name,
+        u.last_name
 
-          FOR UPDATE OF t
-          `,
-          [transactionId]
-        );
+      FROM withdrawal_codes wc
 
-      if (result.rows.length === 0) {
-        await client.query('ROLLBACK');
+      INNER JOIN users u
+        ON u.id = wc.user_id
 
-        return res.status(404).json({
-          message:
-            'Withdrawal transaction not found.',
-        });
-      }
+      WHERE wc.id = $1
 
-      const transaction =
-        result.rows[0];
+      LIMIT 1
+      `,
+      [codeId]
+    );
 
-      if (
-        normalizeStatus(
-          transaction.transaction_type
-        ) !== 'WITHDRAWAL'
-      ) {
-        await client.query('ROLLBACK');
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'Withdrawal code not found.',
+      });
+    }
 
-        return res.status(400).json({
-          message:
-            'Withdrawal code can only be generated for withdrawals.',
-        });
-      }
+    const withdrawalCode =
+      result.rows[0];
 
-      if (
-        normalizeStatus(
-          transaction.status
-        ) !== 'COMPLETED'
-      ) {
-        await client.query('ROLLBACK');
+    if (
+      withdrawalCode.status !== 'ACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'This withdrawal code is no longer active.',
+      });
+    }
 
-        return res.status(400).json({
-          message:
-            'The withdrawal must be approved before a withdrawal code can be generated.',
-        });
-      }
-
-      await client.query(
+    if (
+      new Date(
+        withdrawalCode.expires_at
+      ).getTime() <= Date.now()
+    ) {
+      await pool.query(
         `
         UPDATE withdrawal_codes
 
         SET
-          status = 'EXPIRED'
+          status = 'EXPIRED',
+          updated_at = CURRENT_TIMESTAMP
 
-        WHERE transaction_id = $1
+        WHERE id = $1
           AND status = 'ACTIVE'
         `,
-        [transactionId]
+        [codeId]
       );
 
-      const code =
-        generateWithdrawalCode();
-
-      const codeHash =
-        await hashPassword(code);
-
-      const expiresAt =
-        new Date(
-          Date.now() +
-            24 * 60 * 60 * 1000
-        );
-
-      const codeResult =
-        await client.query(
-          `
-          INSERT INTO withdrawal_codes (
-            transaction_id,
-            user_id,
-            code_hash,
-            status,
-            expires_at,
-            generated_by
-          )
-
-          VALUES (
-            $1,
-            $2,
-            $3,
-            'ACTIVE',
-            $4,
-            $5
-          )
-
-          RETURNING
-            id,
-            transaction_id,
-            user_id,
-            status,
-            expires_at,
-            generated_by,
-            created_at
-          `,
-          [
-            transaction.id,
-            transaction.user_id,
-            codeHash,
-            expiresAt,
-            req.user.id,
-          ]
-        );
-
-      await client.query('COMMIT');
-
-      return res.status(201).json({
+      return res.status(400).json({
         message:
-          'Withdrawal code generated successfully.',
-
-        withdrawalCode: {
-          code,
-
-          transactionId:
-            transaction.id,
-
-          transactionReference:
-            transaction.transaction_reference,
-
-          userId:
-            transaction.user_id,
-
-          user: {
-            firstName:
-              transaction.first_name,
-
-            lastName:
-              transaction.last_name,
-
-            email:
-              transaction.email,
-          },
-
-          amount:
-            safeNumber(
-              transaction.amount
-            ),
-
-          currency:
-            transaction.currency,
-
-          status:
-            'ACTIVE',
-
-          expiresAt:
-            codeResult.rows[0].expires_at,
-
-          generatedAt:
-            codeResult.rows[0].created_at,
-        },
+          'This withdrawal code has expired.',
       });
-    } catch (error) {
-      try {
-        await client.query('ROLLBACK');
-      } catch (rollbackError) {
-        logger.error(
-          'Withdrawal code rollback error:',
-          rollbackError
-        );
-      }
+    }
 
-      logger.error(
-        'Generate withdrawal code error:',
-        error
+    const matches =
+      await comparePassword(
+        code,
+        withdrawalCode.code_hash
       );
 
-      return next(error);
-    } finally {
-      client.release();
+    if (!matches) {
+      return res.status(400).json({
+        message:
+          'The supplied withdrawal code is incorrect.',
+      });
     }
+
+    const {
+      sendEmail,
+    } = require('../utils/email');
+
+    await sendEmail({
+      to: withdrawalCode.email,
+
+      subject:
+        'Your GlobalDigitalMarket Withdrawal Code',
+
+      text:
+        `Hello ${withdrawalCode.first_name || ''},\n\n` +
+        `Your withdrawal authorization code is: ${code}\n\n` +
+        `This code is valid until ${new Date(
+          withdrawalCode.expires_at
+        ).toLocaleString()}.\n\n` +
+        `The code can only be used once.\n\n` +
+        `If you did not request this code, please contact support.\n\n` +
+        `GlobalDigitalMarket.online`,
+
+      html: `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+          <h2>Withdrawal Authorization Code</h2>
+
+          <p>
+            Hello ${withdrawalCode.first_name || ''},
+          </p>
+
+          <p>
+            Your withdrawal authorization code is:
+          </p>
+
+          <div style="
+            font-size: 28px;
+            font-weight: bold;
+            letter-spacing: 6px;
+            padding: 16px;
+            background: #f4f4f4;
+            display: inline-block;
+            border-radius: 8px;
+          ">
+            ${code}
+          </div>
+
+          <p>
+            This code is valid until
+            <strong>
+              ${new Date(
+                withdrawalCode.expires_at
+              ).toLocaleString()}
+            </strong>.
+          </p>
+
+          <p>
+            <strong>
+              This code can only be used once.
+            </strong>
+          </p>
+
+          <p>
+            If you did not request this code,
+            please contact support immediately.
+          </p>
+
+          <p>
+            GlobalDigitalMarket.online
+          </p>
+        </div>
+      `,
+    });
+
+    logger.info(
+      `Admin ${req.user.id} sent withdrawal code ${codeId} to user ${withdrawalCode.user_id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Withdrawal code sent to the user email successfully.',
+
+      sentTo:
+        withdrawalCode.email,
+    });
+  } catch (error) {
+    logger.error(
+      'Send withdrawal code email error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// LEGACY ENDPOINT
+// ============================================================
+//
+// We deliberately no longer generate codes for completed
+// withdrawals. The new workflow generates the code BEFORE
+// the withdrawal exists.
+//
+
+const generateWithdrawalCodeForTransaction =
+  async (req, res) => {
+    return res.status(410).json({
+      message:
+        'This withdrawal-code endpoint has been replaced. Generate a withdrawal code for the user before the withdrawal is submitted.',
+    });
   };
 
 // ============================================================
