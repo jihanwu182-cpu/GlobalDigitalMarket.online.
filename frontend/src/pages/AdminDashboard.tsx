@@ -878,8 +878,7 @@ const AdminDashboard: React.FC<
       'token'
     );
 
-    window.location.href =
-      '/admin/login';
+    navigate('/admin/login');
   };
 
   // ==========================================================
