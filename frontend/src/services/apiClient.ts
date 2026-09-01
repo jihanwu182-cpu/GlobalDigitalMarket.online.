@@ -2,10 +2,12 @@ import axios from 'axios';
 
 const RAW_API_URL =
   process.env.REACT_APP_API_URL ||
-  'https://globalmarket-com.onrender.com/';
+  'https://globalmarket-com.onrender.com/api';
 
-// Always make sure the API URL ends with /api
-const API_URL = `${RAW_API_URL.replace(/\/+$/, '')}/api`;
+const API_URL =
+  RAW_API_URL.replace(/\/+$/, '').endsWith('/api')
+    ? RAW_API_URL.replace(/\/+$/, '')
+    : `${RAW_API_URL.replace(/\/+$/, '')}/api`;
 
 const apiClient = axios.create({
   baseURL: API_URL,
@@ -45,7 +47,7 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // AUTHORIZATION HEADER
+    // AUTHORIZATION
     // ========================================================
 
     if (token) {
@@ -68,7 +70,7 @@ apiClient.interceptors.request.use(
     }
 
     // ========================================================
-    // JSON REQUESTS
+    // JSON
     // ========================================================
 
     else {
@@ -91,15 +93,10 @@ apiClient.interceptors.request.use(
 // ============================================================
 
 apiClient.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
 
   (error) => {
-    console.error(
-      'API ERROR:',
-      error
-    );
+    console.error('API ERROR:', error);
 
     if (error.response) {
       console.error(
@@ -120,17 +117,8 @@ apiClient.interceptors.response.use(
         error.response.status === 401 &&
         error.config?.url?.startsWith('/admin')
       ) {
-        console.error(
-          'ADMIN AUTHENTICATION FAILED'
-        );
-
-        localStorage.removeItem(
-          'adminToken'
-        );
-
-        localStorage.removeItem(
-          'admin'
-        );
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('admin');
       }
     }
 
