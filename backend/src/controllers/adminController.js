@@ -1,3 +1,5 @@
+const crypto = require('crypto');
+
 const pool = require('../config/database');
 const logger = require('../utils/logger');
 
@@ -6,6 +8,7 @@ const {
 } = require('../utils/jwt');
 
 const {
+  hashPassword,
   comparePassword,
 } = require('../utils/bcrypt');
 
@@ -16,9 +19,7 @@ const {
 const safeNumber = (value) => {
   const number = Number(value);
 
-  return Number.isFinite(number)
-    ? number
-    : 0;
+  return Number.isFinite(number) ? number : 0;
 };
 
 const normalizeStatus = (value) => {
@@ -33,6 +34,10 @@ const normalizeUserStatus = (value) => {
     .toLowerCase();
 };
 
+const isPositiveInteger = (value) => {
+  return Number.isInteger(value) && value > 0;
+};
+
 const getSignalStrength = (value) => {
   const strength = Number(value);
 
@@ -40,152 +45,22 @@ const getSignalStrength = (value) => {
     return 0;
   }
 
-  return Math.max(
-    0,
-    Math.min(100, strength)
-  );
+  return Math.max(0, Math.min(100, strength));
 };
 
-const isPositiveInteger = (value) => {
-  return (
-    Number.isInteger(value) &&
-    value > 0
-  );
-};
+const cleanString = (value) => {
+  if (value === undefined || value === null) {
+    return '';
+  }
 
-// ============================================================
-// SIGNAL DATABASE SETUP
-// ============================================================
-
-const ensureSignalTables = async () => {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS signal_plans (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(150) NOT NULL,
-      description TEXT,
-      strength INTEGER NOT NULL DEFAULT 50,
-      accuracy_percent NUMERIC(6, 2) NOT NULL DEFAULT 0,
-      duration_days INTEGER NOT NULL DEFAULT 30,
-      price NUMERIC(20, 2) NOT NULL DEFAULT 0,
-      currency VARCHAR(10) NOT NULL DEFAULT 'USD',
-      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-      created_by INTEGER,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS accuracy_percent NUMERIC(6, 2)
-    DEFAULT 0;
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS duration_days INTEGER
-    DEFAULT 30;
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS price NUMERIC(20, 2)
-    DEFAULT 0;
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS currency VARCHAR(10)
-    DEFAULT 'USD';
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS created_by INTEGER;
-  `);
-
-  await pool.query(`
-    ALTER TABLE signal_plans
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP;
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS user_signals (
-      id SERIAL PRIMARY KEY,
-
-      user_id INTEGER NOT NULL
-        REFERENCES users(id)
-        ON DELETE CASCADE,
-
-      signal_plan_id INTEGER
-        REFERENCES signal_plans(id)
-        ON DELETE SET NULL,
-
-      strength INTEGER
-        NOT NULL DEFAULT 50,
-
-      status VARCHAR(20)
-        NOT NULL DEFAULT 'ACTIVE',
-
-      note TEXT,
-
-      updated_by INTEGER
-        REFERENCES users(id)
-        ON DELETE SET NULL,
-
-      created_at TIMESTAMP
-        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      updated_at TIMESTAMP
-        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-      UNIQUE(user_id)
-    );
-  `);
-
-  await pool.query(`
-    ALTER TABLE user_signals
-    ADD COLUMN IF NOT EXISTS status VARCHAR(20)
-    DEFAULT 'ACTIVE';
-  `);
-
-  await pool.query(`
-    ALTER TABLE user_signals
-    ADD COLUMN IF NOT EXISTS note TEXT;
-  `);
-
-  await pool.query(`
-    ALTER TABLE user_signals
-    ADD COLUMN IF NOT EXISTS updated_by INTEGER;
-  `);
-
-  await pool.query(`
-    ALTER TABLE user_signals
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP;
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_user_signals_user_id
-    ON user_signals(user_id);
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_user_signals_plan_id
-    ON user_signals(signal_plan_id);
-  `);
+  return String(value).trim();
 };
 
 // ============================================================
 // ADMIN LOGIN
 // ============================================================
 
-const adminLogin = async (
-  req,
-  res,
-  next
-) => {
+const adminLogin = async (req, res, next) => {
   try {
     const {
       email,
@@ -199,30 +74,27 @@ const adminLogin = async (
       });
     }
 
-    const normalizedEmail =
-      String(email)
-        .trim()
-        .toLowerCase();
+    const normalizedEmail = cleanString(email)
+      .toLowerCase();
 
-    const result =
-      await pool.query(
-        `
-        SELECT
-          id,
-          email,
-          password_hash,
-          first_name,
-          last_name,
-          username,
-          phone,
-          role,
-          status
-        FROM users
-        WHERE LOWER(email) = $1
-        LIMIT 1
-        `,
-        [normalizedEmail]
-      );
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        email,
+        password_hash,
+        first_name,
+        last_name,
+        username,
+        phone,
+        role,
+        status
+      FROM users
+      WHERE LOWER(email) = $1
+      LIMIT 1
+      `,
+      [normalizedEmail]
+    );
 
     if (result.rows.length === 0) {
       return res.status(401).json({
@@ -231,8 +103,7 @@ const adminLogin = async (
       });
     }
 
-    const admin =
-      result.rows[0];
+    const admin = result.rows[0];
 
     const passwordMatches =
       await comparePassword(
@@ -247,12 +118,8 @@ const adminLogin = async (
       });
     }
 
-    const role =
-      String(
-        admin.role || ''
-      )
-        .trim()
-        .toLowerCase();
+    const role = cleanString(admin.role)
+      .toLowerCase();
 
     if (
       role !== 'admin' &&
@@ -265,12 +132,8 @@ const adminLogin = async (
       });
     }
 
-    const status =
-      String(
-        admin.status || ''
-      )
-        .trim()
-        .toLowerCase();
+    const status = cleanString(admin.status)
+      .toLowerCase();
 
     if (
       status === 'blocked' ||
@@ -290,17 +153,6 @@ const adminLogin = async (
         role: admin.role,
       });
 
-    const adminUser = {
-      id: admin.id,
-      email: admin.email,
-      firstName: admin.first_name,
-      lastName: admin.last_name,
-      username: admin.username || '',
-      phone: admin.phone || '',
-      role: admin.role,
-      status: admin.status,
-    };
-
     logger.info(
       `Successful admin login for email: ${normalizedEmail}`
     );
@@ -308,11 +160,22 @@ const adminLogin = async (
     return res.status(200).json({
       message:
         'Administrator login successful.',
-      token: accessToken,
-      accessToken,
-      admin: adminUser,
-    });
 
+      token: accessToken,
+
+      accessToken,
+
+      admin: {
+        id: admin.id,
+        email: admin.email,
+        firstName: admin.first_name,
+        lastName: admin.last_name,
+        username: admin.username || '',
+        phone: admin.phone || '',
+        role: admin.role,
+        status: admin.status,
+      },
+    });
   } catch (error) {
     logger.error(
       'Admin login error:',
@@ -327,107 +190,94 @@ const adminLogin = async (
 // ADMIN DASHBOARD
 // ============================================================
 
-const getDashboard = async (
-  req,
-  res,
-  next
-) => {
+const getDashboard = async (req, res, next) => {
   try {
-    const usersResult =
-      await pool.query(`
+    const [
+      usersResult,
+      activeUsersResult,
+      accountsResult,
+      transactionsResult,
+      pendingTransactionsResult,
+      depositsResult,
+      withdrawalsResult,
+      pendingDepositsResult,
+      pendingWithdrawalsResult,
+      kycResult,
+      balanceResult,
+      plansResult,
+    ] = await Promise.all([
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM users
-      `);
+      `),
 
-    const activeUsersResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM users
         WHERE LOWER(status) = 'active'
-      `);
+      `),
 
-    const accountsResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM accounts
-      `);
+      `),
 
-    const transactionsResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM transactions
-      `);
+      `),
 
-    const pendingTransactionsResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM transactions
-        WHERE status IN (
-          'PENDING',
-          'PROCESSING'
-        )
-      `);
+        WHERE status IN ('PENDING', 'PROCESSING')
+      `),
 
-    const depositsResult =
-      await pool.query(`
-        SELECT
-          COALESCE(SUM(amount), 0) AS total
+      pool.query(`
+        SELECT COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'DEPOSIT'
         AND status = 'COMPLETED'
-      `);
+      `),
 
-    const withdrawalsResult =
-      await pool.query(`
-        SELECT
-          COALESCE(SUM(amount), 0) AS total
+      pool.query(`
+        SELECT COALESCE(SUM(amount), 0) AS total
         FROM transactions
         WHERE transaction_type = 'WITHDRAWAL'
         AND status = 'COMPLETED'
-      `);
+      `),
 
-    const pendingDepositsResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM transactions
         WHERE transaction_type = 'DEPOSIT'
-        AND status IN (
-          'PENDING',
-          'PROCESSING'
-        )
-      `);
+        AND status IN ('PENDING', 'PROCESSING')
+      `),
 
-    const pendingWithdrawalsResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM transactions
         WHERE transaction_type = 'WITHDRAWAL'
-        AND status IN (
-          'PENDING',
-          'PROCESSING'
-        )
-      `);
+        AND status IN ('PENDING', 'PROCESSING')
+      `),
 
-    const kycResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM identity_documents
         WHERE status = 'PENDING'
-      `);
+      `),
 
-    const balanceResult =
-      await pool.query(`
-        SELECT
-          COALESCE(SUM(balance), 0) AS total
+      pool.query(`
+        SELECT COALESCE(SUM(balance), 0) AS total
         FROM accounts
-      `);
+      `),
 
-    const plansResult =
-      await pool.query(`
+      pool.query(`
         SELECT COUNT(*)::int AS total
         FROM investment_plans
         WHERE status = 'ACTIVE'
-      `);
+      `),
+    ]);
 
     return res.status(200).json({
       message:
@@ -477,7 +327,6 @@ const getDashboard = async (
           plansResult.rows[0].total,
       },
     });
-
   } catch (error) {
     logger.error(
       'Admin dashboard error:',
@@ -492,106 +341,110 @@ const getDashboard = async (
 // GET USERS
 // ============================================================
 
-const getUsers = async (
-  req,
-  res,
-  next
-) => {
+const getUsers = async (req, res, next) => {
   try {
-    const result =
-      await pool.query(`
-        SELECT
-          u.id,
-          u.email,
-          u.first_name,
-          u.last_name,
-          u.username,
-          u.phone,
-          u.country,
-          u.preferred_currency,
-          u.referral_code,
-          u.role,
-          u.status,
-          u.email_verified,
-          u.identity_verification_status,
-          u.created_at,
+    const result = await pool.query(`
+      SELECT
+        u.id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.username,
+        u.phone,
+        u.country,
+        u.preferred_currency,
+        u.referral_code,
+        u.role,
+        u.status,
+        u.email_verified,
+        u.identity_verification_status,
+        u.created_at,
 
-          a.id AS account_id,
-          a.account_number,
-          a.account_type,
-          a.currency AS account_currency,
-          a.balance,
-          a.available_balance
+        a.id AS account_id,
+        a.account_number,
+        a.account_type,
+        a.currency AS account_currency,
+        a.balance,
+        a.available_balance
 
-        FROM users u
+      FROM users u
 
-        LEFT JOIN accounts a
-          ON a.user_id = u.id
+      LEFT JOIN accounts a
+        ON a.user_id = u.id
 
-        ORDER BY
-          u.created_at DESC
-      `);
+      ORDER BY u.created_at DESC
+    `);
 
-    const users =
-      result.rows.map(
-        (user) => ({
-          id: user.id,
-          email: user.email,
-          firstName: user.first_name,
-          lastName: user.last_name,
-          username: user.username || '',
-          phone: user.phone || '',
-          country: user.country || '',
-          preferredCurrency:
-            user.preferred_currency || 'USD',
-          referralCode:
-            user.referral_code || '',
-          role: user.role,
-          status: user.status,
+    const users = result.rows.map((user) => ({
+      id: user.id,
 
-          emailVerified:
-            Boolean(user.email_verified),
+      email: user.email,
 
-          identityVerificationStatus:
-            user.identity_verification_status,
+      firstName:
+        user.first_name,
 
-          createdAt:
-            user.created_at,
+      lastName:
+        user.last_name,
 
-          account:
-            user.account_id
-              ? {
-                  id:
-                    user.account_id,
+      username:
+        user.username || '',
 
-                  accountNumber:
-                    user.account_number,
+      phone:
+        user.phone || '',
 
-                  accountType:
-                    user.account_type,
+      country:
+        user.country || '',
 
-                  currency:
-                    user.account_currency,
+      preferredCurrency:
+        user.preferred_currency || 'USD',
 
-                  balance:
-                    safeNumber(
-                      user.balance
-                    ),
+      referralCode:
+        user.referral_code || '',
 
-                  availableBalance:
-                    safeNumber(
-                      user.available_balance
-                    ),
-                }
-              : null,
-        })
-      );
+      role:
+        user.role,
+
+      status:
+        user.status,
+
+      emailVerified:
+        Boolean(user.email_verified),
+
+      identityVerificationStatus:
+        user.identity_verification_status,
+
+      createdAt:
+        user.created_at,
+
+      account: user.account_id
+        ? {
+            id:
+              user.account_id,
+
+            accountNumber:
+              user.account_number,
+
+            accountType:
+              user.account_type,
+
+            currency:
+              user.account_currency,
+
+            balance:
+              safeNumber(user.balance),
+
+            availableBalance:
+              safeNumber(
+                user.available_balance
+              ),
+          }
+        : null,
+    }));
 
     return res.status(200).json({
       users,
       count: users.length,
     });
-
   } catch (error) {
     logger.error(
       'Admin users error:',
@@ -606,11 +459,7 @@ const getUsers = async (
 // GET SINGLE USER
 // ============================================================
 
-const getUser = async (
-  req,
-  res,
-  next
-) => {
+const getUser = async (req, res, next) => {
   try {
     const userId =
       Number(req.params.id);
@@ -622,52 +471,51 @@ const getUser = async (
       });
     }
 
-    const result =
-      await pool.query(
-        `
-        SELECT
-          u.id,
-          u.email,
-          u.first_name,
-          u.last_name,
-          u.username,
-          u.phone,
-          u.country,
-          u.preferred_currency,
-          u.referral_code,
-          u.referrer_code,
-          u.role,
-          u.status,
-          u.email_verified,
-          u.identity_verification_status,
-          u.created_at,
+    const result = await pool.query(
+      `
+      SELECT
+        u.id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.username,
+        u.phone,
+        u.country,
+        u.preferred_currency,
+        u.referral_code,
+        u.referrer_code,
+        u.role,
+        u.status,
+        u.email_verified,
+        u.identity_verification_status,
+        u.created_at,
 
-          a.id AS account_id,
-          a.account_number,
-          a.account_type,
-          a.account_name,
-          a.currency AS account_currency,
-          a.balance,
-          a.deposit,
-          a.profits,
-          a.available_balance,
-          a.bonus,
-          a.referrer_bonus,
-          a.buying_power,
-          a.margin_available,
-          a.status AS account_status
+        a.id AS account_id,
+        a.account_number,
+        a.account_type,
+        a.account_name,
+        a.currency AS account_currency,
+        a.balance,
+        a.deposit,
+        a.profits,
+        a.available_balance,
+        a.bonus,
+        a.referrer_bonus,
+        a.buying_power,
+        a.margin_available,
+        a.status AS account_status
 
-        FROM users u
+      FROM users u
 
-        LEFT JOIN accounts a
-          ON a.user_id = u.id
+      LEFT JOIN accounts a
+        ON a.user_id = u.id
 
-        WHERE u.id = $1
+      WHERE u.id = $1
 
-        LIMIT 1
-        `,
-        [userId]
-      );
+      LIMIT 1
+      `,
+      [userId]
+    );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -676,26 +524,44 @@ const getUser = async (
       });
     }
 
-    const user =
-      result.rows[0];
+    const user = result.rows[0];
 
     return res.status(200).json({
       user: {
         id: user.id,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
-        username: user.username || '',
-        phone: user.phone || '',
-        country: user.country || '',
+
+        email:
+          user.email,
+
+        firstName:
+          user.first_name,
+
+        lastName:
+          user.last_name,
+
+        username:
+          user.username || '',
+
+        phone:
+          user.phone || '',
+
+        country:
+          user.country || '',
+
         preferredCurrency:
           user.preferred_currency || 'USD',
+
         referralCode:
           user.referral_code || '',
+
         referrerCode:
           user.referrer_code || '',
-        role: user.role,
-        status: user.status,
+
+        role:
+          user.role,
+
+        status:
+          user.status,
 
         emailVerified:
           Boolean(user.email_verified),
@@ -706,71 +572,61 @@ const getUser = async (
         createdAt:
           user.created_at,
 
-        account:
-          user.account_id
-            ? {
-                id:
-                  user.account_id,
+        account: user.account_id
+          ? {
+              id:
+                user.account_id,
 
-                accountNumber:
-                  user.account_number,
+              accountNumber:
+                user.account_number,
 
-                accountType:
-                  user.account_type,
+              accountType:
+                user.account_type,
 
-                accountName:
-                  user.account_name,
+              accountName:
+                user.account_name,
 
-                currency:
-                  user.account_currency,
+              currency:
+                user.account_currency,
 
-                balance:
-                  safeNumber(
-                    user.balance
-                  ),
+              balance:
+                safeNumber(user.balance),
 
-                deposit:
-                  safeNumber(
-                    user.deposit
-                  ),
+              deposit:
+                safeNumber(user.deposit),
 
-                profits:
-                  safeNumber(
-                    user.profits
-                  ),
+              profits:
+                safeNumber(user.profits),
 
-                availableBalance:
-                  safeNumber(
-                    user.available_balance
-                  ),
+              availableBalance:
+                safeNumber(
+                  user.available_balance
+                ),
 
-                bonus:
-                  safeNumber(
-                    user.bonus
-                  ),
+              bonus:
+                safeNumber(user.bonus),
 
-                referrerBonus:
-                  safeNumber(
-                    user.referrer_bonus
-                  ),
+              referrerBonus:
+                safeNumber(
+                  user.referrer_bonus
+                ),
 
-                buyingPower:
-                  safeNumber(
-                    user.buying_power
-                  ),
+              buyingPower:
+                safeNumber(
+                  user.buying_power
+                ),
 
-                marginAvailable:
-                  safeNumber(
-                    user.margin_available
-                  ),
+              marginAvailable:
+                safeNumber(
+                  user.margin_available
+                ),
 
-                status:
-                  user.account_status,
-              }
-            : null,
+              status:
+                user.account_status,
+            }
+          : null,
       },
     });
-
   } catch (error) {
     logger.error(
       'Admin get user error:',
@@ -782,355 +638,87 @@ const getUser = async (
 };
 
 // ============================================================
-// GET TRANSACTIONS
+// UPDATE USER STATUS
 // ============================================================
 
-const getTransactions = async (
+const updateUserStatus = async (
   req,
   res,
   next
 ) => {
   try {
-    const result =
-      await pool.query(`
-        SELECT
-          t.id,
-          t.account_id,
-          t.transaction_reference,
-          t.transaction_type,
-          t.amount,
-          t.currency,
-          t.payment_method,
-          t.status,
-          t.description,
-          t.proof_of_payment_url,
-          t.verified_by,
-          t.verified_at,
-          t.admin_note,
-          t.created_at,
-          t.updated_at,
+    const userId =
+      Number(req.params.id);
 
-          u.id AS user_id,
-          u.first_name,
-          u.last_name,
-          u.email,
-          u.username
-
-        FROM transactions t
-
-        INNER JOIN accounts a
-          ON a.id = t.account_id
-
-        INNER JOIN users u
-          ON u.id = a.user_id
-
-        ORDER BY
-          t.created_at DESC
-      `);
-
-    const transactions =
-      result.rows.map(
-        (transaction) => ({
-          id:
-            transaction.id,
-
-          accountId:
-            transaction.account_id,
-
-          transactionReference:
-            transaction.transaction_reference,
-
-          transactionType:
-            transaction.transaction_type,
-
-          amount:
-            safeNumber(
-              transaction.amount
-            ),
-
-          currency:
-            transaction.currency,
-
-          paymentMethod:
-            transaction.payment_method || '',
-
-          status:
-            transaction.status,
-
-          description:
-            transaction.description || '',
-
-          proofOfPaymentUrl:
-            transaction.proof_of_payment_url || '',
-
-          verifiedBy:
-            transaction.verified_by,
-
-          verifiedAt:
-            transaction.verified_at,
-
-          adminNote:
-            transaction.admin_note || '',
-
-          createdAt:
-            transaction.created_at,
-
-          updatedAt:
-            transaction.updated_at,
-
-          user: {
-            id:
-              transaction.user_id,
-
-            firstName:
-              transaction.first_name,
-
-            lastName:
-              transaction.last_name,
-
-            email:
-              transaction.email,
-
-            username:
-              transaction.username || '',
-          },
-        })
+    const status =
+      normalizeUserStatus(
+        req.body?.status
       );
 
-    return res.status(200).json({
-      transactions,
-      count: transactions.length,
-    });
+    const allowedStatuses = [
+      'active',
+      'blocked',
+      'suspended',
+      'disabled',
+    ];
 
-  } catch (error) {
-    logger.error(
-      'Admin transactions error:',
-      error
+    if (!isPositiveInteger(userId)) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    if (
+      !allowedStatuses.includes(status)
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid user status.',
+        allowedStatuses,
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        UPDATE users
+
+        SET
+          status = $1,
+          updated_at = CURRENT_TIMESTAMP
+
+        WHERE id = $2
+
+        RETURNING
+          id,
+          email,
+          status
+        `,
+        [status, userId]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User not found.',
+      });
+    }
+
+    logger.info(
+      `Admin ${req.user.id} changed user ${userId} status to ${status}`
     );
 
-    return next(error);
-  }
-};
-
-// ============================================================
-// GET DEPOSITS
-// ============================================================
-
-const getDeposits = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const result =
-      await pool.query(`
-        SELECT
-          t.id,
-          t.account_id,
-          t.transaction_reference,
-          t.amount,
-          t.currency,
-          t.payment_method,
-          t.status,
-          t.description,
-          t.proof_of_payment_url,
-          t.admin_note,
-          t.created_at,
-
-          u.id AS user_id,
-          u.first_name,
-          u.last_name,
-          u.email,
-          u.username
-
-        FROM transactions t
-
-        INNER JOIN accounts a
-          ON a.id = t.account_id
-
-        INNER JOIN users u
-          ON u.id = a.user_id
-
-        WHERE
-          t.transaction_type = 'DEPOSIT'
-
-        ORDER BY
-          t.created_at DESC
-      `);
-
     return res.status(200).json({
-      deposits:
-        result.rows.map(
-          (row) => ({
-            id:
-              row.id,
+      message:
+        'User status updated successfully.',
 
-            accountId:
-              row.account_id,
-
-            transactionReference:
-              row.transaction_reference,
-
-            amount:
-              safeNumber(
-                row.amount
-              ),
-
-            currency:
-              row.currency,
-
-            paymentMethod:
-              row.payment_method || '',
-
-            status:
-              row.status,
-
-            description:
-              row.description || '',
-
-            proofOfPaymentUrl:
-              row.proof_of_payment_url || '',
-
-            adminNote:
-              row.admin_note || '',
-
-            createdAt:
-              row.created_at,
-
-            user: {
-              id:
-                row.user_id,
-
-              firstName:
-                row.first_name,
-
-              lastName:
-                row.last_name,
-
-              email:
-                row.email,
-
-              username:
-                row.username || '',
-            },
-          })
-        ),
+      user:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
-      'Admin deposits error:',
-      error
-    );
-
-    return next(error);
-  }
-};
-
-// ============================================================
-// GET WITHDRAWALS
-// ============================================================
-
-const getWithdrawals = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const result =
-      await pool.query(`
-        SELECT
-          t.id,
-          t.account_id,
-          t.transaction_reference,
-          t.amount,
-          t.currency,
-          t.payment_method,
-          t.status,
-          t.description,
-          t.admin_note,
-          t.created_at,
-
-          u.id AS user_id,
-          u.first_name,
-          u.last_name,
-          u.email,
-          u.username
-
-        FROM transactions t
-
-        INNER JOIN accounts a
-          ON a.id = t.account_id
-
-        INNER JOIN users u
-          ON u.id = a.user_id
-
-        WHERE
-          t.transaction_type = 'WITHDRAWAL'
-
-        ORDER BY
-          t.created_at DESC
-      `);
-
-    return res.status(200).json({
-      withdrawals:
-        result.rows.map(
-          (row) => ({
-            id:
-              row.id,
-
-            accountId:
-              row.account_id,
-
-            transactionReference:
-              row.transaction_reference,
-
-            amount:
-              safeNumber(
-                row.amount
-              ),
-
-            currency:
-              row.currency,
-
-            paymentMethod:
-              row.payment_method || '',
-
-            status:
-              row.status,
-
-            description:
-              row.description || '',
-
-            adminNote:
-              row.admin_note || '',
-
-            createdAt:
-              row.created_at,
-
-            user: {
-              id:
-                row.user_id,
-
-              firstName:
-                row.first_name,
-
-              lastName:
-                row.last_name,
-
-              email:
-                row.email,
-
-              username:
-                row.username || '',
-            },
-          })
-        ),
-    });
-
-  } catch (error) {
-    logger.error(
-      'Admin withdrawals error:',
+      'Admin update user status error:',
       error
     );
 
@@ -1154,11 +742,19 @@ const fundUserAccount = async (
     const userId =
       Number(req.params.id);
 
-    const {
-      amount,
-      currency,
-      description,
-    } = req.body || {};
+    const amount =
+      Number(req.body?.amount);
+
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const description =
+      cleanString(
+        req.body?.description
+      ) ||
+      'Account funded by administrator.';
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
@@ -1167,12 +763,9 @@ const fundUserAccount = async (
       });
     }
 
-    const fundingAmount =
-      Number(amount);
-
     if (
-      !Number.isFinite(fundingAmount) ||
-      fundingAmount <= 0
+      !Number.isFinite(amount) ||
+      amount <= 0
     ) {
       return res.status(400).json({
         message:
@@ -1180,445 +773,9 @@ const fundUserAccount = async (
       });
     }
 
-    const fundingCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
     if (
-      fundingCurrency.length < 3 ||
-      fundingCurrency.length > 10
-    ) {
-      return res.status(400).json({
-        message:
-          'Invalid currency.',
-      });
-    }
-
-    await client.query('BEGIN');
-
-    const accountResult =
-      await client.query(
-        `
-        SELECT
-          u.id AS user_id,
-          u.email,
-          u.first_name,
-          u.last_name,
-
-          a.id AS account_id,
-          a.account_number,
-          a.currency,
-          a.balance,
-          a.deposit,
-          a.available_balance,
-          a.buying_power,
-          a.margin_available
-
-        FROM users u
-
-        INNER JOIN accounts a
-          ON a.user_id = u.id
-
-        WHERE u.id = $1
-
-        LIMIT 1
-
-        FOR UPDATE OF a
-        `,
-        [userId]
-      );
-
-    if (accountResult.rows.length === 0) {
-      await client.query('ROLLBACK');
-
-      return res.status(404).json({
-        message:
-          'User account not found.',
-      });
-    }
-
-    const account =
-      accountResult.rows[0];
-
-    const accountCurrency =
-      String(account.currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    if (
-      accountCurrency !==
-      fundingCurrency
-    ) {
-      await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        message:
-          `Account currency is ${accountCurrency}. Funding currency must match the account currency.`,
-
-        accountCurrency,
-
-        requestedCurrency:
-          fundingCurrency,
-      });
-    }
-
-    const transactionReference =
-      `ADMIN-FUND-${Date.now()}-${userId}-${Math.floor(
-        Math.random() * 100000
-      )}`;
-
-    const fundingDescription =
-      description
-        ? String(description).trim()
-        : 'Account funded by administrator.';
-
-    const transactionResult =
-      await client.query(
-        `
-        INSERT INTO transactions (
-          account_id,
-          transaction_reference,
-          transaction_type,
-          amount,
-          currency,
-          payment_method,
-          status,
-          description,
-          verified_by,
-          verified_at,
-          admin_note,
-          created_at,
-          updated_at
-        )
-
-        VALUES (
-          $1,
-          $2,
-          'DEPOSIT',
-          $3,
-          $4,
-          'ADMIN_FUNDING',
-          'COMPLETED',
-          $5,
-          $6,
-          CURRENT_TIMESTAMP,
-          $7,
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
-        )
-
-        RETURNING
-          id,
-          account_id,
-          transaction_reference,
-          transaction_type,
-          amount,
-          currency,
-          payment_method,
-          status,
-          description,
-          verified_by,
-          verified_at,
-          admin_note,
-          created_at,
-          updated_at
-        `,
-        [
-          account.account_id,
-          transactionReference,
-          fundingAmount,
-          fundingCurrency,
-          fundingDescription,
-          req.user.id,
-          fundingDescription,
-        ]
-      );
-
-    const updatedAccountResult =
-      await client.query(
-        `
-        UPDATE accounts
-
-        SET
-          balance =
-            COALESCE(balance, 0)
-            + $1,
-
-          deposit =
-            COALESCE(deposit, 0)
-            + $1,
-
-          available_balance =
-            COALESCE(available_balance, 0)
-            + $1,
-
-          buying_power =
-            COALESCE(buying_power, 0)
-            + $1,
-
-          margin_available =
-            COALESCE(margin_available, 0)
-            + $1,
-
-          updated_at =
-            CURRENT_TIMESTAMP
-
-        WHERE id = $2
-
-        RETURNING
-          id,
-          account_number,
-          account_type,
-          account_name,
-          currency,
-          balance,
-          deposit,
-          profits,
-          available_balance,
-          bonus,
-          referrer_bonus,
-          buying_power,
-          margin_available,
-          status,
-          updated_at
-        `,
-        [
-          fundingAmount,
-          account.account_id,
-        ]
-      );
-
-    await client.query('COMMIT');
-
-    const transaction =
-      transactionResult.rows[0];
-
-    const updatedAccount =
-      updatedAccountResult.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} funded user ${userId} account ${account.account_id} with ${fundingAmount} ${fundingCurrency}`
-    );
-
-    return res.status(200).json({
-      message:
-        'User account funded successfully.',
-
-      funding: {
-        userId:
-          account.user_id,
-
-        email:
-          account.email,
-
-        firstName:
-          account.first_name,
-
-        lastName:
-          account.last_name,
-
-        accountId:
-          account.account_id,
-
-        accountNumber:
-          account.account_number,
-
-        amount:
-          fundingAmount,
-
-        currency:
-          fundingCurrency,
-
-        transactionReference:
-          transaction.transaction_reference,
-
-        status:
-          'COMPLETED',
-      },
-
-      transaction: {
-        id:
-          transaction.id,
-
-        accountId:
-          transaction.account_id,
-
-        transactionReference:
-          transaction.transaction_reference,
-
-        transactionType:
-          transaction.transaction_type,
-
-        amount:
-          safeNumber(
-            transaction.amount
-          ),
-
-        currency:
-          transaction.currency,
-
-        paymentMethod:
-          transaction.payment_method,
-
-        status:
-          transaction.status,
-
-        description:
-          transaction.description || '',
-
-        verifiedBy:
-          transaction.verified_by,
-
-        verifiedAt:
-          transaction.verified_at,
-
-        adminNote:
-          transaction.admin_note || '',
-
-        createdAt:
-          transaction.created_at,
-
-        updatedAt:
-          transaction.updated_at,
-      },
-
-      account: {
-        id:
-          updatedAccount.id,
-
-        accountNumber:
-          updatedAccount.account_number,
-
-        accountType:
-          updatedAccount.account_type,
-
-        accountName:
-          updatedAccount.account_name,
-
-        currency:
-          updatedAccount.currency,
-
-        balance:
-          safeNumber(
-            updatedAccount.balance
-          ),
-
-        deposit:
-          safeNumber(
-            updatedAccount.deposit
-          ),
-
-        profits:
-          safeNumber(
-            updatedAccount.profits
-          ),
-
-        availableBalance:
-          safeNumber(
-            updatedAccount.available_balance
-          ),
-
-        bonus:
-          safeNumber(
-            updatedAccount.bonus
-          ),
-
-        referrerBonus:
-          safeNumber(
-            updatedAccount.referrer_bonus
-          ),
-
-        buyingPower:
-          safeNumber(
-            updatedAccount.buying_power
-          ),
-
-        marginAvailable:
-          safeNumber(
-            updatedAccount.margin_available
-          ),
-
-        status:
-          updatedAccount.status,
-
-        updatedAt:
-          updatedAccount.updated_at,
-      },
-    });
-
-  } catch (error) {
-    try {
-      await client.query('ROLLBACK');
-    } catch (rollbackError) {
-      logger.error(
-        'Account funding rollback error:',
-        rollbackError
-      );
-    }
-
-    logger.error(
-      'Admin fund user account error:',
-      error
-    );
-
-    return next(error);
-
-  } finally {
-    client.release();
-  }
-};
-
-// ============================================================
-// DEBIT USER ACCOUNT
-// ============================================================
-
-const debitUserAccount = async (
-  req,
-  res,
-  next
-) => {
-  const client =
-    await pool.connect();
-
-  try {
-    const userId =
-      Number(req.params.id);
-
-    const {
-      amount,
-      currency,
-      description,
-    } = req.body || {};
-
-    if (!isPositiveInteger(userId)) {
-      return res.status(400).json({
-        message:
-          'Invalid user ID.',
-      });
-    }
-
-    const debitAmount =
-      Number(amount);
-
-    if (
-      !Number.isFinite(debitAmount) ||
-      debitAmount <= 0
-    ) {
-      return res.status(400).json({
-        message:
-          'Debit amount must be greater than zero.',
-      });
-    }
-
-    const debitCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    if (
-      debitCurrency.length < 3 ||
-      debitCurrency.length > 10
+      currency.length < 3 ||
+      currency.length > 10
     ) {
       return res.status(400).json({
         message:
@@ -1666,7 +823,9 @@ const debitUserAccount = async (
         [userId]
       );
 
-    if (accountResult.rows.length === 0) {
+    if (
+      accountResult.rows.length === 0
+    ) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -1679,65 +838,31 @@ const debitUserAccount = async (
       accountResult.rows[0];
 
     const accountCurrency =
-      String(account.currency || 'USD')
-        .trim()
-        .toUpperCase();
+      cleanString(
+        account.currency || 'USD'
+      ).toUpperCase();
 
     if (
-      accountCurrency !==
-      debitCurrency
+      accountCurrency !== currency
     ) {
       await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
-          `Account currency is ${accountCurrency}. Debit currency must match the account currency.`,
+          `Account currency is ${accountCurrency}. Funding currency must match the account currency.`,
 
         accountCurrency,
 
         requestedCurrency:
-          debitCurrency,
+          currency,
       });
     }
 
-    const currentBalance =
-      safeNumber(account.balance);
-
-    const currentAvailableBalance =
-      safeNumber(
-        account.available_balance
-      );
-
-    if (
-      currentBalance < debitAmount ||
-      currentAvailableBalance < debitAmount
-    ) {
-      await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        message:
-          'Insufficient account balance.',
-
-        balance:
-          currentBalance,
-
-        availableBalance:
-          currentAvailableBalance,
-
-        requestedAmount:
-          debitAmount,
-      });
-    }
-
-    const transactionReference =
-      `ADMIN-DEBIT-${Date.now()}-${userId}-${Math.floor(
-        Math.random() * 100000
+    const reference =
+      `ADMIN-FUND-${Date.now()}-${userId}-${crypto.randomInt(
+        10000,
+        99999
       )}`;
-
-    const debitDescription =
-      description
-        ? String(description).trim()
-        : 'Account debited by administrator.';
 
     const transactionResult =
       await client.query(
@@ -1753,51 +878,32 @@ const debitUserAccount = async (
           description,
           verified_by,
           verified_at,
-          admin_note,
-          created_at,
-          updated_at
+          admin_note
         )
 
         VALUES (
           $1,
           $2,
-          'WITHDRAWAL',
+          'DEPOSIT',
           $3,
           $4,
-          'ADMIN_DEBIT',
+          'ADMIN_FUNDING',
           'COMPLETED',
           $5,
           $6,
           CURRENT_TIMESTAMP,
-          $7,
-          CURRENT_TIMESTAMP,
-          CURRENT_TIMESTAMP
+          $5
         )
 
-        RETURNING
-          id,
-          account_id,
-          transaction_reference,
-          transaction_type,
-          amount,
-          currency,
-          payment_method,
-          status,
-          description,
-          verified_by,
-          verified_at,
-          admin_note,
-          created_at,
-          updated_at
+        RETURNING *
         `,
         [
           account.account_id,
-          transactionReference,
-          debitAmount,
-          debitCurrency,
-          debitDescription,
+          reference,
+          amount,
+          currency,
+          description,
           req.user.id,
-          debitDescription,
         ]
       );
 
@@ -1808,45 +914,29 @@ const debitUserAccount = async (
 
         SET
           balance =
-            COALESCE(balance, 0)
-            - $1,
+            COALESCE(balance, 0) + $1,
+
+          deposit =
+            COALESCE(deposit, 0) + $1,
 
           available_balance =
-            COALESCE(available_balance, 0)
-            - $1,
+            COALESCE(available_balance, 0) + $1,
 
           buying_power =
-            COALESCE(buying_power, 0)
-            - $1,
+            COALESCE(buying_power, 0) + $1,
 
           margin_available =
-            COALESCE(margin_available, 0)
-            - $1,
+            COALESCE(margin_available, 0) + $1,
 
           updated_at =
             CURRENT_TIMESTAMP
 
         WHERE id = $2
 
-        RETURNING
-          id,
-          account_number,
-          account_type,
-          account_name,
-          currency,
-          balance,
-          deposit,
-          profits,
-          available_balance,
-          bonus,
-          referrer_bonus,
-          buying_power,
-          margin_available,
-          status,
-          updated_at
+        RETURNING *
         `,
         [
-          debitAmount,
+          amount,
           account.account_id,
         ]
       );
@@ -1860,90 +950,28 @@ const debitUserAccount = async (
       updatedAccountResult.rows[0];
 
     logger.info(
-      `Admin ${req.user.id} debited user ${userId} account ${account.account_id} by ${debitAmount} ${debitCurrency}`
+      `Admin ${req.user.id} funded user ${userId} with ${amount} ${currency}`
     );
 
     return res.status(200).json({
       message:
-        'User account debited successfully.',
+        'User account funded successfully.',
 
-      debit: {
-        userId:
-          account.user_id,
-
-        email:
-          account.email,
-
-        firstName:
-          account.first_name,
-
-        lastName:
-          account.last_name,
-
+      funding: {
+        userId,
         accountId:
           account.account_id,
-
         accountNumber:
           account.account_number,
-
-        amount:
-          debitAmount,
-
-        currency:
-          debitCurrency,
-
+        amount,
+        currency,
         transactionReference:
           transaction.transaction_reference,
-
         status:
           'COMPLETED',
       },
 
-      transaction: {
-        id:
-          transaction.id,
-
-        accountId:
-          transaction.account_id,
-
-        transactionReference:
-          transaction.transaction_reference,
-
-        transactionType:
-          transaction.transaction_type,
-
-        amount:
-          safeNumber(
-            transaction.amount
-          ),
-
-        currency:
-          transaction.currency,
-
-        paymentMethod:
-          transaction.payment_method,
-
-        status:
-          transaction.status,
-
-        description:
-          transaction.description || '',
-
-        verifiedBy:
-          transaction.verified_by,
-
-        verifiedAt:
-          transaction.verified_at,
-
-        adminNote:
-          transaction.admin_note || '',
-
-        createdAt:
-          transaction.created_at,
-
-        updatedAt:
-          transaction.updated_at,
-      },
+      transaction,
 
       account: {
         id:
@@ -2003,31 +1031,587 @@ const debitUserAccount = async (
 
         status:
           updatedAccount.status,
-
-        updatedAt:
-          updatedAccount.updated_at,
       },
     });
-
   } catch (error) {
     try {
       await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
-        'Account debit rollback error:',
+        'Funding rollback error:',
         rollbackError
       );
     }
 
     logger.error(
-      'Admin debit user account error:',
+      'Admin fund account error:',
       error
     );
 
     return next(error);
-
   } finally {
     client.release();
+  }
+};
+
+// ============================================================
+// DEBIT USER ACCOUNT
+// ============================================================
+
+const debitUserAccount = async (
+  req,
+  res,
+  next
+) => {
+  const client =
+    await pool.connect();
+
+  try {
+    const userId =
+      Number(req.params.id);
+
+    const amount =
+      Number(req.body?.amount);
+
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const description =
+      cleanString(
+        req.body?.description
+      ) ||
+      'Account debited by administrator.';
+
+    if (!isPositiveInteger(userId)) {
+      return res.status(400).json({
+        message:
+          'Invalid user ID.',
+      });
+    }
+
+    if (
+      !Number.isFinite(amount) ||
+      amount <= 0
+    ) {
+      return res.status(400).json({
+        message:
+          'Debit amount must be greater than zero.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    const accountResult =
+      await client.query(
+        `
+        SELECT
+          u.id AS user_id,
+          u.email,
+
+          a.id AS account_id,
+          a.account_number,
+          a.currency,
+          a.balance,
+          a.available_balance
+
+        FROM users u
+
+        INNER JOIN accounts a
+          ON a.user_id = u.id
+
+        WHERE u.id = $1
+
+        LIMIT 1
+
+        FOR UPDATE OF a
+        `,
+        [userId]
+      );
+
+    if (
+      accountResult.rows.length === 0
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const account =
+      accountResult.rows[0];
+
+    const accountCurrency =
+      cleanString(
+        account.currency || 'USD'
+      ).toUpperCase();
+
+    if (
+      accountCurrency !== currency
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          `Account currency is ${accountCurrency}. Debit currency must match the account currency.`,
+      });
+    }
+
+    const balance =
+      safeNumber(account.balance);
+
+    const availableBalance =
+      safeNumber(
+        account.available_balance
+      );
+
+    if (
+      balance < amount ||
+      availableBalance < amount
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Insufficient account balance.',
+
+        balance,
+
+        availableBalance,
+
+        requestedAmount:
+          amount,
+      });
+    }
+
+    const reference =
+      `ADMIN-DEBIT-${Date.now()}-${userId}-${crypto.randomInt(
+        10000,
+        99999
+      )}`;
+
+    const transactionResult =
+      await client.query(
+        `
+        INSERT INTO transactions (
+          account_id,
+          transaction_reference,
+          transaction_type,
+          amount,
+          currency,
+          payment_method,
+          status,
+          description,
+          verified_by,
+          verified_at,
+          admin_note
+        )
+
+        VALUES (
+          $1,
+          $2,
+          'WITHDRAWAL',
+          $3,
+          $4,
+          'ADMIN_DEBIT',
+          'COMPLETED',
+          $5,
+          $6,
+          CURRENT_TIMESTAMP,
+          $5
+        )
+
+        RETURNING *
+        `,
+        [
+          account.account_id,
+          reference,
+          amount,
+          currency,
+          description,
+          req.user.id,
+        ]
+      );
+
+    const updatedAccountResult =
+      await client.query(
+        `
+        UPDATE accounts
+
+        SET
+          balance =
+            COALESCE(balance, 0) - $1,
+
+          available_balance =
+            COALESCE(available_balance, 0) - $1,
+
+          buying_power =
+            COALESCE(buying_power, 0) - $1,
+
+          margin_available =
+            COALESCE(margin_available, 0) - $1,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $2
+
+        RETURNING *
+        `,
+        [
+          amount,
+          account.account_id,
+        ]
+      );
+
+    await client.query('COMMIT');
+
+    return res.status(200).json({
+      message:
+        'User account debited successfully.',
+
+      transaction:
+        transactionResult.rows[0],
+
+      account:
+        updatedAccountResult.rows[0],
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'Debit rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin debit account error:',
+      error
+    );
+
+    return next(error);
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
+// GET TRANSACTIONS
+// ============================================================
+
+const getTransactions = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await pool.query(`
+        SELECT
+          t.*,
+
+          u.id AS user_id,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.username
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        ORDER BY
+          t.created_at DESC
+      `);
+
+    const transactions =
+      result.rows.map((row) => ({
+        id:
+          row.id,
+
+        accountId:
+          row.account_id,
+
+        transactionReference:
+          row.transaction_reference,
+
+        transactionType:
+          row.transaction_type,
+
+        amount:
+          safeNumber(row.amount),
+
+        currency:
+          row.currency,
+
+        paymentMethod:
+          row.payment_method || '',
+
+        status:
+          row.status,
+
+        description:
+          row.description || '',
+
+        proofOfPaymentUrl:
+          row.proof_of_payment_url || '',
+
+        verifiedBy:
+          row.verified_by,
+
+        verifiedAt:
+          row.verified_at,
+
+        adminNote:
+          row.admin_note || '',
+
+        createdAt:
+          row.created_at,
+
+        updatedAt:
+          row.updated_at,
+
+        user: {
+          id:
+            row.user_id,
+
+          firstName:
+            row.first_name,
+
+          lastName:
+            row.last_name,
+
+          email:
+            row.email,
+
+          username:
+            row.username || '',
+        },
+      }));
+
+    return res.status(200).json({
+      transactions,
+      count:
+        transactions.length,
+    });
+  } catch (error) {
+    logger.error(
+      'Admin transactions error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// GET DEPOSITS
+// ============================================================
+
+const getDeposits = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await pool.query(`
+        SELECT
+          t.*,
+
+          u.id AS user_id,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.username
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        WHERE
+          t.transaction_type = 'DEPOSIT'
+
+        ORDER BY
+          t.created_at DESC
+      `);
+
+    return res.status(200).json({
+      deposits:
+        result.rows.map((row) => ({
+          id:
+            row.id,
+
+          accountId:
+            row.account_id,
+
+          transactionReference:
+            row.transaction_reference,
+
+          amount:
+            safeNumber(row.amount),
+
+          currency:
+            row.currency,
+
+          paymentMethod:
+            row.payment_method || '',
+
+          status:
+            row.status,
+
+          description:
+            row.description || '',
+
+          proofOfPaymentUrl:
+            row.proof_of_payment_url || '',
+
+          adminNote:
+            row.admin_note || '',
+
+          createdAt:
+            row.created_at,
+
+          user: {
+            id:
+              row.user_id,
+
+            firstName:
+              row.first_name,
+
+            lastName:
+              row.last_name,
+
+            email:
+              row.email,
+
+            username:
+              row.username || '',
+          },
+        })),
+    });
+  } catch (error) {
+    logger.error(
+      'Admin deposits error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+// ============================================================
+// GET WITHDRAWALS
+// ============================================================
+
+const getWithdrawals = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const result =
+      await pool.query(`
+        SELECT
+          t.*,
+
+          u.id AS user_id,
+          u.first_name,
+          u.last_name,
+          u.email,
+          u.username,
+
+          a.account_number
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        INNER JOIN users u
+          ON u.id = a.user_id
+
+        WHERE
+          t.transaction_type = 'WITHDRAWAL'
+
+        ORDER BY
+          t.created_at DESC
+      `);
+
+    return res.status(200).json({
+      withdrawals:
+        result.rows.map((row) => ({
+          id:
+            row.id,
+
+          accountId:
+            row.account_id,
+
+          accountNumber:
+            row.account_number,
+
+          transactionReference:
+            row.transaction_reference,
+
+          amount:
+            safeNumber(row.amount),
+
+          currency:
+            row.currency,
+
+          paymentMethod:
+            row.payment_method || '',
+
+          status:
+            row.status,
+
+          description:
+            row.description || '',
+
+          adminNote:
+            row.admin_note || '',
+
+          createdAt:
+            row.created_at,
+
+          user: {
+            id:
+              row.user_id,
+
+            firstName:
+              row.first_name,
+
+            lastName:
+              row.last_name,
+
+            email:
+              row.email,
+
+            username:
+              row.username || '',
+          },
+        })),
+    });
+  } catch (error) {
+    logger.error(
+      'Admin withdrawals error:',
+      error
+    );
+
+    return next(error);
   }
 };
 
@@ -2073,159 +1657,61 @@ const getKycRequests = async (
 
     return res.status(200).json({
       requests:
-        result.rows.map(
-          (row) => ({
-            id:
-              row.id,
+        result.rows.map((row) => ({
+          id:
+            row.id,
 
-            userId:
-              row.user_id,
+          userId:
+            row.user_id,
 
-            documentType:
-              row.document_type,
+          documentType:
+            row.document_type,
 
-            documentNumber:
-              row.document_number || '',
+          documentNumber:
+            row.document_number || '',
 
-            documentUrl:
-              row.document_url,
+          documentUrl:
+            row.document_url,
 
-            status:
-              row.status,
+          status:
+            row.status,
 
-            reviewedBy:
-              row.reviewed_by,
+          reviewedBy:
+            row.reviewed_by,
 
-            reviewedAt:
-              row.reviewed_at,
+          reviewedAt:
+            row.reviewed_at,
 
-            rejectionReason:
-              row.rejection_reason || '',
+          rejectionReason:
+            row.rejection_reason || '',
 
-            createdAt:
-              row.created_at,
+          createdAt:
+            row.created_at,
 
-            updatedAt:
-              row.updated_at,
+          updatedAt:
+            row.updated_at,
 
-            user: {
-              firstName:
-                row.first_name,
+          user: {
+            firstName:
+              row.first_name,
 
-              lastName:
-                row.last_name,
+            lastName:
+              row.last_name,
 
-              email:
-                row.email,
+            email:
+              row.email,
 
-              username:
-                row.username || '',
+            username:
+              row.username || '',
 
-              country:
-                row.country || '',
-            },
-          })
-        ),
+            country:
+              row.country || '',
+          },
+        })),
     });
-
   } catch (error) {
     logger.error(
       'Admin KYC error:',
-      error
-    );
-
-    return next(error);
-  }
-};
-
-// ============================================================
-// UPDATE USER STATUS
-// ============================================================
-
-const updateUserStatus = async (
-  req,
-  res,
-  next
-) => {
-  try {
-    const userId =
-      Number(req.params.id);
-
-    const normalizedStatus =
-      normalizeUserStatus(
-        req.body?.status
-      );
-
-    const allowedStatuses = [
-      'active',
-      'blocked',
-      'suspended',
-      'disabled',
-    ];
-
-    if (!isPositiveInteger(userId)) {
-      return res.status(400).json({
-        message:
-          'Invalid user ID.',
-      });
-    }
-
-    if (
-      !allowedStatuses.includes(
-        normalizedStatus
-      )
-    ) {
-      return res.status(400).json({
-        message:
-          'Invalid user status.',
-        allowedStatuses,
-      });
-    }
-
-    const result =
-      await pool.query(
-        `
-        UPDATE users
-
-        SET
-          status = $1,
-          updated_at = CURRENT_TIMESTAMP
-
-        WHERE id = $2
-
-        RETURNING
-          id,
-          email,
-          status
-        `,
-        [
-          normalizedStatus,
-          userId,
-        ]
-      );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        message:
-          'User not found.',
-      });
-    }
-
-    logger.info(
-      `Admin ${req.user.id} changed user ${userId} status to ${normalizedStatus}`
-    );
-
-    return res.status(200).json({
-      message:
-        'User status updated successfully.',
-
-      user:
-        result.rows[0],
-    });
-
-  } catch (error) {
-    logger.error(
-      'Admin update user status error:',
       error
     );
 
@@ -2249,10 +1735,15 @@ const updateTransactionStatus = async (
     const transactionId =
       Number(req.params.id);
 
-    const {
-      status,
-      adminNote,
-    } = req.body || {};
+    const status =
+      normalizeStatus(
+        req.body?.status
+      );
+
+    const adminNote =
+      cleanString(
+        req.body?.adminNote
+      );
 
     const allowedStatuses = [
       'PENDING',
@@ -2262,11 +1753,10 @@ const updateTransactionStatus = async (
       'CANCELLED',
     ];
 
-    const normalizedStatus =
-      normalizeStatus(status);
-
     if (
-      !isPositiveInteger(transactionId)
+      !isPositiveInteger(
+        transactionId
+      )
     ) {
       return res.status(400).json({
         message:
@@ -2275,9 +1765,7 @@ const updateTransactionStatus = async (
     }
 
     if (
-      !allowedStatuses.includes(
-        normalizedStatus
-      )
+      !allowedStatuses.includes(status)
     ) {
       return res.status(400).json({
         message:
@@ -2292,14 +1780,21 @@ const updateTransactionStatus = async (
       await client.query(
         `
         SELECT
-          id,
-          account_id,
-          transaction_type,
-          amount,
-          status
-        FROM transactions
-        WHERE id = $1
-        FOR UPDATE
+          t.*,
+
+          a.balance,
+          a.available_balance,
+          a.buying_power,
+          a.margin_available
+
+        FROM transactions t
+
+        INNER JOIN accounts a
+          ON a.id = t.account_id
+
+        WHERE t.id = $1
+
+        FOR UPDATE OF t, a
         `,
         [transactionId]
       );
@@ -2335,7 +1830,7 @@ const updateTransactionStatus = async (
 
     if (
       previousStatus === 'COMPLETED' &&
-      normalizedStatus !== 'COMPLETED'
+      status !== 'COMPLETED'
     ) {
       await client.query('ROLLBACK');
 
@@ -2346,41 +1841,26 @@ const updateTransactionStatus = async (
     }
 
     if (
-      previousStatus ===
-      normalizedStatus
+      previousStatus === status
     ) {
-      const unchangedResult =
+      const result =
         await client.query(
           `
           UPDATE transactions
 
           SET
             admin_note =
-              COALESCE($1, admin_note),
+              COALESCE(NULLIF($1, ''), admin_note),
 
             updated_at =
               CURRENT_TIMESTAMP
 
           WHERE id = $2
 
-          RETURNING
-            id,
-            account_id,
-            transaction_type,
-            amount,
-            currency,
-            status,
-            admin_note,
-            verified_by,
-            verified_at
+          RETURNING *
           `,
           [
-            adminNote
-              ? String(
-                  adminNote
-                ).trim()
-              : null,
-
+            adminNote,
             transactionId,
           ]
         );
@@ -2392,161 +1872,16 @@ const updateTransactionStatus = async (
           'Transaction already has this status.',
 
         transaction:
-          unchangedResult.rows[0],
+          result.rows[0],
       });
     }
 
-    let account = null;
+    // --------------------------------------------------------
+    // COMPLETING A DEPOSIT
+    // --------------------------------------------------------
 
     if (
-      normalizedStatus === 'COMPLETED' &&
-      (
-        transactionType === 'DEPOSIT' ||
-        transactionType === 'WITHDRAWAL'
-      )
-    ) {
-      const accountResult =
-        await client.query(
-          `
-          SELECT
-            id,
-            balance,
-            deposit,
-            available_balance,
-            buying_power,
-            margin_available
-
-          FROM accounts
-
-          WHERE id = $1
-
-          FOR UPDATE
-          `,
-          [transaction.account_id]
-        );
-
-      if (
-        accountResult.rows.length === 0
-      ) {
-        await client.query('ROLLBACK');
-
-        return res.status(404).json({
-          message:
-            'Account associated with this transaction was not found.',
-        });
-      }
-
-      account =
-        accountResult.rows[0];
-    }
-
-    if (
-      normalizedStatus === 'COMPLETED' &&
-      (
-        !Number.isFinite(amount) ||
-        amount <= 0
-      )
-    ) {
-      await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        message:
-          'Transaction amount must be greater than zero.',
-      });
-    }
-
-    if (
-      normalizedStatus === 'COMPLETED' &&
-      transactionType === 'WITHDRAWAL'
-    ) {
-      const currentBalance =
-        safeNumber(
-          account.balance
-        );
-
-      const currentAvailable =
-        safeNumber(
-          account.available_balance
-        );
-
-      if (
-        currentBalance < amount ||
-        currentAvailable < amount
-      ) {
-        await client.query('ROLLBACK');
-
-        return res.status(400).json({
-          message:
-            'Insufficient account balance to complete this withdrawal.',
-
-          availableBalance:
-            currentAvailable,
-
-          requestedAmount:
-            amount,
-        });
-      }
-    }
-
-    const updatedResult =
-      await client.query(
-        `
-        UPDATE transactions
-
-        SET
-          status = $1,
-
-          admin_note =
-            COALESCE($2, admin_note),
-
-          verified_by =
-            CASE
-              WHEN $1 = 'COMPLETED'
-              THEN $3
-              ELSE verified_by
-            END,
-
-          verified_at =
-            CASE
-              WHEN $1 = 'COMPLETED'
-              THEN CURRENT_TIMESTAMP
-              ELSE verified_at
-            END,
-
-          updated_at =
-            CURRENT_TIMESTAMP
-
-        WHERE id = $4
-
-        RETURNING
-          id,
-          account_id,
-          transaction_type,
-          amount,
-          currency,
-          status,
-          admin_note,
-          verified_by,
-          verified_at,
-          updated_at
-        `,
-        [
-          normalizedStatus,
-
-          adminNote
-            ? String(
-                adminNote
-              ).trim()
-            : null,
-
-          req.user.id,
-
-          transactionId,
-        ]
-      );
-
-    if (
-      normalizedStatus === 'COMPLETED' &&
+      status === 'COMPLETED' &&
       previousStatus !== 'COMPLETED' &&
       transactionType === 'DEPOSIT'
     ) {
@@ -2582,11 +1917,46 @@ const updateTransactionStatus = async (
       );
     }
 
+    // --------------------------------------------------------
+    // COMPLETING A WITHDRAWAL
+    // --------------------------------------------------------
+
     if (
-      normalizedStatus === 'COMPLETED' &&
+      status === 'COMPLETED' &&
       previousStatus !== 'COMPLETED' &&
       transactionType === 'WITHDRAWAL'
     ) {
+      const currentBalance =
+        safeNumber(
+          transaction.balance
+        );
+
+      if (
+        currentBalance < amount
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'Insufficient account balance to complete this withdrawal.',
+
+          balance:
+            currentBalance,
+
+          requestedAmount:
+            amount,
+        });
+      }
+
+      /*
+       * The normal withdrawal flow reserves
+       * available_balance when the withdrawal
+       * is submitted.
+       *
+       * Therefore completing it only reduces
+       * the actual balance.
+       */
+
       await client.query(
         `
         UPDATE accounts
@@ -2594,15 +1964,6 @@ const updateTransactionStatus = async (
         SET
           balance =
             COALESCE(balance, 0) - $1,
-
-          available_balance =
-            COALESCE(available_balance, 0) - $1,
-
-          buying_power =
-            COALESCE(buying_power, 0) - $1,
-
-          margin_available =
-            COALESCE(margin_available, 0) - $1,
 
           updated_at =
             CURRENT_TIMESTAMP
@@ -2616,10 +1977,54 @@ const updateTransactionStatus = async (
       );
     }
 
+    const updatedResult =
+      await client.query(
+        `
+        UPDATE transactions
+
+        SET
+          status = $1,
+
+          admin_note =
+            CASE
+              WHEN $2 <> ''
+              THEN $2
+              ELSE admin_note
+            END,
+
+          verified_by =
+            CASE
+              WHEN $1 = 'COMPLETED'
+              THEN $3
+              ELSE verified_by
+            END,
+
+          verified_at =
+            CASE
+              WHEN $1 = 'COMPLETED'
+              THEN CURRENT_TIMESTAMP
+              ELSE verified_at
+            END,
+
+          updated_at =
+            CURRENT_TIMESTAMP
+
+        WHERE id = $4
+
+        RETURNING *
+        `,
+        [
+          status,
+          adminNote,
+          req.user.id,
+          transactionId,
+        ]
+      );
+
     await client.query('COMMIT');
 
     logger.info(
-      `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${normalizedStatus}`
+      `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${status}`
     );
 
     return res.status(200).json({
@@ -2629,7 +2034,6 @@ const updateTransactionStatus = async (
       transaction:
         updatedResult.rows[0],
     });
-
   } catch (error) {
     try {
       await client.query('ROLLBACK');
@@ -2646,7 +2050,6 @@ const updateTransactionStatus = async (
     );
 
     return next(error);
-
   } finally {
     client.release();
   }
@@ -2683,55 +2086,53 @@ const getInvestmentPlans = async (
       `);
 
     const plans =
-      result.rows.map(
-        (plan) => ({
-          id:
-            plan.id,
+      result.rows.map((plan) => ({
+        id:
+          plan.id,
 
-          name:
-            plan.name,
+        name:
+          plan.name,
 
-          description:
-            plan.description || '',
+        description:
+          plan.description || '',
 
-          minimumAmount:
-            safeNumber(
-              plan.minimum_amount
-            ),
+        minimumAmount:
+          safeNumber(
+            plan.minimum_amount
+          ),
 
-          maximumAmount:
-            plan.maximum_amount === null
-              ? null
-              : safeNumber(
-                  plan.maximum_amount
-                ),
+        maximumAmount:
+          plan.maximum_amount === null
+            ? null
+            : safeNumber(
+                plan.maximum_amount
+              ),
 
-          roiPercent:
-            safeNumber(
-              plan.roi_percent
-            ),
+        roiPercent:
+          safeNumber(
+            plan.roi_percent
+          ),
 
-          durationDays:
-            Number(
-              plan.duration_days
-            ),
+        durationDays:
+          Number(
+            plan.duration_days
+          ),
 
-          status:
-            plan.status,
+        status:
+          plan.status,
 
-          createdAt:
-            plan.created_at,
+        createdAt:
+          plan.created_at,
 
-          updatedAt:
-            plan.updated_at,
-        })
-      );
+        updatedAt:
+          plan.updated_at,
+      }));
 
     return res.status(200).json({
       plans,
-      count: plans.length,
+      count:
+        plans.length,
     });
-
   } catch (error) {
     logger.error(
       'Admin investment plans error:',
@@ -2748,41 +2149,51 @@ const createInvestmentPlan = async (
   next
 ) => {
   try {
-    const {
-      name,
-      description,
-      minimumAmount,
-      maximumAmount,
-      roiPercent,
-      durationDays,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const planName =
-      String(name || '').trim();
+    const description =
+      cleanString(
+        req.body?.description
+      );
 
-    if (!planName) {
+    const minimum =
+      Number(
+        req.body?.minimumAmount
+      );
+
+    const maximum =
+      req.body?.maximumAmount === '' ||
+      req.body?.maximumAmount === null ||
+      req.body?.maximumAmount === undefined
+        ? null
+        : Number(
+            req.body.maximumAmount
+          );
+
+    const roi =
+      Number(
+        req.body?.roiPercent
+      );
+
+    const duration =
+      Number(
+        req.body?.durationDays
+      );
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Investment plan name is required.',
       });
     }
-
-    const minimum =
-      Number(minimumAmount);
-
-    const maximum =
-      maximumAmount === '' ||
-      maximumAmount === null ||
-      maximumAmount === undefined
-        ? null
-        : Number(maximumAmount);
-
-    const roi =
-      Number(roiPercent);
-
-    const duration =
-      Number(durationDays);
 
     if (
       !Number.isFinite(minimum) ||
@@ -2827,14 +2238,9 @@ const createInvestmentPlan = async (
       });
     }
 
-    const planStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      planStatus !== 'ACTIVE' &&
-      planStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -2867,84 +2273,27 @@ const createInvestmentPlan = async (
           $8
         )
 
-        RETURNING
-          id,
-          name,
-          description,
-          minimum_amount,
-          maximum_amount,
-          roi_percent,
-          duration_days,
-          status,
-          created_at,
-          updated_at
+        RETURNING *
         `,
         [
-          planName,
-
-          description
-            ? String(description).trim()
-            : null,
-
+          name,
+          description || null,
           minimum,
           maximum,
           roi,
           duration,
-          planStatus,
+          status,
           req.user.id,
         ]
       );
-
-    const plan =
-      result.rows[0];
 
     return res.status(201).json({
       message:
         'Investment plan created successfully.',
 
-      plan: {
-        id:
-          plan.id,
-
-        name:
-          plan.name,
-
-        description:
-          plan.description || '',
-
-        minimumAmount:
-          safeNumber(
-            plan.minimum_amount
-          ),
-
-        maximumAmount:
-          plan.maximum_amount === null
-            ? null
-            : safeNumber(
-                plan.maximum_amount
-              ),
-
-        roiPercent:
-          safeNumber(
-            plan.roi_percent
-          ),
-
-        durationDays:
-          Number(
-            plan.duration_days
-          ),
-
-        status:
-          plan.status,
-
-        createdAt:
-          plan.created_at,
-
-        updatedAt:
-          plan.updated_at,
-      },
+      plan:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin create investment plan error:',
@@ -2971,41 +2320,51 @@ const updateInvestmentPlan = async (
       });
     }
 
-    const {
-      name,
-      description,
-      minimumAmount,
-      maximumAmount,
-      roiPercent,
-      durationDays,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const planName =
-      String(name || '').trim();
+    const description =
+      cleanString(
+        req.body?.description
+      );
 
-    if (!planName) {
+    const minimum =
+      Number(
+        req.body?.minimumAmount
+      );
+
+    const maximum =
+      req.body?.maximumAmount === '' ||
+      req.body?.maximumAmount === null ||
+      req.body?.maximumAmount === undefined
+        ? null
+        : Number(
+            req.body.maximumAmount
+          );
+
+    const roi =
+      Number(
+        req.body?.roiPercent
+      );
+
+    const duration =
+      Number(
+        req.body?.durationDays
+      );
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Investment plan name is required.',
       });
     }
-
-    const minimum =
-      Number(minimumAmount);
-
-    const maximum =
-      maximumAmount === '' ||
-      maximumAmount === null ||
-      maximumAmount === undefined
-        ? null
-        : Number(maximumAmount);
-
-    const roi =
-      Number(roiPercent);
-
-    const duration =
-      Number(durationDays);
 
     if (
       !Number.isFinite(minimum) ||
@@ -3050,14 +2409,9 @@ const updateInvestmentPlan = async (
       });
     }
 
-    const planStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      planStatus !== 'ACTIVE' &&
-      planStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3082,91 +2436,36 @@ const updateInvestmentPlan = async (
 
         WHERE id = $8
 
-        RETURNING
-          id,
-          name,
-          description,
-          minimum_amount,
-          maximum_amount,
-          roi_percent,
-          duration_days,
-          status,
-          created_at,
-          updated_at
+        RETURNING *
         `,
         [
-          planName,
-
-          description
-            ? String(description).trim()
-            : null,
-
+          name,
+          description || null,
           minimum,
           maximum,
           roi,
           duration,
-          planStatus,
+          status,
           planId,
         ]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
       });
     }
 
-    const plan =
-      result.rows[0];
-
     return res.status(200).json({
       message:
         'Investment plan updated successfully.',
 
-      plan: {
-        id:
-          plan.id,
-
-        name:
-          plan.name,
-
-        description:
-          plan.description || '',
-
-        minimumAmount:
-          safeNumber(
-            plan.minimum_amount
-          ),
-
-        maximumAmount:
-          plan.maximum_amount === null
-            ? null
-            : safeNumber(
-                plan.maximum_amount
-              ),
-
-        roiPercent:
-          safeNumber(
-            plan.roi_percent
-          ),
-
-        durationDays:
-          Number(
-            plan.duration_days
-          ),
-
-        status:
-          plan.status,
-
-        createdAt:
-          plan.created_at,
-
-        updatedAt:
-          plan.updated_at,
-      },
+      plan:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin update investment plan error:',
@@ -3207,7 +2506,9 @@ const deleteInvestmentPlan = async (
         [planId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Investment plan not found.',
@@ -3221,7 +2522,6 @@ const deleteInvestmentPlan = async (
       plan:
         result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin delete investment plan error:',
@@ -3236,6 +2536,76 @@ const deleteInvestmentPlan = async (
 // SIGNAL PLANS
 // ============================================================
 
+const ensureSignalTables = async () => {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS signal_plans (
+      id SERIAL PRIMARY KEY,
+
+      name VARCHAR(150) NOT NULL,
+
+      description TEXT,
+
+      strength INTEGER
+        NOT NULL DEFAULT 50,
+
+      accuracy_percent NUMERIC(6,2)
+        NOT NULL DEFAULT 0,
+
+      duration_days INTEGER
+        NOT NULL DEFAULT 30,
+
+      price NUMERIC(20,2)
+        NOT NULL DEFAULT 0,
+
+      currency VARCHAR(10)
+        NOT NULL DEFAULT 'USD',
+
+      status VARCHAR(20)
+        NOT NULL DEFAULT 'ACTIVE',
+
+      created_by INTEGER,
+
+      created_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS user_signals (
+      id SERIAL PRIMARY KEY,
+
+      user_id INTEGER NOT NULL
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+      signal_plan_id INTEGER
+        REFERENCES signal_plans(id)
+        ON DELETE SET NULL,
+
+      strength INTEGER
+        NOT NULL DEFAULT 50,
+
+      status VARCHAR(20)
+        NOT NULL DEFAULT 'ACTIVE',
+
+      note TEXT,
+
+      updated_by INTEGER,
+
+      created_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      updated_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+      UNIQUE(user_id)
+    )
+  `);
+};
+
 const getSignalPlans = async (
   req,
   res,
@@ -3246,80 +2616,63 @@ const getSignalPlans = async (
 
     const result =
       await pool.query(`
-        SELECT
-          id,
-          name,
-          description,
-          strength,
-          accuracy_percent,
-          duration_days,
-          price,
-          currency,
-          status,
-          created_by,
-          created_at,
-          updated_at
-
+        SELECT *
         FROM signal_plans
-
-        ORDER BY
-          created_at DESC
+        ORDER BY created_at DESC
       `);
 
     const plans =
-      result.rows.map(
-        (plan) => ({
-          id:
-            plan.id,
+      result.rows.map((plan) => ({
+        id:
+          plan.id,
 
-          name:
-            plan.name,
+        name:
+          plan.name,
 
-          description:
-            plan.description || '',
+        description:
+          plan.description || '',
 
-          strength:
-            getSignalStrength(
-              plan.strength
-            ),
+        strength:
+          getSignalStrength(
+            plan.strength
+          ),
 
-          accuracyPercent:
-            safeNumber(
-              plan.accuracy_percent
-            ),
+        accuracyPercent:
+          safeNumber(
+            plan.accuracy_percent
+          ),
 
-          durationDays:
-            Number(
-              plan.duration_days || 30
-            ),
+        durationDays:
+          Number(
+            plan.duration_days || 30
+          ),
 
-          price:
-            safeNumber(
-              plan.price
-            ),
+        price:
+          safeNumber(
+            plan.price
+          ),
 
-          currency:
-            plan.currency || 'USD',
+        currency:
+          plan.currency || 'USD',
 
-          status:
-            plan.status,
+        status:
+          plan.status,
 
-          createdBy:
-            plan.created_by,
+        createdBy:
+          plan.created_by,
 
-          createdAt:
-            plan.created_at,
+        createdAt:
+          plan.created_at,
 
-          updatedAt:
-            plan.updated_at,
-        })
-      );
+        updatedAt:
+          plan.updated_at,
+      }));
 
     return res.status(200).json({
       plans,
-      count: plans.length,
+      count:
+        plans.length,
     });
-
   } catch (error) {
     logger.error(
       'Admin signal plans error:',
@@ -3338,47 +2691,73 @@ const createSignalPlan = async (
   try {
     await ensureSignalTables();
 
-    const {
-      name,
-      description,
-      strength,
-      accuracyPercent,
-      durationDays,
-      price,
-      currency,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const planName =
-      String(name || '').trim();
+    const description =
+      cleanString(
+        req.body?.description
+      );
 
-    if (!planName) {
+    const strength =
+      req.body?.strength === undefined
+        ? 50
+        : Number(
+            req.body.strength
+          );
+
+    const accuracy =
+      req.body?.accuracyPercent === undefined
+        ? 0
+        : Number(
+            req.body.accuracyPercent
+          );
+
+    const duration =
+      req.body?.durationDays === undefined
+        ? 30
+        : Number(
+            req.body.durationDays
+          );
+
+    const price =
+      req.body?.price === undefined ||
+      req.body?.price === '' ||
+      req.body?.price === null
+        ? 0
+        : Number(
+            req.body.price
+          );
+
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Signal plan name is required.',
       });
     }
 
-    const rawStrength =
-      strength === undefined
-        ? 50
-        : Number(strength);
-
     if (
-      !Number.isFinite(rawStrength) ||
-      rawStrength < 0 ||
-      rawStrength > 100
+      !Number.isFinite(strength) ||
+      strength < 0 ||
+      strength > 100
     ) {
       return res.status(400).json({
         message:
           'Signal strength must be between 0 and 100.',
       });
     }
-
-    const accuracy =
-      accuracyPercent === undefined
-        ? 0
-        : Number(accuracyPercent);
 
     if (
       !Number.isFinite(accuracy) ||
@@ -3391,11 +2770,6 @@ const createSignalPlan = async (
       });
     }
 
-    const duration =
-      durationDays === undefined
-        ? 30
-        : Number(durationDays);
-
     if (
       !Number.isInteger(duration) ||
       duration <= 0
@@ -3406,16 +2780,9 @@ const createSignalPlan = async (
       });
     }
 
-    const signalPrice =
-      price === undefined ||
-      price === '' ||
-      price === null
-        ? 0
-        : Number(price);
-
     if (
-      !Number.isFinite(signalPrice) ||
-      signalPrice < 0
+      !Number.isFinite(price) ||
+      price < 0
     ) {
       return res.status(400).json({
         message:
@@ -3423,19 +2790,9 @@ const createSignalPlan = async (
       });
     }
 
-    const signalCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    const signalStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      signalStatus !== 'ACTIVE' &&
-      signalStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3470,99 +2827,28 @@ const createSignalPlan = async (
           $9
         )
 
-        RETURNING
-          id,
+        RETURNING *
+        `,
+        [
           name,
-          description,
-          strength,
-          accuracy_percent,
-          duration_days,
+          description || null,
+          getSignalStrength(strength),
+          accuracy,
+          duration,
           price,
           currency,
           status,
-          created_by,
-          created_at,
-          updated_at
-        `,
-        [
-          planName,
-
-          description
-            ? String(description).trim()
-            : null,
-
-          getSignalStrength(
-            rawStrength
-          ),
-
-          accuracy,
-
-          duration,
-
-          signalPrice,
-
-          signalCurrency,
-
-          signalStatus,
-
           req.user.id,
         ]
       );
-
-    const plan =
-      result.rows[0];
 
     return res.status(201).json({
       message:
         'Signal plan created successfully.',
 
-      plan: {
-        id:
-          plan.id,
-
-        name:
-          plan.name,
-
-        description:
-          plan.description || '',
-
-        strength:
-          getSignalStrength(
-            plan.strength
-          ),
-
-        accuracyPercent:
-          safeNumber(
-            plan.accuracy_percent
-          ),
-
-        durationDays:
-          Number(
-            plan.duration_days
-          ),
-
-        price:
-          safeNumber(
-            plan.price
-          ),
-
-        currency:
-          plan.currency,
-
-        status:
-          plan.status,
-
-        createdBy:
-          plan.created_by,
-
-        createdAt:
-          plan.created_at,
-
-        updatedAt:
-          plan.updated_at,
-      },
+      plan:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin create signal plan error:',
@@ -3591,45 +2877,71 @@ const updateSignalPlan = async (
       });
     }
 
-    const {
-      name,
-      description,
-      strength,
-      accuracyPercent,
-      durationDays,
-      price,
-      currency,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const planName =
-      String(name || '').trim();
+    const description =
+      cleanString(
+        req.body?.description
+      );
 
-    if (!planName) {
+    const strength =
+      Number(
+        req.body?.strength
+      );
+
+    const accuracy =
+      req.body?.accuracyPercent === undefined
+        ? 0
+        : Number(
+            req.body.accuracyPercent
+          );
+
+    const duration =
+      req.body?.durationDays === undefined
+        ? 30
+        : Number(
+            req.body.durationDays
+          );
+
+    const price =
+      req.body?.price === undefined ||
+      req.body?.price === '' ||
+      req.body?.price === null
+        ? 0
+        : Number(
+            req.body.price
+          );
+
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Signal plan name is required.',
       });
     }
 
-    const rawStrength =
-      Number(strength);
-
     if (
-      !Number.isFinite(rawStrength) ||
-      rawStrength < 0 ||
-      rawStrength > 100
+      !Number.isFinite(strength) ||
+      strength < 0 ||
+      strength > 100
     ) {
       return res.status(400).json({
         message:
           'Signal strength must be between 0 and 100.',
       });
     }
-
-    const accuracy =
-      accuracyPercent === undefined
-        ? 0
-        : Number(accuracyPercent);
 
     if (
       !Number.isFinite(accuracy) ||
@@ -3642,11 +2954,6 @@ const updateSignalPlan = async (
       });
     }
 
-    const duration =
-      durationDays === undefined
-        ? 30
-        : Number(durationDays);
-
     if (
       !Number.isInteger(duration) ||
       duration <= 0
@@ -3657,16 +2964,9 @@ const updateSignalPlan = async (
       });
     }
 
-    const signalPrice =
-      price === undefined ||
-      price === '' ||
-      price === null
-        ? 0
-        : Number(price);
-
     if (
-      !Number.isFinite(signalPrice) ||
-      signalPrice < 0
+      !Number.isFinite(price) ||
+      price < 0
     ) {
       return res.status(400).json({
         message:
@@ -3674,19 +2974,9 @@ const updateSignalPlan = async (
       });
     }
 
-    const signalCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    const signalStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      signalStatus !== 'ACTIVE' &&
-      signalStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -3712,106 +3002,37 @@ const updateSignalPlan = async (
 
         WHERE id = $9
 
-        RETURNING
-          id,
+        RETURNING *
+        `,
+        [
           name,
-          description,
-          strength,
-          accuracy_percent,
-          duration_days,
+          description || null,
+          getSignalStrength(strength),
+          accuracy,
+          duration,
           price,
           currency,
           status,
-          created_by,
-          created_at,
-          updated_at
-        `,
-        [
-          planName,
-
-          description
-            ? String(description).trim()
-            : null,
-
-          getSignalStrength(
-            rawStrength
-          ),
-
-          accuracy,
-
-          duration,
-
-          signalPrice,
-
-          signalCurrency,
-
-          signalStatus,
-
           planId,
         ]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
       });
     }
 
-    const plan =
-      result.rows[0];
-
     return res.status(200).json({
       message:
         'Signal plan updated successfully.',
 
-      plan: {
-        id:
-          plan.id,
-
-        name:
-          plan.name,
-
-        description:
-          plan.description || '',
-
-        strength:
-          getSignalStrength(
-            plan.strength
-          ),
-
-        accuracyPercent:
-          safeNumber(
-            plan.accuracy_percent
-          ),
-
-        durationDays:
-          Number(
-            plan.duration_days
-          ),
-
-        price:
-          safeNumber(
-            plan.price
-          ),
-
-        currency:
-          plan.currency,
-
-        status:
-          plan.status,
-
-        createdBy:
-          plan.created_by,
-
-        createdAt:
-          plan.created_at,
-
-        updatedAt:
-          plan.updated_at,
-      },
+      plan:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin update signal plan error:',
@@ -3844,17 +3065,15 @@ const deleteSignalPlan = async (
       await pool.query(
         `
         DELETE FROM signal_plans
-
         WHERE id = $1
-
-        RETURNING
-          id,
-          name
+        RETURNING id, name
         `,
         [planId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Signal plan not found.',
@@ -3868,7 +3087,6 @@ const deleteSignalPlan = async (
       plan:
         result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin delete signal plan error:',
@@ -3880,7 +3098,7 @@ const deleteSignalPlan = async (
 };
 
 // ============================================================
-// GET USER SIGNAL
+// USER SIGNAL
 // ============================================================
 
 const getUserSignal = async (
@@ -3944,7 +3162,9 @@ const getUserSignal = async (
         [userId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'User not found.',
@@ -3984,15 +3204,12 @@ const getUserSignal = async (
                 ),
 
               status:
-                row.signal_status ||
-                'ACTIVE',
+                row.signal_status,
 
               enabled:
-                String(
-                  row.signal_status ||
-                  'ACTIVE'
-                ).toUpperCase() ===
-                'ACTIVE',
+                normalizeStatus(
+                  row.signal_status
+                ) === 'ACTIVE',
 
               note:
                 row.note || '',
@@ -4050,7 +3267,6 @@ const getUserSignal = async (
             }
           : null,
     });
-
   } catch (error) {
     logger.error(
       'Admin get user signal error:',
@@ -4060,10 +3276,6 @@ const getUserSignal = async (
     return next(error);
   }
 };
-
-// ============================================================
-// UPDATE USER SIGNAL
-// ============================================================
 
 const updateUserSignal = async (
   req,
@@ -4083,89 +3295,80 @@ const updateUserSignal = async (
       });
     }
 
-    const {
-      signalPlanId,
-      strength,
-      enabled,
-      status,
-      note,
-    } = req.body || {};
-
     const userResult =
       await pool.query(
         `
         SELECT
-          id,
-          email,
-          first_name,
-          last_name,
-          username
-
+          id
         FROM users
-
         WHERE id = $1
-
         LIMIT 1
         `,
         [userId]
       );
 
-    if (userResult.rows.length === 0) {
+    if (
+      userResult.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'User not found.',
       });
     }
 
-    let planId = null;
+    const signalPlanId =
+      req.body?.signalPlanId === undefined ||
+      req.body?.signalPlanId === null ||
+      req.body?.signalPlanId === ''
+        ? null
+        : Number(
+            req.body.signalPlanId
+          );
+
+    if (
+      signalPlanId !== null &&
+      !isPositiveInteger(signalPlanId)
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid signal plan ID.',
+      });
+    }
+
     let planStrength = null;
 
     if (
-      signalPlanId !== undefined &&
-      signalPlanId !== null &&
-      signalPlanId !== ''
+      signalPlanId !== null
     ) {
-      planId =
-        Number(signalPlanId);
-
-      if (!isPositiveInteger(planId)) {
-        return res.status(400).json({
-          message:
-            'Invalid signal plan ID.',
-        });
-      }
-
       const planResult =
         await pool.query(
           `
           SELECT
             id,
-            name,
-            status,
-            strength
-
+            strength,
+            status
           FROM signal_plans
-
           WHERE id = $1
-
           LIMIT 1
           `,
-          [planId]
+          [signalPlanId]
         );
 
-      if (planResult.rows.length === 0) {
+      if (
+        planResult.rows.length === 0
+      ) {
         return res.status(404).json({
           message:
             'Signal plan not found.',
         });
       }
 
-      const signalPlan =
+      const plan =
         planResult.rows[0];
 
       if (
         normalizeStatus(
-          signalPlan.status
+          plan.status
         ) !== 'ACTIVE'
       ) {
         return res.status(400).json({
@@ -4176,74 +3379,78 @@ const updateUserSignal = async (
 
       planStrength =
         getSignalStrength(
-          signalPlan.strength
+          plan.strength
         );
     }
 
-    let signalStrength;
+    let strength;
 
-    if (strength === undefined) {
-      signalStrength =
+    if (
+      req.body?.strength === undefined
+    ) {
+      strength =
         planStrength !== null
           ? planStrength
           : 50;
     } else {
-      const numericStrength =
-        Number(strength);
+      strength =
+        Number(
+          req.body.strength
+        );
 
       if (
-        !Number.isFinite(
-          numericStrength
-        ) ||
-        numericStrength < 0 ||
-        numericStrength > 100
+        !Number.isFinite(strength) ||
+        strength < 0 ||
+        strength > 100
       ) {
         return res.status(400).json({
           message:
             'Signal strength must be between 0 and 100.',
         });
       }
-
-      signalStrength =
-        getSignalStrength(
-          numericStrength
-        );
     }
 
-    let signalStatus;
+    let status;
 
-    if (status !== undefined) {
-      signalStatus =
-        normalizeStatus(status);
-
-      if (
-        signalStatus !== 'ACTIVE' &&
-        signalStatus !== 'INACTIVE'
-      ) {
-        return res.status(400).json({
-          message:
-            'Signal status must be ACTIVE or INACTIVE.',
-        });
-      }
-
-    } else if (enabled !== undefined) {
-      signalStatus =
-        enabled === true ||
-        String(enabled).toLowerCase() ===
-          'true'
+    if (
+      req.body?.status !== undefined
+    ) {
+      status =
+        normalizeStatus(
+          req.body.status
+        );
+    } else if (
+      req.body?.enabled !== undefined
+    ) {
+      status =
+        req.body.enabled === true ||
+        String(
+          req.body.enabled
+        ).toLowerCase() === 'true'
           ? 'ACTIVE'
           : 'INACTIVE';
-
     } else {
-      signalStatus =
+      status =
         'ACTIVE';
     }
 
-    const signalNote =
-      note === undefined ||
-      note === null
+    if (
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
+    ) {
+      return res.status(400).json({
+        message:
+          'Signal status must be ACTIVE or INACTIVE.',
+      });
+    }
+
+    const note =
+      req.body?.note === undefined ||
+      req.body?.note === null
         ? null
-        : String(note).trim();
+        : cleanString(
+            req.body.note
+          );
 
     const result =
       await pool.query(
@@ -4287,71 +3494,25 @@ const updateUserSignal = async (
           updated_at =
             CURRENT_TIMESTAMP
 
-        RETURNING
-          id,
-          user_id,
-          signal_plan_id,
-          strength,
-          status,
-          note,
-          updated_by,
-          created_at,
-          updated_at
+        RETURNING *
         `,
         [
           userId,
-          planId,
-          signalStrength,
-          signalStatus,
-          signalNote,
+          signalPlanId,
+          getSignalStrength(strength),
+          status,
+          note,
           req.user.id,
         ]
       );
-
-    const signal =
-      result.rows[0];
 
     return res.status(200).json({
       message:
         'User signal updated successfully.',
 
-      signal: {
-        id:
-          signal.id,
-
-        userId:
-          signal.user_id,
-
-        signalPlanId:
-          signal.signal_plan_id,
-
-        strength:
-          getSignalStrength(
-            signal.strength
-          ),
-
-        status:
-          signal.status,
-
-        enabled:
-          normalizeStatus(
-            signal.status
-          ) === 'ACTIVE',
-
-        note:
-          signal.note || '',
-
-        updatedBy:
-          signal.updated_by,
-
-        createdAt:
-          signal.created_at,
-
-        updatedAt:
-          signal.updated_at,
-      },
+      signal:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin update user signal error:',
@@ -4363,8 +3524,7 @@ const updateUserSignal = async (
 };
 
 // ============================================================
-// // ============================================================
-// PAYMENT METHOD SETTINGS
+// PAYMENT METHODS
 // ============================================================
 
 const ensurePaymentMethodTable = async () => {
@@ -4374,9 +3534,11 @@ const ensurePaymentMethodTable = async () => {
 
       name VARCHAR(150) NOT NULL,
 
-      type VARCHAR(50) NOT NULL DEFAULT 'OTHER',
+      type VARCHAR(50)
+        NOT NULL DEFAULT 'OTHER',
 
-      currency VARCHAR(20) NOT NULL DEFAULT 'USD',
+      currency VARCHAR(20)
+        NOT NULL DEFAULT 'USD',
 
       details TEXT,
 
@@ -4390,95 +3552,19 @@ const ensurePaymentMethodTable = async () => {
 
       instructions TEXT,
 
-      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+      status VARCHAR(20)
+        NOT NULL DEFAULT 'ACTIVE',
 
-      created_by INTEGER
-        REFERENCES users(id)
-        ON DELETE SET NULL,
+      created_by INTEGER,
 
-      created_at TIMESTAMP NOT NULL
-        DEFAULT CURRENT_TIMESTAMP,
+      created_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-      updated_at TIMESTAMP NOT NULL
-        DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS type VARCHAR(50)
-    DEFAULT 'OTHER';
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS currency VARCHAR(20)
-    DEFAULT 'USD';
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS details TEXT;
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS account_name VARCHAR(150);
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS account_number VARCHAR(150);
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS bank_name VARCHAR(150);
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS wallet_address TEXT;
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS instructions TEXT;
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS status VARCHAR(20)
-    DEFAULT 'ACTIVE';
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS created_by INTEGER;
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP;
-  `);
-
-  await pool.query(`
-    ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
-    DEFAULT CURRENT_TIMESTAMP;
-  `);
-
-  await pool.query(`
-    CREATE INDEX IF NOT EXISTS
-    idx_payment_methods_status
-    ON payment_methods(status);
+      updated_at TIMESTAMP
+        NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 };
-
-// ============================================================
-// GET PAYMENT METHODS
-// ============================================================
 
 const getPaymentMethods = async (
   req,
@@ -4490,83 +3576,62 @@ const getPaymentMethods = async (
 
     const result =
       await pool.query(`
-        SELECT
-          id,
-          name,
-          type,
-          currency,
-          details,
-          account_name,
-          account_number,
-          bank_name,
-          wallet_address,
-          instructions,
-          status,
-          created_by,
-          created_at,
-          updated_at
-
+        SELECT *
         FROM payment_methods
-
-        ORDER BY
-          created_at DESC
+        ORDER BY created_at DESC
       `);
 
-    const methods =
-      result.rows.map(
-        (method) => ({
-          id:
-            method.id,
+    const paymentMethods =
+      result.rows.map((method) => ({
+        id:
+          method.id,
 
-          name:
-            method.name,
+        name:
+          method.name,
 
-          type:
-            method.type,
+        type:
+          method.type,
 
-          currency:
-            method.currency,
+        currency:
+          method.currency,
 
-          details:
-            method.details || '',
+        details:
+          method.details || '',
 
-          accountName:
-            method.account_name || '',
+        accountName:
+          method.account_name || '',
 
-          accountNumber:
-            method.account_number || '',
+        accountNumber:
+          method.account_number || '',
 
-          bankName:
-            method.bank_name || '',
+        bankName:
+          method.bank_name || '',
 
-          walletAddress:
-            method.wallet_address || '',
+        walletAddress:
+          method.wallet_address || '',
 
-          instructions:
-            method.instructions || '',
+        instructions:
+          method.instructions || '',
 
-          status:
-            method.status,
+        status:
+          method.status,
 
-          createdBy:
-            method.created_by,
+        createdBy:
+          method.created_by,
 
-          createdAt:
-            method.created_at,
+        createdAt:
+          method.created_at,
 
-          updatedAt:
-            method.updated_at,
-        })
-      );
+        updatedAt:
+          method.updated_at,
+      }));
 
     return res.status(200).json({
-      paymentMethods:
-        methods,
+      paymentMethods,
 
       count:
-        methods.length,
+        paymentMethods.length,
     });
-
   } catch (error) {
     logger.error(
       'Admin get payment methods error:',
@@ -4577,10 +3642,6 @@ const getPaymentMethods = async (
   }
 };
 
-// ============================================================
-// CREATE PAYMENT METHOD
-// ============================================================
-
 const createPaymentMethod = async (
   req,
   res,
@@ -4589,47 +3650,66 @@ const createPaymentMethod = async (
   try {
     await ensurePaymentMethodTable();
 
-    const {
-      name,
-      type,
-      currency,
-      details,
-      accountName,
-      accountNumber,
-      bankName,
-      walletAddress,
-      instructions,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const methodName =
-      String(name || '').trim();
+    const type =
+      cleanString(
+        req.body?.type || 'OTHER'
+      ).toUpperCase();
 
-    if (!methodName) {
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const details =
+      cleanString(
+        req.body?.details
+      );
+
+    const accountName =
+      cleanString(
+        req.body?.accountName
+      );
+
+    const accountNumber =
+      cleanString(
+        req.body?.accountNumber
+      );
+
+    const bankName =
+      cleanString(
+        req.body?.bankName
+      );
+
+    const walletAddress =
+      cleanString(
+        req.body?.walletAddress
+      );
+
+    const instructions =
+      cleanString(
+        req.body?.instructions
+      );
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Payment method name is required.',
       });
     }
 
-    const methodType =
-      String(type || 'OTHER')
-        .trim()
-        .toUpperCase();
-
-    const methodCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    const methodStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      methodStatus !== 'ACTIVE' &&
-      methodStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -4668,115 +3748,30 @@ const createPaymentMethod = async (
           $11
         )
 
-        RETURNING
-          id,
+        RETURNING *
+        `,
+        [
           name,
           type,
           currency,
-          details,
-          account_name,
-          account_number,
-          bank_name,
-          wallet_address,
-          instructions,
+          details || null,
+          accountName || null,
+          accountNumber || null,
+          bankName || null,
+          walletAddress || null,
+          instructions || null,
           status,
-          created_by,
-          created_at,
-          updated_at
-        `,
-        [
-          methodName,
-
-          methodType,
-
-          methodCurrency,
-
-          details
-            ? String(details).trim()
-            : null,
-
-          accountName
-            ? String(accountName).trim()
-            : null,
-
-          accountNumber
-            ? String(accountNumber).trim()
-            : null,
-
-          bankName
-            ? String(bankName).trim()
-            : null,
-
-          walletAddress
-            ? String(walletAddress).trim()
-            : null,
-
-          instructions
-            ? String(instructions).trim()
-            : null,
-
-          methodStatus,
-
           req.user.id,
         ]
       );
-
-    const method =
-      result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} created payment method ${method.id}`
-    );
 
     return res.status(201).json({
       message:
         'Payment method created successfully.',
 
-      paymentMethod: {
-        id:
-          method.id,
-
-        name:
-          method.name,
-
-        type:
-          method.type,
-
-        currency:
-          method.currency,
-
-        details:
-          method.details || '',
-
-        accountName:
-          method.account_name || '',
-
-        accountNumber:
-          method.account_number || '',
-
-        bankName:
-          method.bank_name || '',
-
-        walletAddress:
-          method.wallet_address || '',
-
-        instructions:
-          method.instructions || '',
-
-        status:
-          method.status,
-
-        createdBy:
-          method.created_by,
-
-        createdAt:
-          method.created_at,
-
-        updatedAt:
-          method.updated_at,
-      },
+      paymentMethod:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin create payment method error:',
@@ -4786,10 +3781,6 @@ const createPaymentMethod = async (
     return next(error);
   }
 };
-
-// ============================================================
-// UPDATE PAYMENT METHOD
-// ============================================================
 
 const updatePaymentMethod = async (
   req,
@@ -4809,47 +3800,66 @@ const updatePaymentMethod = async (
       });
     }
 
-    const {
-      name,
-      type,
-      currency,
-      details,
-      accountName,
-      accountNumber,
-      bankName,
-      walletAddress,
-      instructions,
-      status,
-    } = req.body || {};
+    const name =
+      cleanString(
+        req.body?.name
+      );
 
-    const methodName =
-      String(name || '').trim();
+    const type =
+      cleanString(
+        req.body?.type || 'OTHER'
+      ).toUpperCase();
 
-    if (!methodName) {
+    const currency =
+      cleanString(
+        req.body?.currency || 'USD'
+      ).toUpperCase();
+
+    const details =
+      cleanString(
+        req.body?.details
+      );
+
+    const accountName =
+      cleanString(
+        req.body?.accountName
+      );
+
+    const accountNumber =
+      cleanString(
+        req.body?.accountNumber
+      );
+
+    const bankName =
+      cleanString(
+        req.body?.bankName
+      );
+
+    const walletAddress =
+      cleanString(
+        req.body?.walletAddress
+      );
+
+    const instructions =
+      cleanString(
+        req.body?.instructions
+      );
+
+    const status =
+      normalizeStatus(
+        req.body?.status || 'ACTIVE'
+      );
+
+    if (!name) {
       return res.status(400).json({
         message:
           'Payment method name is required.',
       });
     }
 
-    const methodType =
-      String(type || 'OTHER')
-        .trim()
-        .toUpperCase();
-
-    const methodCurrency =
-      String(currency || 'USD')
-        .trim()
-        .toUpperCase();
-
-    const methodStatus =
-      normalizeStatus(
-        status || 'ACTIVE'
-      );
-
     if (
-      methodStatus !== 'ACTIVE' &&
-      methodStatus !== 'INACTIVE'
+      status !== 'ACTIVE' &&
+      status !== 'INACTIVE'
     ) {
       return res.status(400).json({
         message:
@@ -4877,122 +3887,39 @@ const updatePaymentMethod = async (
 
         WHERE id = $11
 
-        RETURNING
-          id,
+        RETURNING *
+        `,
+        [
           name,
           type,
           currency,
-          details,
-          account_name,
-          account_number,
-          bank_name,
-          wallet_address,
-          instructions,
+          details || null,
+          accountName || null,
+          accountNumber || null,
+          bankName || null,
+          walletAddress || null,
+          instructions || null,
           status,
-          created_by,
-          created_at,
-          updated_at
-        `,
-        [
-          methodName,
-
-          methodType,
-
-          methodCurrency,
-
-          details
-            ? String(details).trim()
-            : null,
-
-          accountName
-            ? String(accountName).trim()
-            : null,
-
-          accountNumber
-            ? String(accountNumber).trim()
-            : null,
-
-          bankName
-            ? String(bankName).trim()
-            : null,
-
-          walletAddress
-            ? String(walletAddress).trim()
-            : null,
-
-          instructions
-            ? String(instructions).trim()
-            : null,
-
-          methodStatus,
-
           methodId,
         ]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Payment method not found.',
       });
     }
 
-    const method =
-      result.rows[0];
-
-    logger.info(
-      `Admin ${req.user.id} updated payment method ${methodId}`
-    );
-
     return res.status(200).json({
       message:
         'Payment method updated successfully.',
 
-      paymentMethod: {
-        id:
-          method.id,
-
-        name:
-          method.name,
-
-        type:
-          method.type,
-
-        currency:
-          method.currency,
-
-        details:
-          method.details || '',
-
-        accountName:
-          method.account_name || '',
-
-        accountNumber:
-          method.account_number || '',
-
-        bankName:
-          method.bank_name || '',
-
-        walletAddress:
-          method.wallet_address || '',
-
-        instructions:
-          method.instructions || '',
-
-        status:
-          method.status,
-
-        createdBy:
-          method.created_by,
-
-        createdAt:
-          method.created_at,
-
-        updatedAt:
-          method.updated_at,
-      },
+      paymentMethod:
+        result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin update payment method error:',
@@ -5002,10 +3929,6 @@ const updatePaymentMethod = async (
     return next(error);
   }
 };
-
-// ============================================================
-// DELETE PAYMENT METHOD
-// ============================================================
 
 const deletePaymentMethod = async (
   req,
@@ -5039,16 +3962,14 @@ const deletePaymentMethod = async (
         [methodId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Payment method not found.',
       });
     }
-
-    logger.info(
-      `Admin ${req.user.id} deleted payment method ${methodId}`
-    );
 
     return res.status(200).json({
       message:
@@ -5057,7 +3978,6 @@ const deletePaymentMethod = async (
       paymentMethod:
         result.rows[0],
     });
-
   } catch (error) {
     logger.error(
       'Admin delete payment method error:',
@@ -5069,292 +3989,250 @@ const deletePaymentMethod = async (
 };
 
 // ============================================================
-// WITHDRAWAL CODE HELPERS
+// WITHDRAWAL CODE
 // ============================================================
 
-const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
-
 const generateWithdrawalCode = () => {
-  // 8-digit administrator-generated withdrawal code
   return String(
-    crypto.randomInt(10000000, 100000000)
+    crypto.randomInt(
+      10000000,
+      100000000
+    )
   );
 };
 
-const hashWithdrawalCode = async (code) => {
-  return bcrypt.hash(code, 12);
-};
+const generateWithdrawalCodeForTransaction =
+  async (req, res, next) => {
+    const client =
+      await pool.connect();
 
-const verifyWithdrawalCode = async (
-  code,
-  hash
-) => {
-  return bcrypt.compare(code, hash);
-};
+    try {
+      const transactionId =
+        Number(req.params.id);
 
-// ============================================================
-// GENERATE WITHDRAWAL CODE
-// ============================================================
-//
-// ADMIN ONLY
-//
-// Creates a code for ONE specific withdrawal.
-//
-// The actual code is returned ONLY to the administrator.
-// It is NEVER returned by the normal user transaction API.
-//
-// ============================================================
+      if (
+        !isPositiveInteger(
+          transactionId
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            'Invalid withdrawal transaction ID.',
+        });
+      }
 
-const generateWithdrawalCodeForTransaction = async (
-  req,
-  res,
-  next
-) => {
-  const client = await pool.connect();
+      await client.query('BEGIN');
 
-  try {
-    const transactionId =
-      Number(req.params.id);
+      const result =
+        await client.query(
+          `
+          SELECT
+            t.id,
+            t.account_id,
+            t.transaction_type,
+            t.amount,
+            t.currency,
+            t.status,
+            t.transaction_reference,
 
-    if (!isPositiveInteger(transactionId)) {
-      return res.status(400).json({
-        message:
-          'Invalid withdrawal transaction ID.',
-      });
-    }
+            a.user_id,
 
-    await client.query('BEGIN');
+            u.email,
+            u.first_name,
+            u.last_name
 
-    const transactionResult =
+          FROM transactions t
+
+          INNER JOIN accounts a
+            ON a.id = t.account_id
+
+          INNER JOIN users u
+            ON u.id = a.user_id
+
+          WHERE t.id = $1
+
+          FOR UPDATE OF t
+          `,
+          [transactionId]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(404).json({
+          message:
+            'Withdrawal transaction not found.',
+        });
+      }
+
+      const transaction =
+        result.rows[0];
+
+      if (
+        normalizeStatus(
+          transaction.transaction_type
+        ) !== 'WITHDRAWAL'
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'Withdrawal code can only be generated for withdrawals.',
+        });
+      }
+
+      if (
+        normalizeStatus(
+          transaction.status
+        ) !== 'COMPLETED'
+      ) {
+        await client.query('ROLLBACK');
+
+        return res.status(400).json({
+          message:
+            'The withdrawal must be approved before a withdrawal code can be generated.',
+        });
+      }
+
       await client.query(
         `
-        SELECT
-          t.id,
-          t.account_id,
-          t.transaction_type,
-          t.amount,
-          t.currency,
-          t.status,
-          t.transaction_reference,
+        UPDATE withdrawal_codes
 
-          a.user_id,
+        SET
+          status = 'EXPIRED'
 
-          u.email,
-          u.first_name,
-          u.last_name
-
-        FROM transactions t
-
-        INNER JOIN accounts a
-          ON a.id = t.account_id
-
-        INNER JOIN users u
-          ON u.id = a.user_id
-
-        WHERE t.id = $1
-
-        FOR UPDATE OF t
+        WHERE transaction_id = $1
+          AND status = 'ACTIVE'
         `,
         [transactionId]
       );
 
-    if (
-      transactionResult.rows.length === 0
-    ) {
-      await client.query('ROLLBACK');
+      const code =
+        generateWithdrawalCode();
 
-      return res.status(404).json({
+      const codeHash =
+        await hashPassword(code);
+
+      const expiresAt =
+        new Date(
+          Date.now() +
+            24 * 60 * 60 * 1000
+        );
+
+      const codeResult =
+        await client.query(
+          `
+          INSERT INTO withdrawal_codes (
+            transaction_id,
+            user_id,
+            code_hash,
+            status,
+            expires_at,
+            generated_by
+          )
+
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'ACTIVE',
+            $4,
+            $5
+          )
+
+          RETURNING
+            id,
+            transaction_id,
+            user_id,
+            status,
+            expires_at,
+            generated_by,
+            created_at
+          `,
+          [
+            transaction.id,
+            transaction.user_id,
+            codeHash,
+            expiresAt,
+            req.user.id,
+          ]
+        );
+
+      await client.query('COMMIT');
+
+      logger.info(
+        `Admin ${req.user.id} generated withdrawal code for transaction ${transactionId}`
+      );
+
+      return res.status(201).json({
         message:
-          'Withdrawal transaction not found.',
-      });
-    }
+          'Withdrawal code generated successfully.',
 
-    const transaction =
-      transactionResult.rows[0];
+        withdrawalCode: {
+          code,
 
-    if (
-      normalizeStatus(
-        transaction.transaction_type
-      ) !== 'WITHDRAWAL'
-    ) {
-      await client.query('ROLLBACK');
+          transactionId:
+            transaction.id,
 
-      return res.status(400).json({
-        message:
-          'Withdrawal code can only be generated for withdrawal transactions.',
-      });
-    }
+          transactionReference:
+            transaction.transaction_reference,
 
-    const transactionStatus =
-      normalizeStatus(
-        transaction.status
-      );
+          userId:
+            transaction.user_id,
 
-    if (
-      transactionStatus !== 'COMPLETED'
-    ) {
-      await client.query('ROLLBACK');
+          user: {
+            firstName:
+              transaction.first_name,
 
-      return res.status(400).json({
-        message:
-          'The withdrawal must be approved before a withdrawal code can be generated.',
-      });
-    }
+            lastName:
+              transaction.last_name,
 
-    // --------------------------------------------------------
-    // EXPIRE OLD ACTIVE CODES
-    // --------------------------------------------------------
+            email:
+              transaction.email,
+          },
 
-    await client.query(
-      `
-      UPDATE withdrawal_codes
+          amount:
+            safeNumber(
+              transaction.amount
+            ),
 
-      SET
-        status = 'EXPIRED'
+          currency:
+            transaction.currency,
 
-      WHERE transaction_id = $1
-        AND status = 'ACTIVE'
-      `,
-      [transactionId]
-    );
+          status:
+            'ACTIVE',
 
-    // --------------------------------------------------------
-    // GENERATE NEW CODE
-    // --------------------------------------------------------
+          expiresAt:
+            codeResult.rows[0]
+              .expires_at,
 
-    const withdrawalCode =
-      generateWithdrawalCode();
-
-    const codeHash =
-      await hashWithdrawalCode(
-        withdrawalCode
-      );
-
-    // Code expires after 24 hours.
-    const expiresAt =
-      new Date(
-        Date.now() +
-          24 * 60 * 60 * 1000
-      );
-
-    const codeResult =
-      await client.query(
-        `
-        INSERT INTO withdrawal_codes (
-          transaction_id,
-          user_id,
-          code_hash,
-          status,
-          expires_at,
-          generated_by
-        )
-
-        VALUES (
-          $1,
-          $2,
-          $3,
-          'ACTIVE',
-          $4,
-          $5
-        )
-
-        RETURNING
-          id,
-          transaction_id,
-          user_id,
-          status,
-          expires_at,
-          generated_by,
-          created_at
-        `,
-        [
-          transaction.id,
-          transaction.user_id,
-          codeHash,
-          expiresAt,
-          req.user.id,
-        ]
-      );
-
-    await client.query('COMMIT');
-
-    logger.info(
-      `Admin ${req.user.id} generated withdrawal code for transaction ${transactionId}`
-    );
-
-    return res.status(201).json({
-      message:
-        'Withdrawal code generated successfully.',
-
-      withdrawalCode: {
-        code:
-          withdrawalCode,
-
-        transactionId:
-          transaction.id,
-
-        transactionReference:
-          transaction.transaction_reference,
-
-        userId:
-          transaction.user_id,
-
-        user: {
-          firstName:
-            transaction.first_name,
-
-          lastName:
-            transaction.last_name,
-
-          email:
-            transaction.email,
+          generatedAt:
+            codeResult.rows[0]
+              .created_at,
         },
+      });
+    } catch (error) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        logger.error(
+          'Withdrawal code rollback error:',
+          rollbackError
+        );
+      }
 
-        amount:
-          safeNumber(
-            transaction.amount
-          ),
-
-        currency:
-          transaction.currency,
-
-        status:
-          'ACTIVE',
-
-        expiresAt:
-          codeResult.rows[0]
-            .expires_at,
-
-        generatedAt:
-          codeResult.rows[0]
-            .created_at,
-      },
-    });
-
-  } catch (error) {
-    try {
-      await client.query(
-        'ROLLBACK'
-      );
-    } catch (rollbackError) {
       logger.error(
-        'Withdrawal code rollback error:',
-        rollbackError
+        'Generate withdrawal code error:',
+        error
       );
+
+      return next(error);
+    } finally {
+      client.release();
     }
-
-    logger.error(
-      'Generate withdrawal code error:',
-      error
-    );
-
-    return next(error);
-
-  } finally {
-    client.release();
-  }
-};
+  };
 
 // ============================================================
 // GET WITHDRAWAL DETAILS
@@ -5369,7 +4247,11 @@ const getWithdrawalDetails = async (
     const transactionId =
       Number(req.params.id);
 
-    if (!isPositiveInteger(transactionId)) {
+    if (
+      !isPositiveInteger(
+        transactionId
+      )
+    ) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -5380,20 +4262,7 @@ const getWithdrawalDetails = async (
       await pool.query(
         `
         SELECT
-          t.id,
-          t.account_id,
-          t.transaction_reference,
-          t.transaction_type,
-          t.amount,
-          t.currency,
-          t.payment_method,
-          t.status,
-          t.description,
-          t.admin_note,
-          t.verified_by,
-          t.verified_at,
-          t.created_at,
-          t.updated_at,
+          t.*,
 
           a.account_number,
           a.user_id,
@@ -5427,15 +4296,20 @@ const getWithdrawalDetails = async (
         ) wc
           ON TRUE
 
-        WHERE t.id = $1
-          AND t.transaction_type = 'WITHDRAWAL'
+        WHERE
+          t.id = $1
+
+          AND t.transaction_type =
+            'WITHDRAWAL'
 
         LIMIT 1
         `,
         [transactionId]
       );
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
       return res.status(404).json({
         message:
           'Withdrawal not found.',
@@ -5506,30 +4380,30 @@ const getWithdrawalDetails = async (
             row.username || '',
         },
 
-        withdrawalCode: row.withdrawal_code_id
-          ? {
-              id:
-                row.withdrawal_code_id,
+        withdrawalCode:
+          row.withdrawal_code_id
+            ? {
+                id:
+                  row.withdrawal_code_id,
 
-              status:
-                row.withdrawal_code_status,
+                status:
+                  row.withdrawal_code_status,
 
-              expiresAt:
-                row.withdrawal_code_expires_at,
+                expiresAt:
+                  row.withdrawal_code_expires_at,
 
-              usedAt:
-                row.withdrawal_code_used_at,
+                usedAt:
+                  row.withdrawal_code_used_at,
 
-              generatedBy:
-                row.withdrawal_code_generated_by,
+                generatedBy:
+                  row.withdrawal_code_generated_by,
 
-              createdAt:
-                row.withdrawal_code_created_at,
-            }
-          : null,
+                createdAt:
+                  row.withdrawal_code_created_at,
+              }
+            : null,
       },
     });
-
   } catch (error) {
     logger.error(
       'Get withdrawal details error:',
@@ -5543,36 +4417,30 @@ const getWithdrawalDetails = async (
 // ============================================================
 // REVERSE COMPLETED WITHDRAWAL
 // ============================================================
-//
-// ADMIN ONLY
-//
-// Reversal:
-// - puts the money back into the user's available balance
-// - puts the money back into balance
-// - records an audit action
-// - requires an administrator reason
-//
-// ============================================================
 
 const reverseWithdrawal = async (
   req,
   res,
   next
 ) => {
-  const client = await pool.connect();
+  const client =
+    await pool.connect();
 
   try {
     const transactionId =
       Number(req.params.id);
 
     const reason =
-      String(
+      cleanString(
         req.body?.reason ||
-        req.body?.adminNote ||
-        ''
-      ).trim();
+        req.body?.adminNote
+      );
 
-    if (!isPositiveInteger(transactionId)) {
+    if (
+      !isPositiveInteger(
+        transactionId
+      )
+    ) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -5588,7 +4456,7 @@ const reverseWithdrawal = async (
 
     await client.query('BEGIN');
 
-    const transactionResult =
+    const result =
       await client.query(
         `
         SELECT
@@ -5599,7 +4467,6 @@ const reverseWithdrawal = async (
           t.amount,
           t.currency,
           t.status,
-          t.admin_note,
 
           a.user_id,
           a.balance,
@@ -5620,7 +4487,7 @@ const reverseWithdrawal = async (
       );
 
     if (
-      transactionResult.rows.length === 0
+      result.rows.length === 0
     ) {
       await client.query('ROLLBACK');
 
@@ -5631,7 +4498,7 @@ const reverseWithdrawal = async (
     }
 
     const transaction =
-      transactionResult.rows[0];
+      result.rows[0];
 
     if (
       normalizeStatus(
@@ -5720,10 +4587,6 @@ const reverseWithdrawal = async (
       ]
     );
 
-    // --------------------------------------------------------
-    // INVALIDATE ACTIVE WITHDRAWAL CODES
-    // --------------------------------------------------------
-
     await client.query(
       `
       UPDATE withdrawal_codes
@@ -5736,10 +4599,6 @@ const reverseWithdrawal = async (
       `,
       [transactionId]
     );
-
-    // --------------------------------------------------------
-    // AUDIT LOG
-    // --------------------------------------------------------
 
     await client.query(
       `
@@ -5781,10 +4640,6 @@ const reverseWithdrawal = async (
 
     await client.query('COMMIT');
 
-    logger.info(
-      `Admin ${req.user.id} reversed withdrawal ${transactionId}`
-    );
-
     return res.status(200).json({
       message:
         'Withdrawal reversed successfully.',
@@ -5810,12 +4665,9 @@ const reverseWithdrawal = async (
         reason,
       },
     });
-
   } catch (error) {
     try {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
         'Withdrawal reversal rollback error:',
@@ -5829,7 +4681,6 @@ const reverseWithdrawal = async (
     );
 
     return next(error);
-
   } finally {
     client.release();
   }
@@ -5838,34 +4689,30 @@ const reverseWithdrawal = async (
 // ============================================================
 // REJECT WITHDRAWAL
 // ============================================================
-//
-// Rejection returns the RESERVED amount to available_balance.
-//
-// IMPORTANT:
-// balance was never reduced when the user initially submitted.
-// Only available_balance was reserved.
-//
-// ============================================================
 
 const rejectWithdrawal = async (
   req,
   res,
   next
 ) => {
-  const client = await pool.connect();
+  const client =
+    await pool.connect();
 
   try {
     const transactionId =
       Number(req.params.id);
 
     const reason =
-      String(
+      cleanString(
         req.body?.reason ||
-        req.body?.adminNote ||
-        ''
-      ).trim();
+        req.body?.adminNote
+      );
 
-    if (!isPositiveInteger(transactionId)) {
+    if (
+      !isPositiveInteger(
+        transactionId
+      )
+    ) {
       return res.status(400).json({
         message:
           'Invalid withdrawal transaction ID.',
@@ -5881,7 +4728,7 @@ const rejectWithdrawal = async (
 
     await client.query('BEGIN');
 
-    const transactionResult =
+    const result =
       await client.query(
         `
         SELECT
@@ -5908,7 +4755,7 @@ const rejectWithdrawal = async (
       );
 
     if (
-      transactionResult.rows.length === 0
+      result.rows.length === 0
     ) {
       await client.query('ROLLBACK');
 
@@ -5919,7 +4766,7 @@ const rejectWithdrawal = async (
     }
 
     const transaction =
-      transactionResult.rows[0];
+      result.rows[0];
 
     if (
       normalizeStatus(
@@ -5964,9 +4811,13 @@ const rejectWithdrawal = async (
     const availableAfter =
       availableBefore + amount;
 
-    // --------------------------------------------------------
-    // RELEASE RESERVED FUNDS
-    // --------------------------------------------------------
+    /*
+     * The normal withdrawal flow reserves
+     * available_balance when submitted.
+     *
+     * Rejection therefore releases the
+     * reserved amount.
+     */
 
     await client.query(
       `
@@ -5993,10 +4844,6 @@ const rejectWithdrawal = async (
       ]
     );
 
-    // --------------------------------------------------------
-    // REJECT TRANSACTION
-    // --------------------------------------------------------
-
     await client.query(
       `
       UPDATE transactions
@@ -6017,10 +4864,6 @@ const rejectWithdrawal = async (
       ]
     );
 
-    // --------------------------------------------------------
-    // INVALIDATE CODES
-    // --------------------------------------------------------
-
     await client.query(
       `
       UPDATE withdrawal_codes
@@ -6033,10 +4876,6 @@ const rejectWithdrawal = async (
       `,
       [transactionId]
     );
-
-    // --------------------------------------------------------
-    // AUDIT
-    // --------------------------------------------------------
 
     await client.query(
       `
@@ -6078,10 +4917,6 @@ const rejectWithdrawal = async (
 
     await client.query('COMMIT');
 
-    logger.info(
-      `Admin ${req.user.id} rejected withdrawal ${transactionId}`
-    );
-
     return res.status(200).json({
       message:
         'Withdrawal rejected successfully.',
@@ -6104,12 +4939,9 @@ const rejectWithdrawal = async (
         reason,
       },
     });
-
   } catch (error) {
     try {
-      await client.query(
-        'ROLLBACK'
-      );
+      await client.query('ROLLBACK');
     } catch (rollbackError) {
       logger.error(
         'Withdrawal rejection rollback error:',
@@ -6123,13 +4955,13 @@ const rejectWithdrawal = async (
     );
 
     return next(error);
-
   } finally {
     client.release();
   }
 };
-  // ============================================================
-// MODULE EXPORTS
+
+// ============================================================
+// EXPORTS
 // ============================================================
 
 module.exports = {
@@ -6144,10 +4976,8 @@ module.exports = {
   getUser,
   updateUserStatus,
 
-  // Account funding
+  // Account
   fundUserAccount,
-
-  // Account debit
   debitUserAccount,
 
   // Transactions
@@ -6181,7 +5011,7 @@ module.exports = {
   updatePaymentMethod,
   deletePaymentMethod,
 
-  // Withdrawal codes
+  // Withdrawal
   generateWithdrawalCodeForTransaction,
   getWithdrawalDetails,
   reverseWithdrawal,
