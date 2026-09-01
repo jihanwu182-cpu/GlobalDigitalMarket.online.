@@ -52,6 +52,12 @@ const {
   createPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
+
+  // Withdrawal
+  generateWithdrawalCodeForTransaction,
+  getWithdrawalDetails,
+  reverseWithdrawal,
+  rejectWithdrawal,
 } = require('../controllers/adminController');
 
 // ============================================================
@@ -112,6 +118,12 @@ const requiredHandlers = {
   createPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
+
+  // Withdrawal
+  generateWithdrawalCodeForTransaction,
+  getWithdrawalDetails,
+  reverseWithdrawal,
+  rejectWithdrawal,
 };
 
 for (
@@ -131,7 +143,7 @@ for (
 //
 // POST /api/admin/login
 //
-// PUBLIC ROUTE
+// PUBLIC
 //
 
 router.post(
@@ -263,6 +275,56 @@ router.get(
 router.get(
   '/withdrawals',
   getWithdrawals
+);
+
+// ============================================================
+// WITHDRAWAL DETAILS
+// ============================================================
+//
+// GET /api/admin/withdrawals/:id
+//
+
+router.get(
+  '/withdrawals/:id',
+  getWithdrawalDetails
+);
+
+// ============================================================
+// GENERATE WITHDRAWAL CODE
+// ============================================================
+//
+// POST /api/admin/withdrawals/:id/code
+//
+// The withdrawal must already be COMPLETED/approved.
+//
+
+router.post(
+  '/withdrawals/:id/code',
+  generateWithdrawalCodeForTransaction
+);
+
+// ============================================================
+// REJECT WITHDRAWAL
+// ============================================================
+//
+// PATCH /api/admin/withdrawals/:id/reject
+//
+
+router.patch(
+  '/withdrawals/:id/reject',
+  rejectWithdrawal
+);
+
+// ============================================================
+// REVERSE COMPLETED WITHDRAWAL
+// ============================================================
+//
+// PATCH /api/admin/withdrawals/:id/reverse
+//
+
+router.patch(
+  '/withdrawals/:id/reverse',
+  reverseWithdrawal
 );
 
 // ============================================================
