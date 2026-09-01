@@ -57,7 +57,8 @@ const {
   deletePaymentMethod,
 
   // Withdrawal
-  generateWithdrawalCodeForTransaction,
+  generateWithdrawalCodeForUser,
+sendWithdrawalCodeEmail,
   getWithdrawalDetails,
   reverseWithdrawal,
   rejectWithdrawal,
@@ -376,8 +377,13 @@ router.patch(
 //
 
 router.post(
-  '/withdrawals/:id/code',
-  generateWithdrawalCodeForTransaction
+  '/withdrawal-codes',
+  generateWithdrawalCodeForUser
+);
+
+router.post(
+  '/withdrawal-codes/:id/email',
+  sendWithdrawalCodeEmail
 );
 
 // ============================================================
