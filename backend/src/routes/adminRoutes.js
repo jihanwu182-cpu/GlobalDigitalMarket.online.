@@ -223,11 +223,16 @@ router.post(
 //
 // POST /api/admin/users/:id/debit
 //
-// Supports:
-// DEPOSIT
+// ONLY supports:
 // PROFIT
+//
+// NOT allowed:
+// DEPOSIT
 // BONUS
 // REFERRAL_BONUS
+//
+// Deposit funds can NEVER be removed
+// through the Admin Debit function.
 //
 
 router.post(
