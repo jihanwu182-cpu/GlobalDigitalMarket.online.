@@ -409,6 +409,7 @@ const App: React.FC = () => {
 
             {/* ==================================================
                 ADMIN DASHBOARD
+                tab 0 = dashboard
             ================================================== */}
 
             <Route
@@ -420,6 +421,7 @@ const App: React.FC = () => {
 
             {/* ==================================================
                 ADMIN USERS
+                tab 1 = users
             ================================================== */}
 
             <Route
@@ -430,90 +432,98 @@ const App: React.FC = () => {
             />
 
             {/* ==================================================
-                ADMIN ACCOUNTS / FUNDING
+                ADMIN ACCOUNTS
+                tab 2 = accounts
             ================================================== */}
 
             <Route
               path="/admin/accounts"
-              element={
-                <AdminSection tab={1} />
-              }
-            />
-
-            {/* ==================================================
-                ADMIN TRANSACTIONS
-            ================================================== */}
-
-            <Route
-              path="/admin/transactions"
               element={
                 <AdminSection tab={2} />
               }
             />
 
             {/* ==================================================
-                ADMIN DEPOSITS
+                ADMIN TRANSACTIONS
+                tab 3 = transactions
             ================================================== */}
 
             <Route
-              path="/admin/deposits"
+              path="/admin/transactions"
               element={
                 <AdminSection tab={3} />
               }
             />
 
             {/* ==================================================
-                ADMIN WITHDRAWALS
+                ADMIN DEPOSITS
+                tab 4 = deposits
             ================================================== */}
 
             <Route
-              path="/admin/withdrawals"
+              path="/admin/deposits"
               element={
                 <AdminSection tab={4} />
               }
             />
 
             {/* ==================================================
-                ADMIN KYC
+                ADMIN WITHDRAWALS
+                tab 5 = withdrawals
             ================================================== */}
 
             <Route
-              path="/admin/kyc"
+              path="/admin/withdrawals"
               element={
                 <AdminSection tab={5} />
               }
             />
 
             {/* ==================================================
-                ADMIN INVESTMENTS
+                ADMIN KYC
+                tab 6 = kyc
             ================================================== */}
 
             <Route
-              path="/admin/investments"
+              path="/admin/kyc"
               element={
                 <AdminSection tab={6} />
               }
             />
 
             {/* ==================================================
-                ADMIN SIGNALS
+                ADMIN INVESTMENT PLANS
+                tab 7 = investment-plans
             ================================================== */}
 
             <Route
-              path="/admin/signals"
+              path="/admin/investments"
               element={
                 <AdminSection tab={7} />
               }
             />
 
             {/* ==================================================
+                ADMIN SIGNAL PLANS
+                tab 8 = signal-plans
+            ================================================== */}
+
+            <Route
+              path="/admin/signals"
+              element={
+                <AdminSection tab={8} />
+              }
+            />
+
+            {/* ==================================================
                 ADMIN PAYMENT METHODS
+                tab 9 = payment-methods
             ================================================== */}
 
             <Route
               path="/admin/settings/payment-methods"
               element={
-                <AdminSection tab={8} />
+                <AdminSection tab={9} />
               }
             />
 
