@@ -28,6 +28,9 @@ const {
   getWithdrawals,
   updateTransactionStatus,
 
+  // Deposits
+  rejectDeposit,
+
   // KYC
   getKycRequests,
 
@@ -93,6 +96,9 @@ const requiredHandlers = {
   getDeposits,
   getWithdrawals,
   updateTransactionStatus,
+
+  // Deposits
+  rejectDeposit,
 
   // KYC
   getKycRequests,
@@ -194,10 +200,16 @@ router.patch(
 );
 
 // ============================================================
-// USER ACCOUNT FUNDING
+// USER ACCOUNT CREDIT
 // ============================================================
 //
 // POST /api/admin/users/:id/fund
+//
+// Supports:
+// DEPOSIT
+// PROFIT
+// BONUS
+// REFERRAL_BONUS
 //
 
 router.post(
@@ -210,6 +222,12 @@ router.post(
 // ============================================================
 //
 // POST /api/admin/users/:id/debit
+//
+// Supports:
+// DEPOSIT
+// PROFIT
+// BONUS
+// REFERRAL_BONUS
 //
 
 router.post(
@@ -257,12 +275,25 @@ router.patch(
 // DEPOSITS
 // ============================================================
 //
-// GET /api/admin/deposits
+// GET   /api/admin/deposits
+// PATCH /api/admin/deposits/:id/reject
+//
+// Admin can:
+// - View deposit
+// - View payment method
+// - View proof of payment
+// - Approve deposit
+// - Reject deposit
 //
 
 router.get(
   '/deposits',
   getDeposits
+);
+
+router.patch(
+  '/deposits/:id/reject',
+  rejectDeposit
 );
 
 // ============================================================
@@ -290,18 +321,21 @@ router.get(
 );
 
 // ============================================================
-// GENERATE WITHDRAWAL CODE
+// APPROVE / COMPLETE WITHDRAWAL
 // ============================================================
 //
-// POST /api/admin/withdrawals/:id/code
+// PATCH /api/admin/transactions/:id/status
 //
-// The withdrawal must already be COMPLETED/approved.
+// Send:
+// {
+//   "status": "COMPLETED"
+// }
 //
 
-router.post(
-  '/withdrawals/:id/code',
-  generateWithdrawalCodeForTransaction
-);
+/*
+ * Withdrawal approval is handled by the existing
+ * updateTransactionStatus controller.
+ */
 
 // ============================================================
 // REJECT WITHDRAWAL
@@ -325,6 +359,20 @@ router.patch(
 router.patch(
   '/withdrawals/:id/reverse',
   reverseWithdrawal
+);
+
+// ============================================================
+// GENERATE WITHDRAWAL CODE
+// ============================================================
+//
+// POST /api/admin/withdrawals/:id/code
+//
+// The withdrawal must already be COMPLETED/approved.
+//
+
+router.post(
+  '/withdrawals/:id/code',
+  generateWithdrawalCodeForTransaction
 );
 
 // ============================================================
