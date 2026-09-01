@@ -1,29 +1,97 @@
 import apiClient from './apiClient';
 
 interface User {
-  id: string;
+  id: string | number;
   email: string;
   firstName: string;
   lastName: string;
+  username?: string;
+  phone?: string;
+  country?: string;
+  preferredCurrency?: string;
+  referralCode?: string;
+  referrerCode?: string;
   role?: string;
   status?: string;
   emailVerified?: boolean;
+  identityVerificationStatus?: string;
+  createdAt?: string;
+}
+
+interface Account {
+  id: string | number;
+  accountNumber?: string;
+  accountType?: string;
+  accountName?: string;
+  currency?: string;
+  balance?: number;
+  availableBalance?: number;
+  status?: string;
   createdAt?: string;
 }
 
 interface LoginResponse {
   message?: string;
+  user: User;
+  account?: Account | null;
   accessToken: string;
   refreshToken: string;
-  user: User;
 }
 
 interface RegisterResponse {
   message?: string;
   user: User;
+  account?: Account;
   accessToken?: string;
   refreshToken?: string;
 }
+
+const saveAuthentication = (
+  data: LoginResponse | RegisterResponse
+): void => {
+  if (data.accessToken) {
+    localStorage.setItem(
+      'authToken',
+      data.accessToken
+    );
+
+    localStorage.setItem(
+      'accessToken',
+      data.accessToken
+    );
+
+    localStorage.setItem(
+      'token',
+      data.accessToken
+    );
+  }
+
+  if (data.refreshToken) {
+    localStorage.setItem(
+      'refreshToken',
+      data.refreshToken
+    );
+  }
+
+  if (data.user) {
+    localStorage.setItem(
+      'user',
+      JSON.stringify(data.user)
+    );
+
+    localStorage.setItem(
+      'currentUser',
+      JSON.stringify(data.user)
+    );
+  }
+
+  if ('account' in data && data.account) {
+    localStorage.setItem(
+      'account',
+      JSON.stringify(data.account)
+    );
+  }
+};
 
 const authService = {
   // ============================================================
@@ -37,33 +105,15 @@ const authService = {
     const response = await apiClient.post(
       '/auth/login',
       {
-        email,
+        email: email.trim().toLowerCase(),
         password,
       }
     );
 
-    const data: LoginResponse = response.data;
+    const data: LoginResponse =
+      response.data;
 
-    if (data.accessToken) {
-      localStorage.setItem(
-        'authToken',
-        data.accessToken
-      );
-    }
-
-    if (data.refreshToken) {
-      localStorage.setItem(
-        'refreshToken',
-        data.refreshToken
-      );
-    }
-
-    if (data.user) {
-      localStorage.setItem(
-        'user',
-        JSON.stringify(data.user)
-      );
-    }
+    saveAuthentication(data);
 
     return data;
   },
@@ -76,40 +126,51 @@ const authService = {
     email: string,
     password: string,
     firstName: string,
-    lastName: string
+    lastName: string,
+    username: string,
+    phone: string,
+    country: string,
+    preferredCurrency: string,
+    referrerCode?: string
   ): Promise<RegisterResponse> {
-    const response = await apiClient.post(
-      '/auth/register',
-      {
-        email,
-        password,
-        firstName,
-        lastName,
-      }
-    );
+    const response =
+      await apiClient.post(
+        '/auth/register',
+        {
+          email:
+            email.trim().toLowerCase(),
 
-    const data: RegisterResponse = response.data;
+          password,
 
-    if (data.accessToken) {
-      localStorage.setItem(
-        'authToken',
-        data.accessToken
+          firstName:
+            firstName.trim(),
+
+          lastName:
+            lastName.trim(),
+
+          username:
+            username.trim(),
+
+          phone:
+            phone.trim(),
+
+          country:
+            country.trim(),
+
+          preferredCurrency:
+            preferredCurrency
+              .trim()
+              .toUpperCase(),
+
+          referrerCode:
+            referrerCode?.trim() || undefined,
+        }
       );
-    }
 
-    if (data.refreshToken) {
-      localStorage.setItem(
-        'refreshToken',
-        data.refreshToken
-      );
-    }
+    const data: RegisterResponse =
+      response.data;
 
-    if (data.user) {
-      localStorage.setItem(
-        'user',
-        JSON.stringify(data.user)
-      );
-    }
+    saveAuthentication(data);
 
     return data;
   },
@@ -120,16 +181,42 @@ const authService = {
 
   async logout(): Promise<void> {
     try {
-      await apiClient.post('/auth/logout');
+      await apiClient.post(
+        '/auth/logout'
+      );
     } catch (error) {
       console.error(
         'Logout request failed:',
         error
       );
     } finally {
-      localStorage.removeItem('authToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('user');
+      localStorage.removeItem(
+        'authToken'
+      );
+
+      localStorage.removeItem(
+        'accessToken'
+      );
+
+      localStorage.removeItem(
+        'token'
+      );
+
+      localStorage.removeItem(
+        'refreshToken'
+      );
+
+      localStorage.removeItem(
+        'user'
+      );
+
+      localStorage.removeItem(
+        'currentUser'
+      );
+
+      localStorage.removeItem(
+        'account'
+      );
     }
   },
 
@@ -138,44 +225,29 @@ const authService = {
   // ============================================================
 
   async refreshToken(): Promise<LoginResponse> {
-    const refreshToken =
-      localStorage.getItem('refreshToken');
+    const token =
+      localStorage.getItem(
+        'refreshToken'
+      );
 
-    if (!refreshToken) {
+    if (!token) {
       throw new Error(
-        'No refresh token available'
+        'No refresh token available.'
       );
     }
 
-    const response = await apiClient.post(
-      '/auth/refresh-token',
-      {
-        refreshToken,
-      }
-    );
-
-    const data: LoginResponse = response.data;
-
-    if (data.accessToken) {
-      localStorage.setItem(
-        'authToken',
-        data.accessToken
+    const response =
+      await apiClient.post(
+        '/auth/refresh-token',
+        {
+          refreshToken: token,
+        }
       );
-    }
 
-    if (data.refreshToken) {
-      localStorage.setItem(
-        'refreshToken',
-        data.refreshToken
-      );
-    }
+    const data: LoginResponse =
+      response.data;
 
-    if (data.user) {
-      localStorage.setItem(
-        'user',
-        JSON.stringify(data.user)
-      );
-    }
+    saveAuthentication(data);
 
     return data;
   },
@@ -186,7 +258,9 @@ const authService = {
 
   isAuthenticated(): boolean {
     return Boolean(
-      localStorage.getItem('authToken')
+      localStorage.getItem(
+        'authToken'
+      )
     );
   },
 
@@ -196,7 +270,9 @@ const authService = {
 
   getCurrentUser(): User | null {
     const user =
-      localStorage.getItem('user');
+      localStorage.getItem(
+        'user'
+      );
 
     if (!user) {
       return null;
@@ -210,7 +286,13 @@ const authService = {
         error
       );
 
-      localStorage.removeItem('user');
+      localStorage.removeItem(
+        'user'
+      );
+
+      localStorage.removeItem(
+        'currentUser'
+      );
 
       return null;
     }
@@ -231,9 +313,33 @@ const authService = {
   // ============================================================
 
   clearAuth(): void {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    localStorage.removeItem(
+      'authToken'
+    );
+
+    localStorage.removeItem(
+      'accessToken'
+    );
+
+    localStorage.removeItem(
+      'token'
+    );
+
+    localStorage.removeItem(
+      'refreshToken'
+    );
+
+    localStorage.removeItem(
+      'user'
+    );
+
+    localStorage.removeItem(
+      'currentUser'
+    );
+
+    localStorage.removeItem(
+      'account'
+    );
   },
 };
 
