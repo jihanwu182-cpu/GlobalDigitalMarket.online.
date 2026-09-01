@@ -5595,30 +5595,33 @@ module.exports = {
   // KYC
   getKycRequests,
 
-  // Investment plans
+  // Investment Plans
   getInvestmentPlans,
   createInvestmentPlan,
   updateInvestmentPlan,
   deleteInvestmentPlan,
 
-  // Signal plans
+  // Signal Plans
   getSignalPlans,
   createSignalPlan,
   updateSignalPlan,
   deleteSignalPlan,
 
-  // User signal
+  // User Signal
   getUserSignal,
   updateUserSignal,
 
-  // Payment methods
+  // Payment Methods
   getPaymentMethods,
   createPaymentMethod,
   updatePaymentMethod,
   deletePaymentMethod,
 
-  // Withdrawal
-  generateWithdrawalCodeForTransaction,
+  // Withdrawal Codes
+  generateWithdrawalCodeForUser,
+  sendWithdrawalCodeEmail,
+
+  // Withdrawals
   getWithdrawalDetails,
   reverseWithdrawal,
   rejectWithdrawal,
