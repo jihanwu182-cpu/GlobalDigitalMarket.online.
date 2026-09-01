@@ -1,6 +1,6 @@
 -- ============================================================
 -- GlobalDigitalMarket.online
--- Database Schema
+-- COMPLETE DATABASE SCHEMA
 -- Safe for existing database
 -- ============================================================
 
@@ -36,27 +36,15 @@ CREATE TABLE IF NOT EXISTS users (
   deleted_at TIMESTAMP
 );
 
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) DEFAULT 'USD';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referrer_code VARCHAR(100);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS identity_verification_status VARCHAR(50) DEFAULT 'PENDING';
 
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS preferred_currency VARCHAR(10) DEFAULT 'USD';
-
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS referral_code VARCHAR(100);
-
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS referrer_code VARCHAR(100);
-
-ALTER TABLE users
-ADD COLUMN IF NOT EXISTS identity_verification_status VARCHAR(50)
-DEFAULT 'PENDING';
-
-CREATE INDEX IF NOT EXISTS idx_users_email
-ON users(email);
-
-CREATE INDEX IF NOT EXISTS idx_users_status
-ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
 
 -- ============================================================
 -- ACCOUNTS
@@ -70,51 +58,33 @@ CREATE TABLE IF NOT EXISTS accounts (
   account_name VARCHAR(100),
   currency VARCHAR(10) DEFAULT 'USD',
 
-  balance DECIMAL(20, 2) DEFAULT 0,
-  deposit DECIMAL(20, 2) DEFAULT 0,
-  profits DECIMAL(20, 2) DEFAULT 0,
-  available_balance DECIMAL(20, 2) DEFAULT 0,
+  balance DECIMAL(20,2) DEFAULT 0,
+  deposit DECIMAL(20,2) DEFAULT 0,
+  profits DECIMAL(20,2) DEFAULT 0,
+  available_balance DECIMAL(20,2) DEFAULT 0,
 
-  bonus DECIMAL(20, 2) DEFAULT 0,
-  referrer_bonus DECIMAL(20, 2) DEFAULT 0,
+  bonus DECIMAL(20,2) DEFAULT 0,
+  referrer_bonus DECIMAL(20,2) DEFAULT 0,
 
-  buying_power DECIMAL(20, 2) DEFAULT 0,
-  margin_available DECIMAL(20, 2) DEFAULT 0,
+  buying_power DECIMAL(20,2) DEFAULT 0,
+  margin_available DECIMAL(20,2) DEFAULT 0,
 
   status VARCHAR(50) DEFAULT 'active',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS currency VARCHAR(10) DEFAULT 'USD';
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS deposit DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS profits DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS bonus DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS referrer_bonus DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS available_balance DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS buying_power DECIMAL(20,2) DEFAULT 0;
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS margin_available DECIMAL(20,2) DEFAULT 0;
 
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS deposit DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS profits DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS bonus DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS referrer_bonus DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS available_balance DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS buying_power DECIMAL(20, 2) DEFAULT 0;
-
-ALTER TABLE accounts
-ADD COLUMN IF NOT EXISTS margin_available DECIMAL(20, 2) DEFAULT 0;
-
-CREATE INDEX IF NOT EXISTS idx_accounts_user_id
-ON accounts(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_accounts_status
-ON accounts(status);
+CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status);
 
 -- ============================================================
 -- PORTFOLIO HOLDINGS
@@ -124,12 +94,12 @@ CREATE TABLE IF NOT EXISTS portfolio_holdings (
   id SERIAL PRIMARY KEY,
   account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   symbol VARCHAR(20) NOT NULL,
-  quantity DECIMAL(20, 8) NOT NULL,
-  average_cost DECIMAL(20, 2),
-  current_price DECIMAL(20, 2),
-  market_value DECIMAL(20, 2),
-  gain_loss DECIMAL(20, 2),
-  gain_loss_percent DECIMAL(10, 4),
+  quantity DECIMAL(20,8) NOT NULL,
+  average_cost DECIMAL(20,2),
+  current_price DECIMAL(20,2),
+  market_value DECIMAL(20,2),
+  gain_loss DECIMAL(20,2),
+  gain_loss_percent DECIMAL(10,4),
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -152,13 +122,13 @@ CREATE TABLE IF NOT EXISTS orders (
   symbol VARCHAR(20) NOT NULL,
   order_type VARCHAR(20) NOT NULL,
   side VARCHAR(10) NOT NULL,
-  quantity DECIMAL(20, 8) NOT NULL,
-  price DECIMAL(20, 2),
+  quantity DECIMAL(20,8) NOT NULL,
+  price DECIMAL(20,2),
   status VARCHAR(50) DEFAULT 'pending',
-  filled_quantity DECIMAL(20, 8) DEFAULT 0,
-  average_fill_price DECIMAL(20, 2),
-  commission DECIMAL(20, 2) DEFAULT 0,
-  total_value DECIMAL(20, 2),
+  filled_quantity DECIMAL(20,8) DEFAULT 0,
+  average_fill_price DECIMAL(20,2),
+  commission DECIMAL(20,2) DEFAULT 0,
+  total_value DECIMAL(20,2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   executed_at TIMESTAMP,
@@ -185,10 +155,10 @@ CREATE TABLE IF NOT EXISTS trades (
   trade_number VARCHAR(50) UNIQUE NOT NULL,
   symbol VARCHAR(20) NOT NULL,
   side VARCHAR(10) NOT NULL,
-  quantity DECIMAL(20, 8) NOT NULL,
-  execution_price DECIMAL(20, 2) NOT NULL,
-  commission DECIMAL(20, 2) DEFAULT 0,
-  total_value DECIMAL(20, 2),
+  quantity DECIMAL(20,8) NOT NULL,
+  execution_price DECIMAL(20,2) NOT NULL,
+  commission DECIMAL(20,2) DEFAULT 0,
+  total_value DECIMAL(20,2),
   settlement_date DATE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -211,17 +181,17 @@ CREATE TABLE IF NOT EXISTS market_data (
   id SERIAL PRIMARY KEY,
   symbol VARCHAR(20) NOT NULL UNIQUE,
   name VARCHAR(255),
-  current_price DECIMAL(20, 2),
-  previous_close DECIMAL(20, 2),
-  open_price DECIMAL(20, 2),
-  high_price DECIMAL(20, 2),
-  low_price DECIMAL(20, 2),
+  current_price DECIMAL(20,2),
+  previous_close DECIMAL(20,2),
+  open_price DECIMAL(20,2),
+  high_price DECIMAL(20,2),
+  low_price DECIMAL(20,2),
   volume BIGINT,
   market_cap BIGINT,
-  pe_ratio DECIMAL(10, 4),
-  dividend_yield DECIMAL(10, 4),
-  week_52_high DECIMAL(20, 2),
-  week_52_low DECIMAL(20, 2),
+  pe_ratio DECIMAL(10,4),
+  dividend_yield DECIMAL(10,4),
+  week_52_high DECIMAL(20,2),
+  week_52_low DECIMAL(20,2),
   last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -241,10 +211,10 @@ CREATE TABLE IF NOT EXISTS price_history (
   id SERIAL PRIMARY KEY,
   symbol VARCHAR(20) NOT NULL,
   price_date DATE NOT NULL,
-  open_price DECIMAL(20, 2),
-  high_price DECIMAL(20, 2),
-  low_price DECIMAL(20, 2),
-  close_price DECIMAL(20, 2),
+  open_price DECIMAL(20,2),
+  high_price DECIMAL(20,2),
+  low_price DECIMAL(20,2),
+  close_price DECIMAL(20,2),
   volume BIGINT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(symbol, price_date)
@@ -270,7 +240,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   type VARCHAR(50),
   transaction_type VARCHAR(50),
 
-  amount DECIMAL(20, 2) NOT NULL,
+  amount DECIMAL(20,2) NOT NULL,
 
   currency VARCHAR(10) DEFAULT 'USD',
 
@@ -298,13 +268,15 @@ CREATE TABLE IF NOT EXISTS transactions (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   completed_at TIMESTAMP
 );
-ALTER TABLE transactions
-ADD COLUMN IF NOT EXISTS type VARCHAR(50);
+
 ALTER TABLE transactions
 ADD COLUMN IF NOT EXISTS transaction_number VARCHAR(100);
 
 ALTER TABLE transactions
 ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(100);
+
+ALTER TABLE transactions
+ADD COLUMN IF NOT EXISTS type VARCHAR(50);
 
 ALTER TABLE transactions
 ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(50);
@@ -387,6 +359,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   read_at TIMESTAMP
 );
+
 ALTER TABLE notifications
 ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE;
 
@@ -398,6 +371,7 @@ ADD COLUMN IF NOT EXISTS related_entity_id INTEGER;
 
 ALTER TABLE notifications
 ADD COLUMN IF NOT EXISTS read_at TIMESTAMP;
+
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id
 ON notifications(user_id);
 
@@ -416,7 +390,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   symbol VARCHAR(20) NOT NULL,
   name VARCHAR(255),
-  alert_price DECIMAL(20, 2),
+  alert_price DECIMAL(20,2),
   alert_type VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -478,11 +452,11 @@ CREATE TABLE IF NOT EXISTS investment_plans (
 
   description TEXT,
 
-  minimum_amount DECIMAL(20, 2) NOT NULL DEFAULT 0,
+  minimum_amount DECIMAL(20,2) NOT NULL DEFAULT 0,
 
-  maximum_amount DECIMAL(20, 2),
+  maximum_amount DECIMAL(20,2),
 
-  roi_percent DECIMAL(10, 4) NOT NULL DEFAULT 0,
+  roi_percent DECIMAL(10,4) NOT NULL DEFAULT 0,
 
   duration_days INTEGER NOT NULL DEFAULT 30,
 
@@ -513,11 +487,11 @@ CREATE TABLE IF NOT EXISTS signal_plans (
 
   strength INTEGER NOT NULL DEFAULT 50,
 
-  accuracy_percent DECIMAL(6, 2) NOT NULL DEFAULT 0,
+  accuracy_percent DECIMAL(6,2) NOT NULL DEFAULT 0,
 
   duration_days INTEGER NOT NULL DEFAULT 30,
 
-  price DECIMAL(20, 2) NOT NULL DEFAULT 0,
+  price DECIMAL(20,2) NOT NULL DEFAULT 0,
 
   currency VARCHAR(10) NOT NULL DEFAULT 'USD',
 
@@ -609,20 +583,32 @@ CREATE TABLE IF NOT EXISTS payment_methods (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS details TEXT;
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS account_name VARCHAR(150);
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS account_number VARCHAR(150);
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS bank_name VARCHAR(150);
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS instructions TEXT;
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'ACTIVE';
+
+ALTER TABLE payment_methods
+ADD COLUMN IF NOT EXISTS created_by INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_payment_methods_status
 ON payment_methods(status);
-
--- ============================================================
--- PAYMENT METHODS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS payment_methods (
-  ...
-);
-
-CREATE INDEX IF NOT EXISTS idx_payment_methods_status
-ON payment_methods(status);
-
 
 -- ============================================================
 -- WITHDRAWAL CODES
@@ -654,6 +640,14 @@ CREATE TABLE IF NOT EXISTS withdrawal_codes (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_transaction_id
+ON withdrawal_codes(transaction_id);
+
+CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_user_id
+ON withdrawal_codes(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_status
+ON withdrawal_codes(status);
 
 -- ============================================================
 -- ADMIN FINANCIAL ACTIONS
@@ -676,11 +670,11 @@ CREATE TABLE IF NOT EXISTS admin_financial_actions (
 
   action_type VARCHAR(100) NOT NULL,
 
-  amount DECIMAL(20, 2) NOT NULL DEFAULT 0,
+  amount DECIMAL(20,2) NOT NULL DEFAULT 0,
 
-  balance_before DECIMAL(20, 2),
+  balance_before DECIMAL(20,2),
 
-  balance_after DECIMAL(20, 2),
+  balance_after DECIMAL(20,2),
 
   description TEXT,
 
@@ -691,6 +685,17 @@ CREATE TABLE IF NOT EXISTS admin_financial_actions (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE INDEX IF NOT EXISTS idx_admin_financial_actions_admin_id
+ON admin_financial_actions(admin_id);
+
+CREATE INDEX IF NOT EXISTS idx_admin_financial_actions_user_id
+ON admin_financial_actions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_admin_financial_actions_account_id
+ON admin_financial_actions(account_id);
+
+CREATE INDEX IF NOT EXISTS idx_admin_financial_actions_created_at
+ON admin_financial_actions(created_at);
 
 -- ============================================================
 -- DONE
