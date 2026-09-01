@@ -611,43 +611,28 @@ CREATE INDEX IF NOT EXISTS idx_payment_methods_status
 ON payment_methods(status);
 
 -- ============================================================
--- WITHDRAWAL CODES
+-- WITHDRAWAL CODE WORKFLOW MIGRATION
+-- Allows admin to generate a code BEFORE a withdrawal exists.
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS withdrawal_codes (
-  id SERIAL PRIMARY KEY,
+-- 1. Allow a withdrawal code to exist without a transaction.
+ALTER TABLE withdrawal_codes
+ALTER COLUMN transaction_id DROP NOT NULL;
 
-  transaction_id INTEGER NOT NULL
-    REFERENCES transactions(id)
-    ON DELETE CASCADE,
+-- 2. Add updated_at for code lifecycle tracking.
+ALTER TABLE withdrawal_codes
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP
+DEFAULT CURRENT_TIMESTAMP;
 
-  user_id INTEGER NOT NULL
-    REFERENCES users(id)
-    ON DELETE CASCADE,
+-- 3. Index expiration checks.
+CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_expires_at
+ON withdrawal_codes(expires_at);
 
-  code_hash VARCHAR(255) NOT NULL,
-
-  status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
-
-  expires_at TIMESTAMP NOT NULL,
-
-  used_at TIMESTAMP,
-
-  generated_by INTEGER
-    REFERENCES users(id)
-    ON DELETE SET NULL,
-
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_transaction_id
-ON withdrawal_codes(transaction_id);
-
-CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_user_id
-ON withdrawal_codes(user_id);
-
-CREATE INDEX IF NOT EXISTS idx_withdrawal_codes_status
-ON withdrawal_codes(status);
+-- 4. Prevent more than one active code for the same user.
+CREATE UNIQUE INDEX IF NOT EXISTS
+idx_withdrawal_codes_one_active_per_user
+ON withdrawal_codes(user_id)
+WHERE status = 'ACTIVE';
 
 -- ============================================================
 -- ADMIN FINANCIAL ACTIONS
