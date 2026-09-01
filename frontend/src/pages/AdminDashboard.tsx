@@ -567,24 +567,170 @@ const AdminDashboard: React.FC<
     setWithdrawalDetailsLoading,
   ] = useState(false);
 
-  // ==========================================================
-  // WITHDRAWAL CODE
-  // ==========================================================
+  {/* ======================================================
+    WITHDRAWAL CODE
+====================================================== */}
 
-  const [
-    withdrawalCodeOpen,
-    setWithdrawalCodeOpen,
-  ] = useState(false);
+<Dialog
+  open={withdrawalCodeOpen}
+  onClose={() =>
+    !withdrawalCodeLoading &&
+    !sendCodeLoading &&
+    setWithdrawalCodeOpen(false)
+  }
+  fullWidth
+  maxWidth="sm"
+>
+  <DialogTitle>
+    Withdrawal Code
+  </DialogTitle>
 
-  const [
-    generatedWithdrawalCode,
-    setGeneratedWithdrawalCode,
-  ] = useState('');
+  <DialogContent dividers>
+    {withdrawalCodeLoading ? (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          py: 5,
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    ) : (
+      <Stack spacing={2}>
+        <Alert severity="success">
+          Withdrawal code generated successfully.
+        </Alert>
 
-  const [
-    withdrawalCodeLoading,
-    setWithdrawalCodeLoading,
-  ] = useState(false);
+        {generatedWithdrawalCodeUser && (
+          <Paper
+            variant="outlined"
+            sx={{ p: 2 }}
+          >
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              Code generated for
+            </Typography>
+
+            <Typography
+              fontWeight={800}
+            >
+              {[
+                generatedWithdrawalCodeUser.firstName,
+                generatedWithdrawalCodeUser.lastName,
+              ]
+                .filter(Boolean)
+                .join(' ') ||
+                generatedWithdrawalCodeUser.username ||
+                'User'}
+            </Typography>
+
+            <Typography
+              variant="body2"
+              color="text.secondary"
+            >
+              {generatedWithdrawalCodeUser.email}
+            </Typography>
+          </Paper>
+        )}
+
+        {generatedWithdrawalCode ? (
+          <Paper
+            variant="outlined"
+            sx={{
+              p: 3,
+              textAlign: 'center',
+            }}
+          >
+            <Typography
+              color="text.secondary"
+              gutterBottom
+            >
+              One-Time Withdrawal Code
+            </Typography>
+
+            <Typography
+              variant="h3"
+              fontWeight={900}
+              sx={{
+                letterSpacing: 3,
+                wordBreak: 'break-word',
+              }}
+            >
+              {generatedWithdrawalCode}
+            </Typography>
+          </Paper>
+        ) : (
+          <Typography color="text.secondary">
+            The server did not return the withdrawal code.
+          </Typography>
+        )}
+
+        <Alert severity="warning">
+          This code is one-time use. Do not enter it into
+          the user's wallet or transaction history.
+        </Alert>
+
+        <Stack
+          direction={{
+            xs: 'column',
+            sm: 'row',
+          }}
+          spacing={1}
+        >
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<Code />}
+            onClick={copyWithdrawalCode}
+            disabled={
+              !generatedWithdrawalCode ||
+              sendCodeLoading
+            }
+          >
+            Copy Code
+          </Button>
+
+          <Button
+            fullWidth
+            variant="contained"
+            startIcon={<Payments />}
+            onClick={
+              sendWithdrawalCodeEmail
+            }
+            disabled={
+              !generatedWithdrawalCode ||
+              !generatedWithdrawalCodeId ||
+              sendCodeLoading
+            }
+          >
+            {sendCodeLoading ? (
+              <CircularProgress size={22} />
+            ) : (
+              'Send Code to User Email'
+            )}
+          </Button>
+        </Stack>
+      </Stack>
+    )}
+  </DialogContent>
+
+  <DialogActions>
+    <Button
+      onClick={() =>
+        setWithdrawalCodeOpen(false)
+      }
+      disabled={
+        withdrawalCodeLoading ||
+        sendCodeLoading
+      }
+    >
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
 
   // ==========================================================
   // INVESTMENT
@@ -1450,86 +1596,90 @@ const AdminDashboard: React.FC<
     };
 
   // ==========================================================
-  // GENERATE WITHDRAWAL CODE
-  // ==========================================================
+// GENERATE WITHDRAWAL CODE FOR USER
+// ==========================================================
 
-  const generateWithdrawalCode =
-    async (
-      withdrawal: Transaction
-    ) => {
-      const status =
-        String(
-          withdrawal.status || ''
-        ).toUpperCase();
+const generateWithdrawalCode =
+  async (user: User) => {
+    if (!user?.id) {
+      setError(
+        'A valid user is required.'
+      );
+      return;
+    }
 
-      if (status !== 'COMPLETED') {
-        setError(
-          'A withdrawal code can only be generated after the withdrawal is approved/completed.'
+    if (
+      !window.confirm(
+        `Generate a withdrawal code for ${user.email}?`
+      )
+    ) {
+      return;
+    }
+
+    setWithdrawalCodeLoading(true);
+    setGeneratedWithdrawalCode('');
+    setGeneratedWithdrawalCodeId(null);
+    setGeneratedWithdrawalCodeUser(user);
+    setWithdrawalCodeOpen(true);
+
+    try {
+      const response =
+        await api.post(
+          '/admin/withdrawal-codes',
+          {
+            userId: user.id,
+          }
         );
 
-        return;
-      }
+      const data =
+        response.data || {};
 
-      if (
-        !window.confirm(
-          `Generate a withdrawal code for withdrawal #${withdrawal.id}?`
-        )
-      ) {
-        return;
-      }
+      const code =
+        data.code ||
+        data.withdrawalCode?.code ||
+        data.data?.code ||
+        data.data?.withdrawalCode?.code ||
+        '';
 
-      setWithdrawalCodeLoading(
-        true
-      );
+      const id =
+        data.withdrawalCodeId ||
+        data.withdrawalCode?.id ||
+        data.id ||
+        data.data?.withdrawalCodeId ||
+        data.data?.withdrawalCode?.id ||
+        data.data?.id ||
+        null;
+
+      if (!code) {
+        setWithdrawalCodeOpen(false);
+
+        throw new Error(
+          'The server did not return a withdrawal code.'
+        );
+      }
 
       setGeneratedWithdrawalCode(
-        ''
+        String(code)
       );
 
-      setWithdrawalCodeOpen(
-        true
+      setGeneratedWithdrawalCodeId(
+        id ? Number(id) : null
       );
 
-      try {
-        const response =
-          await api.post(
-            `/admin/withdrawals/${withdrawal.id}/code`
-          );
+      setSuccess(
+        data.message ||
+          'Withdrawal code generated successfully.'
+      );
+    } catch (err) {
+      setWithdrawalCodeOpen(false);
 
-        const code =
-          response.data?.code ||
-          response.data?.withdrawalCode ||
-          response.data?.data?.code ||
-          response.data?.data?.withdrawalCode ||
-          '';
-
-        if (code) {
-          setGeneratedWithdrawalCode(
-            String(code)
-          );
-
-          setSuccess(
-            response.data?.message ||
-            'Withdrawal code generated successfully.'
-          );
-        } else {
-          setSuccess(
-            response.data?.message ||
-            'Withdrawal code generated.'
-          );
-        }
-      } catch (err) {
-        setWithdrawalCodeOpen(
-          false
-        );
-
-        setError(
-          getErrorMessage(err)
-        );
-      } finally {
-        setWithdrawalCodeLoading(
-          false
-        );
+      setError(
+        getErrorMessage(err)
+      );
+    } finally {
+      setWithdrawalCodeLoading(false);
+    }
+  };
       }
     };
 
