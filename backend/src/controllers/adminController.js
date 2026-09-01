@@ -1161,13 +1161,17 @@ const fundUserAccount = async (
 //
 // POST /api/admin/users/:id/debit
 //
-// Body:
-// {
-//   "amount": 100,
-//   "currency": "USD",
-//   "category": "BONUS",
-//   "description": "Manual admin debit"
-// }
+// Allowed debit categories:
+// PROFIT
+//
+// NOT allowed:
+// DEPOSIT
+// BONUS
+// REFERRAL_BONUS
+//
+// IMPORTANT:
+// Deposit money can NEVER be removed using the
+// Admin Debit function.
 //
 // ============================================================
 
@@ -1176,45 +1180,38 @@ const debitUserAccount = async (
   res,
   next
 ) => {
-  const client =
-    await pool.connect();
+  const client = await pool.connect();
 
   try {
-    const userId =
-      Number(req.params.id);
+    const userId = Number(req.params.id);
 
-    const amount =
-      Number(req.body?.amount);
+    const amount = Number(req.body?.amount);
 
-    const currency =
-      cleanString(
-        req.body?.currency || 'USD'
-      ).toUpperCase();
+    const currency = cleanString(
+      req.body?.currency || 'USD'
+    ).toUpperCase();
 
-    const category =
-      normalizeFinancialCategory(
-        req.body?.category ||
-        req.body?.type ||
-        req.body?.fundingType
-      );
+    const category = normalizeFinancialCategory(
+      req.body?.category ||
+      req.body?.type ||
+      req.body?.fundingType
+    );
 
     const description =
-      cleanString(
-        req.body?.description
-      ) ||
+      cleanString(req.body?.description) ||
       'Account debited by administrator.';
+
+    // --------------------------------------------------------
+    // BASIC VALIDATION
+    // --------------------------------------------------------
 
     if (!isPositiveInteger(userId)) {
       return res.status(400).json({
-        message:
-          'Invalid user ID.',
+        message: 'Invalid user ID.',
       });
     }
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
         message:
           'Debit amount must be greater than zero.',
@@ -1225,15 +1222,55 @@ const debitUserAccount = async (
       return res.status(400).json({
         message:
           'A valid debit category is required.',
-        allowedCategories:
-          FINANCIAL_CATEGORIES,
+        allowedCategories: [
+          'PROFIT',
+        ],
+      });
+    }
+
+    // --------------------------------------------------------
+    // CRITICAL SECURITY RULE
+    // --------------------------------------------------------
+    //
+    // Admin Debit is ONLY allowed against PROFIT.
+    //
+    // Deposit:
+    // NEVER debit through this endpoint.
+    //
+    // Bonus:
+    // NEVER debit through this endpoint.
+    //
+    // Referral Bonus:
+    // NEVER debit through this endpoint.
+    //
+    // --------------------------------------------------------
+
+    if (category !== 'PROFIT') {
+      return res.status(403).json({
+        message:
+          'Admin Debit is only allowed for Profit. Deposit, Bonus and Referral Bonus cannot be debited.',
+        category,
+        allowedDebitCategories: [
+          'PROFIT',
+        ],
       });
     }
 
     const accountColumn =
       getAccountCategoryColumn(category);
 
+    if (accountColumn !== 'profits') {
+      return res.status(403).json({
+        message:
+          'This financial category cannot be debited.',
+      });
+    }
+
     await client.query('BEGIN');
+
+    // --------------------------------------------------------
+    // LOCK USER ACCOUNT
+    // --------------------------------------------------------
 
     const accountResult =
       await client.query(
@@ -1241,9 +1278,13 @@ const debitUserAccount = async (
         SELECT
           u.id AS user_id,
           u.email,
+          u.first_name,
+          u.last_name,
 
           a.id AS account_id,
           a.account_number,
+          a.account_type,
+          a.account_name,
           a.currency,
           a.balance,
           a.deposit,
@@ -1252,7 +1293,8 @@ const debitUserAccount = async (
           a.referrer_bonus,
           a.available_balance,
           a.buying_power,
-          a.margin_available
+          a.margin_available,
+          a.status
 
         FROM users u
 
@@ -1268,9 +1310,7 @@ const debitUserAccount = async (
         [userId]
       );
 
-    if (
-      accountResult.rows.length === 0
-    ) {
+    if (accountResult.rows.length === 0) {
       await client.query('ROLLBACK');
 
       return res.status(404).json({
@@ -1282,14 +1322,16 @@ const debitUserAccount = async (
     const account =
       accountResult.rows[0];
 
+    // --------------------------------------------------------
+    // CURRENCY CHECK
+    // --------------------------------------------------------
+
     const accountCurrency =
       cleanString(
         account.currency || 'USD'
       ).toUpperCase();
 
-    if (
-      accountCurrency !== currency
-    ) {
+    if (accountCurrency !== currency) {
       await client.query('ROLLBACK');
 
       return res.status(400).json({
@@ -1298,58 +1340,71 @@ const debitUserAccount = async (
 
         accountCurrency,
 
-        requestedCurrency:
-          currency,
+        requestedCurrency: currency,
       });
     }
 
-    const balance =
+    // --------------------------------------------------------
+    // PROFIT BALANCE CHECK
+    // --------------------------------------------------------
+
+    const profitBalance =
+      safeNumber(account.profits);
+
+    const currentBalance =
       safeNumber(account.balance);
 
     const availableBalance =
-      safeNumber(
-        account.available_balance
-      );
+      safeNumber(account.available_balance);
 
-    const categoryBalance =
-      safeNumber(
-        account[accountColumn]
-      );
-
-    if (categoryBalance < amount) {
+    if (profitBalance < amount) {
       await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
-          `Insufficient ${category.toLowerCase().replace('_', ' ')} balance.`,
+          'Insufficient profit balance.',
 
-        category,
+        category: 'PROFIT',
 
-        categoryBalance,
+        profitBalance,
 
-        requestedAmount:
-          amount,
+        requestedAmount: amount,
       });
     }
 
-    if (
-      balance < amount ||
-      availableBalance < amount
-    ) {
+    // --------------------------------------------------------
+    // TOTAL ACCOUNT BALANCE CHECK
+    // --------------------------------------------------------
+
+    if (currentBalance < amount) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'Insufficient account balance.',
+
+        balance: currentBalance,
+
+        requestedAmount: amount,
+      });
+    }
+
+    if (availableBalance < amount) {
       await client.query('ROLLBACK');
 
       return res.status(400).json({
         message:
           'Insufficient available account balance.',
 
-        balance,
-
         availableBalance,
 
-        requestedAmount:
-          amount,
+        requestedAmount: amount,
       });
     }
+
+    // --------------------------------------------------------
+    // CREATE ADMIN DEBIT TRANSACTION
+    // --------------------------------------------------------
 
     const reference =
       `ADMIN-DEBIT-${Date.now()}-${userId}-${crypto.randomInt(
@@ -1380,12 +1435,12 @@ const debitUserAccount = async (
           'WITHDRAWAL',
           $3,
           $4,
-          $5,
+          'ADMIN_DEBIT_PROFIT',
           'COMPLETED',
+          $5,
           $6,
-          $7,
           CURRENT_TIMESTAMP,
-          $6
+          $5
         )
 
         RETURNING *
@@ -1395,11 +1450,28 @@ const debitUserAccount = async (
           reference,
           amount,
           currency,
-          `ADMIN_DEBIT_${category}`,
           description,
           req.user.id,
         ]
       );
+
+    // --------------------------------------------------------
+    // REMOVE PROFIT ONLY
+    // --------------------------------------------------------
+    //
+    // Deposit is deliberately NOT changed.
+    //
+    // Bonus is deliberately NOT changed.
+    //
+    // Referral bonus is deliberately NOT changed.
+    //
+    // Only:
+    //
+    // profits
+    //
+    // is reduced.
+    //
+    // --------------------------------------------------------
 
     const updatedAccountResult =
       await client.query(
@@ -1410,8 +1482,8 @@ const debitUserAccount = async (
           balance =
             COALESCE(balance, 0) - $1,
 
-          ${accountColumn} =
-            COALESCE(${accountColumn}, 0) - $1,
+          profits =
+            COALESCE(profits, 0) - $1,
 
           available_balance =
             COALESCE(available_balance, 0) - $1,
@@ -1437,13 +1509,19 @@ const debitUserAccount = async (
 
     await client.query('COMMIT');
 
+    const transaction =
+      transactionResult.rows[0];
+
+    const updatedAccount =
+      updatedAccountResult.rows[0];
+
     logger.info(
-      `Admin ${req.user.id} debited user ${userId} ${amount} ${currency} as ${category}`
+      `Admin ${req.user.id} debited user ${userId} ${amount} ${currency} as PROFIT`
     );
 
     return res.status(200).json({
       message:
-        'User account debited successfully.',
+        'Profit debited successfully.',
 
       debit: {
         userId,
@@ -1458,24 +1536,80 @@ const debitUserAccount = async (
 
         currency,
 
-        category,
+        category:
+          'PROFIT',
 
         accountField:
-          accountColumn,
+          'profits',
 
         transactionReference:
-          transactionResult.rows[0]
-            .transaction_reference,
+          transaction.transaction_reference,
 
         status:
           'COMPLETED',
       },
 
-      transaction:
-        transactionResult.rows[0],
+      transaction,
 
-      account:
-        updatedAccountResult.rows[0],
+      account: {
+        id:
+          updatedAccount.id,
+
+        accountNumber:
+          updatedAccount.account_number,
+
+        accountType:
+          updatedAccount.account_type,
+
+        accountName:
+          updatedAccount.account_name,
+
+        currency:
+          updatedAccount.currency,
+
+        balance:
+          safeNumber(
+            updatedAccount.balance
+          ),
+
+        deposit:
+          safeNumber(
+            updatedAccount.deposit
+          ),
+
+        profits:
+          safeNumber(
+            updatedAccount.profits
+          ),
+
+        availableBalance:
+          safeNumber(
+            updatedAccount.available_balance
+          ),
+
+        bonus:
+          safeNumber(
+            updatedAccount.bonus
+          ),
+
+        referrerBonus:
+          safeNumber(
+            updatedAccount.referrer_bonus
+          ),
+
+        buyingPower:
+          safeNumber(
+            updatedAccount.buying_power
+          ),
+
+        marginAvailable:
+          safeNumber(
+            updatedAccount.margin_available
+          ),
+
+        status:
+          updatedAccount.status,
+      },
     });
   } catch (error) {
     try {
