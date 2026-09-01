@@ -127,10 +127,11 @@ const requiredHandlers = {
   deletePaymentMethod,
 
   // Withdrawal
-  generateWithdrawalCodeForUser,
+generateWithdrawalCodeForUser,
 sendWithdrawalCodeEmail,
-  reverseWithdrawal,
-  rejectWithdrawal,
+getWithdrawalDetails,
+reverseWithdrawal,
+rejectWithdrawal,
 };
 
 for (
