@@ -3,7 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-
+import logo from '../Logo.png.PNG';
 import {
   Alert,
   Avatar,
@@ -1345,17 +1345,23 @@ const Dashboard: React.FC = () => {
                 flexGrow: 1,
               }}
             >
-              <Typography
-                sx={{
-                  fontSize: {
-                    xs: 17,
-                    sm: 21,
-                  },
-                  fontWeight: 900,
-                }}
-              >
-                Global Digital Market
-              </Typography>
+              <Box
+  component="img"
+  src={logo}
+  alt="GlobalDigitalMarket"
+  sx={{
+    width: {
+      xs: 150,
+      sm: 190,
+    },
+    height: {
+      xs: 42,
+      sm: 52,
+    },
+    objectFit: 'contain',
+    display: 'block',
+  }}
+/>
 
               <Typography
                 sx={{
