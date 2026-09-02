@@ -32,7 +32,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 import { useNavigate } from 'react-router-dom';
 
 import apiClient from '../services/apiClient';
-
+import logo from '../GlobalDigitalMarket-logo-clean.png';
 /* ============================================================
    TYPES
 ============================================================ */
@@ -90,65 +90,21 @@ const defaultMarkets: MarketItem[] = [
 /* ============================================================
    LOGO
 ============================================================ */
-
 const CompanyLogo: React.FC<{
   compact?: boolean;
 }> = ({ compact = false }) => {
   return (
-    <Stack
-      direction="row"
-      spacing={1.2}
-      alignItems="center"
-    >
-      <Box
-        sx={{
-          width: compact ? 38 : 46,
-          height: compact ? 38 : 46,
-          borderRadius: '50%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background:
-            'radial-gradient(circle at 30% 25%, #61e9ff 0%, #176cff 45%, #071b62 100%)',
-          border:
-            '1px solid rgba(112,220,255,0.65)',
-          boxShadow:
-            '0 0 24px rgba(45,139,255,0.35)',
-        }}
-      >
-        <PublicIcon
-          sx={{
-            fontSize: compact ? 25 : 31,
-            color: '#fff',
-          }}
-        />
-      </Box>
-
-      <Box>
-        <Typography
-          sx={{
-            fontSize: compact ? 16 : 19,
-            fontWeight: 900,
-            lineHeight: 1,
-            letterSpacing: 0.8,
-          }}
-        >
-          GLOBAL
-        </Typography>
-
-        <Typography
-          sx={{
-            fontSize: compact ? 7 : 8,
-            color: '#8da9ef',
-            letterSpacing: 1.3,
-            fontWeight: 800,
-            mt: 0.4,
-          }}
-        >
-          DIGITAL MARKET
-        </Typography>
-      </Box>
-    </Stack>
+    <Box
+      component="img"
+      src={logo}
+      alt="GlobalDigitalMarket"
+      sx={{
+        width: compact ? 150 : 190,
+        height: compact ? 70 : 82,
+        objectFit: 'contain',
+        display: 'block',
+      }}
+    />
   );
 };
 
