@@ -53,17 +53,13 @@ const Support: React.FC = () => {
   const [messages, setMessages] =
     useState<ChatMessage[]>([]);
 
-  const [message, setMessage] =
-    useState('');
+  const [message, setMessage] = useState('');
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [sending, setSending] =
-    useState(false);
+  const [sending, setSending] = useState(false);
 
-  const [error, setError] =
-    useState('');
+  const [error, setError] = useState('');
 
   const messagesEndRef =
     useRef<HTMLDivElement | null>(null);
@@ -76,10 +72,9 @@ const Support: React.FC = () => {
     try {
       setError('');
 
-      const response =
-        await apiClient.get(
-          '/support/conversation'
-        );
+      const response = await apiClient.get(
+        '/support/conversation'
+      );
 
       setConversation(
         response.data.conversation
@@ -106,10 +101,9 @@ const Support: React.FC = () => {
     conversationId: number
   ) => {
     try {
-      const response =
-        await apiClient.get(
-          `/support/conversation/${conversationId}/messages`
-        );
+      const response = await apiClient.get(
+        `/support/conversation/${conversationId}/messages`
+      );
 
       setMessages(
         response.data.messages || []
@@ -197,13 +191,9 @@ const Support: React.FC = () => {
   ) => {
     event?.preventDefault();
 
-    const trimmedMessage =
-      message.trim();
+    const trimmedMessage = message.trim();
 
-    if (
-      !trimmedMessage ||
-      sending
-    ) {
+    if (!trimmedMessage || sending) {
       return;
     }
 
@@ -211,15 +201,12 @@ const Support: React.FC = () => {
       setSending(true);
       setError('');
 
-      let activeConversation =
-        conversation;
+      let activeConversation = conversation;
 
-      // Create conversation if needed.
       if (!activeConversation) {
-        const response =
-          await apiClient.get(
-            '/support/conversation'
-          );
+        const response = await apiClient.get(
+          '/support/conversation'
+        );
 
         activeConversation =
           response.data.conversation;
@@ -229,13 +216,12 @@ const Support: React.FC = () => {
         );
       }
 
-      const response =
-        await apiClient.post(
-          `/support/conversation/${activeConversation.id}/messages`,
-          {
-            message: trimmedMessage,
-          }
-        );
+      const response = await apiClient.post(
+        `/support/conversation/${activeConversation.id}/messages`,
+        {
+          message: trimmedMessage,
+        }
+      );
 
       setMessages((current) => [
         ...current,
@@ -267,16 +253,15 @@ const Support: React.FC = () => {
   // FORMAT TIME
   // ==========================================================
 
-  const formatTime = (
-    value: string
-  ) => {
+  const formatTime = (value: string) => {
     try {
-      return new Date(
-        value
-      ).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return new Date(value).toLocaleTimeString(
+        [],
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+        }
+      );
     } catch {
       return '';
     }
@@ -324,18 +309,13 @@ const Support: React.FC = () => {
         },
       }}
     >
-      <Container
-        maxWidth="md"
-      >
+      <Container maxWidth="md">
+
         {/* BACK BUTTON */}
 
         <Button
-          startIcon={
-            <ArrowBackIcon />
-          }
-          onClick={() =>
-            navigate('/dashboard')
-          }
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/dashboard')}
           sx={{
             color: '#fff',
             textTransform: 'none',
@@ -344,6 +324,8 @@ const Support: React.FC = () => {
         >
           Back to Dashboard
         </Button>
+
+        {/* CHAT CARD */}
 
         <Card
           sx={{
@@ -358,6 +340,7 @@ const Support: React.FC = () => {
             overflow: 'hidden',
           }}
         >
+
           {/* HEADER */}
 
           <Box
@@ -396,11 +379,7 @@ const Support: React.FC = () => {
                 />
               </Box>
 
-              <Box
-                sx={{
-                  flex: 1,
-                }}
-              >
+              <Box sx={{ flex: 1 }}>
                 <Typography
                   sx={{
                     fontSize: {
@@ -423,8 +402,7 @@ const Support: React.FC = () => {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background:
-                        '#43e97b',
+                      background: '#43e97b',
                     }}
                   />
 
@@ -442,22 +420,15 @@ const Support: React.FC = () => {
             </Stack>
           </Box>
 
-          <CardContent
-            sx={{
-              p: 0,
-            }}
-          >
+          <CardContent sx={{ p: 0 }}>
+
             {/* ERROR */}
 
             {error && (
               <Alert
                 severity="error"
-                onClose={() =>
-                  setError('')
-                }
-                sx={{
-                  m: 2,
-                }}
+                onClose={() => setError('')}
+                sx={{ m: 2 }}
               >
                 {error}
               </Alert>
@@ -483,6 +454,7 @@ const Support: React.FC = () => {
               }}
             >
               {messages.length === 0 ? (
+
                 <Box
                   sx={{
                     height: '100%',
@@ -523,10 +495,11 @@ const Support: React.FC = () => {
                     support team will assist you.
                   </Typography>
                 </Box>
+
               ) : (
-                <Stack
-                  spacing={1.5}
-                >
+
+                <Stack spacing={1.5}>
+
                   {messages.map(
                     (chatMessage) => {
                       const isUser =
@@ -535,9 +508,7 @@ const Support: React.FC = () => {
 
                       return (
                         <Box
-                          key={
-                            chatMessage.id
-                          }
+                          key={chatMessage.id}
                           sx={{
                             display: 'flex',
                             justifyContent:
@@ -565,18 +536,17 @@ const Support: React.FC = () => {
                                   : '1px solid rgba(255,255,255,0.08)',
                             }}
                           >
+
                             {!isUser && (
                               <Typography
                                 sx={{
-                                  color:
-                                    '#5ce8ff',
+                                  color: '#5ce8ff',
                                   fontSize: 11,
                                   fontWeight: 900,
                                   mb: 0.4,
                                 }}
                               >
-                                GlobalDigitalMarket
-                                  Support
+                                GlobalDigitalMarket Support
                               </Typography>
                             )}
 
@@ -590,9 +560,7 @@ const Support: React.FC = () => {
                                   'break-word',
                               }}
                             >
-                              {
-                                chatMessage.message
-                              }
+                              {chatMessage.message}
                             </Typography>
 
                             <Typography
@@ -601,25 +569,22 @@ const Support: React.FC = () => {
                                   'rgba(255,255,255,0.60)',
                                 fontSize: 10,
                                 mt: 0.5,
-                                textAlign:
-                                  'right',
+                                textAlign: 'right',
                               }}
                             >
                               {formatTime(
                                 chatMessage.created_at
                               )}
                             </Typography>
+
                           </Box>
                         </Box>
                       );
                     }
                   )}
 
-                  <div
-                    ref={
-                      messagesEndRef
-                    }
-                  />
+                  <div ref={messagesEndRef} />
+
                 </Stack>
               )}
             </Box>
@@ -628,9 +593,7 @@ const Support: React.FC = () => {
 
             <Box
               component="form"
-              onSubmit={
-                handleSendMessage
-              }
+              onSubmit={handleSendMessage}
               sx={{
                 p: {
                   xs: 1.5,
@@ -645,12 +608,11 @@ const Support: React.FC = () => {
                 spacing={1}
                 alignItems="flex-end"
               >
+
                 <TextField
                   value={message}
                   onChange={(event) =>
-                    setMessage(
-                      event.target.value
-                    )
+                    setMessage(event.target.value)
                   }
                   fullWidth
                   multiline
@@ -659,8 +621,7 @@ const Support: React.FC = () => {
                   disabled={sending}
                   onKeyDown={(event) => {
                     if (
-                      event.key ===
-                        'Enter' &&
+                      event.key === 'Enter' &&
                       !event.shiftKey
                     ) {
                       event.preventDefault();
@@ -668,25 +629,26 @@ const Support: React.FC = () => {
                     }
                   }}
                   sx={{
-                    '& .MuiOutlinedInput-root':
-                      {
-                        color: '#fff',
-                        borderRadius: 3,
-                        '& fieldset': {
-                          borderColor:
-                            'rgba(120,160,255,0.30)',
-                        },
-                        '&:hover fieldset':
-                          {
-                            borderColor:
-                              '#5ce8ff',
-                          },
-                        '&.Mui-focused fieldset':
-                          {
-                            borderColor:
-                              '#5ce8ff',
-                          },
+                    '& .MuiOutlinedInput-root': {
+                      color: '#fff',
+                      borderRadius: 3,
+
+                      '& fieldset': {
+                        borderColor:
+                          'rgba(120,160,255,0.30)',
                       },
+
+                      '&:hover fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+
+                      '&.Mui-focused fieldset': {
+                        borderColor:
+                          '#5ce8ff',
+                      },
+                    },
+
                     '& .MuiInputBase-input::placeholder':
                       {
                         color:
@@ -706,12 +668,12 @@ const Support: React.FC = () => {
                     width: 52,
                     height: 52,
                     color: '#041033',
-                    background:
-                      '#5ce8ff',
+                    background: '#5ce8ff',
+
                     '&:hover': {
-                      background:
-                        '#4dd8ef',
+                      background: '#4dd8ef',
                     },
+
                     '&.Mui-disabled': {
                       color:
                         'rgba(255,255,255,0.30)',
@@ -723,4 +685,37 @@ const Support: React.FC = () => {
                   {sending ? (
                     <CircularProgress
                       size={22}
-                     
+                      sx={{
+                        color: '#fff',
+                      }}
+                    />
+                  ) : (
+                    <SendIcon />
+                  )}
+                </IconButton>
+
+              </Stack>
+
+              <Typography
+                sx={{
+                  color:
+                    'rgba(255,255,255,0.40)',
+                  fontSize: 10,
+                  mt: 1,
+                  textAlign: 'center',
+                }}
+              >
+                Press Enter to send • Shift + Enter
+                for a new line
+              </Typography>
+
+            </Box>
+
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
+  );
+};
+
+export default Support;
