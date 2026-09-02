@@ -345,17 +345,76 @@ const getErrorMessage = (
   error: unknown
 ): string => {
   const axiosError =
-    error as AxiosError<{
-      message?: string;
-      error?: string;
-    }>;
+    error as AxiosError<unknown>;
 
-  return (
-    axiosError.response?.data?.message ||
-    axiosError.response?.data?.error ||
-    axiosError.message ||
-    'Something went wrong.'
-  );
+  const data =
+    axiosError.response?.data;
+
+  if (typeof data === 'string') {
+    return data;
+  }
+
+  if (
+    data &&
+    typeof data === 'object'
+  ) {
+    const obj =
+      data as Record<string, unknown>;
+
+    const message =
+      obj.message;
+
+    if (
+      typeof message === 'string' &&
+      message.trim()
+    ) {
+      return message;
+    }
+
+    if (
+      message &&
+      typeof message === 'object'
+    ) {
+      const nested =
+        message as Record<string, unknown>;
+
+      if (
+        typeof nested.message === 'string' &&
+        nested.message.trim()
+      ) {
+        return nested.message;
+      }
+
+      if (
+        typeof nested.error === 'string' &&
+        nested.error.trim()
+      ) {
+        return nested.error;
+      }
+
+      if (
+        typeof nested.status === 'string'
+      ) {
+        return `Request failed: ${nested.status}`;
+      }
+    }
+
+    if (
+      typeof obj.error === 'string' &&
+      obj.error.trim()
+    ) {
+      return obj.error;
+    }
+  }
+
+  if (
+    error instanceof Error &&
+    error.message
+  ) {
+    return error.message;
+  }
+
+  return 'Something went wrong.';
 };
 
 const statusColor = (
