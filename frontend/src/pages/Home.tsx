@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+ import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
@@ -1037,7 +1037,45 @@ const Home: React.FC = () => {
           >
             {/* LEFT HERO */}
 
-            <Box>
+<Box>
+  <Stack
+    direction="row"
+    spacing={1}
+    alignItems="center"
+    sx={{
+      mb: 1.5,
+    }}
+  >
+    <Typography
+      sx={{
+        color: '#d4a646',
+        fontSize: 11,
+        fontWeight: 900,
+        letterSpacing: 2,
+      }}
+    >
+      EST. 2018
+    </Typography>
+
+    <Box
+      sx={{
+        width: 34,
+        height: 1,
+        background:
+          'linear-gradient(90deg, #d4a646, rgba(212,166,70,0))',
+      }}
+    />
+  </Stack>
+
+  <Stack
+    direction="row"
+    spacing={1}
+    alignItems="center"
+    sx={{
+      mb: 2,
+    }}
+  >
+           
               <Stack
                 direction="row"
                 spacing={1}
