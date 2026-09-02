@@ -13,7 +13,7 @@ import {
 } from '@mui/material/styles';
 
 import CssBaseline from '@mui/material/CssBaseline';
-
+import Header from './components/Header';
 // ============================================================
 // USER PAGES
 // ============================================================
@@ -62,7 +62,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  return <>{children}</>;
+  return (
+  <>
+    <Header />
+    {children}
+  </>
+);
 };
 
 // ============================================================
