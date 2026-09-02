@@ -2100,38 +2100,43 @@ const updateTransactionStatus = async (
 
     if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
-        message: 'Invalid transaction ID.',
+        message:
+          'Invalid transaction ID.',
       });
     }
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
-        message: 'Invalid transaction status.',
+        message:
+          'Invalid transaction status.',
         allowedStatuses,
       });
     }
 
     // --------------------------------------------------------
-    // GET ADMIN ID SAFELY
+    // GET ADMIN ID
     // --------------------------------------------------------
 
-    const adminId =
+    const rawAdminId =
       req.user?.id ||
       req.user?.userId ||
       req.user?.user_id ||
       null;
 
-    if (!adminId) {
+    const adminId =
+      Number(rawAdminId);
+
+    if (!isPositiveInteger(adminId)) {
       return res.status(401).json({
         message:
-          'Administrator authentication information is missing.',
+          'Administrator authentication information is missing or invalid.',
       });
     }
 
     await client.query('BEGIN');
 
     // --------------------------------------------------------
-    // LOCK TRANSACTION AND ACCOUNT
+    // GET AND LOCK TRANSACTION + ACCOUNT
     // --------------------------------------------------------
 
     const transactionResult =
@@ -2165,7 +2170,7 @@ const updateTransactionStatus = async (
         INNER JOIN accounts a
           ON a.id = t.account_id
 
-        WHERE t.id = $1
+        WHERE t.id = $1::INTEGER
 
         FOR UPDATE OF t, a
         `,
@@ -2212,15 +2217,15 @@ const updateTransactionStatus = async (
           SET
             admin_note =
               CASE
-                WHEN $1 <> ''
-                THEN $1
+                WHEN $1::TEXT <> ''
+                THEN $1::TEXT
                 ELSE admin_note
               END,
 
             updated_at =
               CURRENT_TIMESTAMP
 
-          WHERE id = $2
+          WHERE id = $2::INTEGER
 
           RETURNING *
           `,
@@ -2253,6 +2258,7 @@ const updateTransactionStatus = async (
       return res.status(400).json({
         message:
           'A completed transaction cannot be changed to another status.',
+
         currentStatus:
           previousStatus,
       });
@@ -2281,7 +2287,7 @@ const updateTransactionStatus = async (
         });
       }
 
-      // Make absolutely sure the account still exists.
+      // Make sure the account still exists.
       const accountCheck =
         await client.query(
           `
@@ -2295,7 +2301,7 @@ const updateTransactionStatus = async (
 
           FROM accounts
 
-          WHERE id = $1
+          WHERE id = $1::INTEGER
 
           FOR UPDATE
           `,
@@ -2311,31 +2317,34 @@ const updateTransactionStatus = async (
         });
       }
 
-      // Credit the user's main account balance.
+      // ------------------------------------------------------
+      // CREDIT MAIN ACCOUNT BALANCE
+      // ------------------------------------------------------
+
       await client.query(
         `
         UPDATE accounts
 
         SET
           balance =
-            COALESCE(balance, 0) + $1,
+            COALESCE(balance, 0) + $1::NUMERIC,
 
           deposit =
-            COALESCE(deposit, 0) + $1,
+            COALESCE(deposit, 0) + $1::NUMERIC,
 
           available_balance =
-            COALESCE(available_balance, 0) + $1,
+            COALESCE(available_balance, 0) + $1::NUMERIC,
 
           buying_power =
-            COALESCE(buying_power, 0) + $1,
+            COALESCE(buying_power, 0) + $1::NUMERIC,
 
           margin_available =
-            COALESCE(margin_available, 0) + $1,
+            COALESCE(margin_available, 0) + $1::NUMERIC,
 
           updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE id = $2
+        WHERE id = $2::INTEGER
         `,
         [
           amount,
@@ -2393,12 +2402,12 @@ const updateTransactionStatus = async (
 
         SET
           balance =
-            COALESCE(balance, 0) - $1,
+            COALESCE(balance, 0) - $1::NUMERIC,
 
           updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE id = $2
+        WHERE id = $2::INTEGER
         `,
         [
           amount,
@@ -2417,25 +2426,25 @@ const updateTransactionStatus = async (
         UPDATE transactions
 
         SET
-          status = $1,
+          status = $1::VARCHAR,
 
           admin_note =
             CASE
-              WHEN $2 <> ''
-              THEN $2
+              WHEN $2::TEXT <> ''
+              THEN $2::TEXT
               ELSE admin_note
             END,
 
           verified_by =
             CASE
-              WHEN $1 = 'COMPLETED'
-              THEN $3
+              WHEN $1::VARCHAR = 'COMPLETED'
+              THEN $3::INTEGER
               ELSE verified_by
             END,
 
           verified_at =
             CASE
-              WHEN $1 = 'COMPLETED'
+              WHEN $1::VARCHAR = 'COMPLETED'
               THEN CURRENT_TIMESTAMP
               ELSE verified_at
             END,
@@ -2443,7 +2452,7 @@ const updateTransactionStatus = async (
           updated_at =
             CURRENT_TIMESTAMP
 
-        WHERE id = $4
+        WHERE id = $4::INTEGER
 
         RETURNING *
         `,
@@ -2488,11 +2497,6 @@ const updateTransactionStatus = async (
       );
     }
 
-    // --------------------------------------------------------
-    // IMPORTANT:
-    // RETURN THE REAL DATABASE ERROR SO WE CAN SEE IT
-    // --------------------------------------------------------
-
     logger.error(
       'Admin transaction update error:',
       {
@@ -2512,7 +2516,8 @@ const updateTransactionStatus = async (
         'Failed to update transaction status.',
 
       error:
-        error.message || 'Unknown database error.',
+        error.message ||
+        'Unknown database error.',
 
       code:
         error.code || null,
