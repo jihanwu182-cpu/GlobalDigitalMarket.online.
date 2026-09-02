@@ -775,13 +775,14 @@ const Home: React.FC = () => {
             </Button>
 
             <Button
-              onClick={() =>
-                scrollToSection('company')
-              }
-              sx={navButtonSx}
-            >
-              Company
-            </Button>
+  onClick={() => {
+    setMobileMenu(false);
+    navigate('/company');
+  }}
+  sx={navButtonSx}
+>
+  Company
+</Button>
 
             <Button
               onClick={() =>
@@ -920,14 +921,15 @@ const Home: React.FC = () => {
             </Button>
 
             <Button
-              fullWidth
-              onClick={() =>
-                scrollToSection('company')
-              }
-              sx={mobileNavButtonSx}
-            >
-              Company
-            </Button>
+  fullWidth
+  onClick={() => {
+    setMobileMenu(false);
+    navigate('/company');
+  }}
+  sx={mobileNavButtonSx}
+>
+  Company
+</Button>
 
             <Button
               fullWidth
