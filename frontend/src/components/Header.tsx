@@ -7,6 +7,7 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Button,
 } from '@mui/material';
 import { AccountCircle } from '@mui/icons-material';
 import { useSelector, useDispatch } from 'react-redux';
@@ -57,11 +58,11 @@ const Header: React.FC = () => {
             xs: 64,
             sm: 72,
           },
-          gap: 2,
+          gap: 1,
         }}
       >
         {/* ==================================================
-            GLOBALDIGITALMARKET LOGO
+            GLOBAL DIGITAL MARKET LOGO
         ================================================== */}
 
         <Box
@@ -70,7 +71,7 @@ const Header: React.FC = () => {
           alt="GlobalDigitalMarket"
           sx={{
             width: {
-              xs: 130,
+              xs: 120,
               sm: 165,
             },
             height: {
@@ -87,6 +88,51 @@ const Header: React.FC = () => {
         />
 
         {/* ==================================================
+            WEBSITE NAVIGATION
+        ================================================== */}
+
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: {
+              xs: 0.5,
+              sm: 1,
+            },
+            ml: {
+              xs: 0.5,
+              sm: 2,
+            },
+          }}
+        >
+          <Button
+            color="inherit"
+            onClick={() => navigate('/')}
+            sx={{
+              minWidth: 'auto',
+              fontWeight: 600,
+              display: {
+                xs: 'none',
+                sm: 'inline-flex',
+              },
+            }}
+          >
+            Home
+          </Button>
+
+          <Button
+            color="inherit"
+            onClick={() => navigate('/company')}
+            sx={{
+              minWidth: 'auto',
+              fontWeight: 600,
+            }}
+          >
+            Company
+          </Button>
+        </Box>
+
+        {/* ==================================================
             WELCOME MESSAGE
         ================================================== */}
 
@@ -95,13 +141,15 @@ const Header: React.FC = () => {
           component="div"
           sx={{
             flexGrow: 1,
+            textAlign: 'right',
             fontSize: {
-              xs: '0.95rem',
-              sm: '1.25rem',
+              xs: '0.85rem',
+              sm: '1.1rem',
             },
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            ml: 1,
           }}
         >
           Welcome, {user?.firstName || 'User'}
@@ -117,7 +165,7 @@ const Header: React.FC = () => {
             onClick={handleMenu}
             color="inherit"
             sx={{
-              mr: {
+              ml: {
                 xs: 0,
                 sm: 1,
               },
