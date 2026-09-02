@@ -121,7 +121,14 @@ app.use(
   `${API_PREFIX}/users`,
   require('./routes/userRoutes')
 );
+// ============================================================
+// SUPPORT / LIVE CHAT
+// ============================================================
 
+app.use(
+  `${API_PREFIX}/support`,
+  require('./routes/supportRoutes')
+);
 // PORTFOLIO
 app.use(
   `${API_PREFIX}/portfolio`,
