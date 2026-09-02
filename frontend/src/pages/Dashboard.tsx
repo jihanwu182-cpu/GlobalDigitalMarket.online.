@@ -3,7 +3,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import logo from '../Logo.png.PNG';
+import logo from '../GlobalDigitalMarket-logo-clean.png';
 import {
   Alert,
   Avatar,
