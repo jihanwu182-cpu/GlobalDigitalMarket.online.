@@ -1,4 +1,4 @@
- import React, { useEffect, useMemo, useState } from 'react';
+rimport React, { useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
@@ -1037,15 +1037,14 @@ const Home: React.FC = () => {
           >
             {/* LEFT HERO */}
 
-<Box>
-  <Stack
-    direction="row"
-    spacing={1}
-    alignItems="center"
-    sx={{
-      mb: 1.5,
-    }}
-  >
+<Box
+  sx={{
+    position: 'relative',
+    overflow: 'hidden',
+    background:
+      'radial-gradient(circle at 78% 18%, rgba(25,105,255,0.34), transparent 28%), radial-gradient(circle at 15% 25%, rgba(0,183,255,0.14), transparent 30%), radial-gradient(circle at 55% 85%, rgba(212,166,70,0.08), transparent 30%), linear-gradient(135deg, #010716 0%, #031331 45%, #061b45 100%)',
+  }}
+>
     <Typography
       sx={{
         color: '#d4a646',
