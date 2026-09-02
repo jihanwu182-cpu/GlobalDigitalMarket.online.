@@ -23,7 +23,8 @@ apiClient.interceptors.request.use(
     const requestUrl = config.url || '';
 
     const isAdminRequest =
-      requestUrl.startsWith('/admin');
+  requestUrl.startsWith('/admin') ||
+  requestUrl.startsWith('/support/admin');
 
     let token: string | null = null;
 
