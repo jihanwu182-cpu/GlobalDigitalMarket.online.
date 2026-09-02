@@ -1399,49 +1399,108 @@ const AdminDashboard: React.FC<
   // ==========================================================
 
   const updateTransaction =
-    async () => {
-      if (!selectedTransaction) {
-        return;
-      }
+  async () => {
+    if (!selectedTransaction) {
+      return;
+    }
 
-      setTransactionLoading(true);
+    setTransactionLoading(true);
+    setError('');
 
-      try {
-        const response =
-          await api.patch(
-            `/admin/transactions/${selectedTransaction.id}/status`,
-            {
-              status:
-                transactionStatus,
-              adminNote:
-                transactionNote,
-            }
+    try {
+      const response =
+        await api.patch(
+          `/admin/transactions/${selectedTransaction.id}/status`,
+          {
+            status: transactionStatus,
+            adminNote: transactionNote,
+          }
+        );
+
+      setSuccess(
+        response.data?.message ||
+        'Transaction updated.'
+      );
+
+      setTransactionDialogOpen(false);
+
+      await Promise.all([
+        loadDashboard(),
+        loadTransactions(),
+        loadDeposits(),
+        loadWithdrawals(),
+        loadUsers(),
+      ]);
+    } catch (err) {
+      const axiosError =
+        err as AxiosError<unknown>;
+
+      const data =
+        axiosError.response?.data;
+
+      let message =
+        'Failed to update transaction status.';
+
+      if (
+        data &&
+        typeof data === 'object'
+      ) {
+        const serverData =
+          data as Record<string, unknown>;
+
+        const parts: string[] = [];
+
+        if (
+          typeof serverData.message === 'string' &&
+          serverData.message.trim()
+        ) {
+          parts.push(serverData.message);
+        }
+
+        if (
+          typeof serverData.error === 'string' &&
+          serverData.error.trim()
+        ) {
+          parts.push(
+            `Error: ${serverData.error}`
           );
+        }
 
-        setSuccess(
-          response.data?.message ||
-          'Transaction updated.'
-        );
+        if (
+          typeof serverData.code === 'string' &&
+          serverData.code.trim()
+        ) {
+          parts.push(
+            `Code: ${serverData.code}`
+          );
+        }
 
-        setTransactionDialogOpen(
-          false
-        );
+        if (
+          typeof serverData.detail === 'string' &&
+          serverData.detail.trim()
+        ) {
+          parts.push(
+            `Detail: ${serverData.detail}`
+          );
+        }
 
-        await Promise.all([
-          loadDashboard(),
-          loadTransactions(),
-          loadDeposits(),
-          loadWithdrawals(),
-          loadUsers(),
-        ]);
-      } catch (err) {
-        setError(
-          getErrorMessage(err)
-        );
-      } finally {
-        setTransactionLoading(false);
+        if (parts.length > 0) {
+          message = parts.join(' | ');
+        }
+      } else {
+        message = getErrorMessage(err);
       }
-    };
+
+      setError(message);
+
+      console.error(
+        'UPDATE TRANSACTION ERROR:',
+        err
+      );
+    } finally {
+      setTransactionLoading(false);
+    }
+  };
 
   // ==========================================================
   // APPROVE WITHDRAWAL
