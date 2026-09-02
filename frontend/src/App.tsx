@@ -21,6 +21,7 @@ import Header from './components/Header';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Company from './pages/Company';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import AccountStatement from './pages/AccountStatement';
@@ -302,6 +303,10 @@ const App: React.FC = () => {
               path="/register"
               element={<Register />}
             />
+            <Route
+  path="/company"
+  element={<Company />}
+/>
 
             {/* ==================================================
                 PROTECTED USER ROUTES
