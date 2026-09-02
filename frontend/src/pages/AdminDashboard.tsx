@@ -69,8 +69,9 @@ import {
   Person,
   Refresh,
   Settings,
-  VerifiedUser,
-  Wallet,
+ VerifiedUser,
+SupportAgent,
+Wallet,
 } from '@mui/icons-material';
 
 import { AxiosError } from 'axios';
