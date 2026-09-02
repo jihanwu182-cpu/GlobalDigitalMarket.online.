@@ -1614,7 +1614,123 @@ const initializeDatabase = async () => {
         'ADMIN_EMAIL or ADMIN_PASSWORD is not configured. Administrator provisioning skipped.'
       );
     }
+    // ========================================================
+    // LIVE CHAT CONVERSATIONS
+    // ========================================================
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS support_conversations (
+        id SERIAL PRIMARY KEY,
+
+        user_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE CASCADE,
+
+        status VARCHAR(30)
+          NOT NULL DEFAULT 'OPEN',
+
+        last_message_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        updated_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT support_conversation_status_check
+        CHECK (
+          status IN (
+            'OPEN',
+            'CLOSED'
+          )
+        )
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_conversations_user
+      ON support_conversations(user_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_conversations_status
+      ON support_conversations(status);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_conversations_last_message
+      ON support_conversations(last_message_at DESC);
+    `);
+
+    // ========================================================
+    // LIVE CHAT MESSAGES
+    // ========================================================
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS support_messages (
+        id SERIAL PRIMARY KEY,
+
+        conversation_id INTEGER NOT NULL
+          REFERENCES support_conversations(id)
+          ON DELETE CASCADE,
+
+        sender_id INTEGER NOT NULL
+          REFERENCES users(id)
+          ON DELETE CASCADE,
+
+        sender_role VARCHAR(30)
+          NOT NULL,
+
+        message TEXT NOT NULL,
+
+        is_read BOOLEAN
+          NOT NULL DEFAULT FALSE,
+
+        read_at TIMESTAMP,
+
+        created_at TIMESTAMP
+          NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+        CONSTRAINT support_message_sender_role_check
+        CHECK (
+          sender_role IN (
+            'user',
+            'admin'
+          )
+        ),
+
+        CONSTRAINT support_message_content_check
+        CHECK (
+          LENGTH(TRIM(message)) > 0
+        )
+      );
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_messages_conversation
+      ON support_messages(conversation_id);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_messages_created
+      ON support_messages(created_at ASC);
+    `);
+
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS
+      idx_support_messages_unread
+      ON support_messages(is_read);
+    `);
+
+    logger.info(
+      'Live chat tables are ready'
+    );
     // ========================================================
     // COMPLETE
     // ========================================================
