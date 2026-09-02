@@ -966,14 +966,55 @@ const Home: React.FC = () => {
           HERO
       ==================================================== */}
 
-      <Box
-        sx={{
-          position: 'relative',
-          overflow: 'hidden',
-          background:
-            'radial-gradient(circle at 75% 20%,rgba(19,91,255,0.24),transparent 35%), radial-gradient(circle at 20% 30%,rgba(0,170,255,0.08),transparent 35%), linear-gradient(180deg,#020817 0%,#04112d 100%)',
-        }}
-      >
+<Box
+  sx={{
+    position: 'relative',
+    overflow: 'hidden',
+    background:
+      'radial-gradient(circle at 78% 18%, rgba(25,105,255,0.34), transparent 28%), radial-gradient(circle at 15% 25%, rgba(0,183,255,0.14), transparent 30%), radial-gradient(circle at 55% 85%, rgba(212,166,70,0.08), transparent 30%), linear-gradient(135deg, #010716 0%, #031331 45%, #061b45 100%)',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      inset: 0,
+      pointerEvents: 'none',
+      background:
+        'linear-gradient(rgba(90,150,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(90,150,255,0.035) 1px, transparent 1px)',
+      backgroundSize: '70px 70px',
+      maskImage:
+        'linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 85%)',
+    },
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      width: {
+        xs: 360,
+        md: 650,
+      },
+      height: {
+        xs: 360,
+        md: 650,
+      },
+      right: {
+        xs: '-170px',
+        md: '-210px',
+      },
+      top: {
+        xs: '120px',
+        md: '40px',
+      },
+      borderRadius: '50%',
+      border:
+        '1px solid rgba(91,160,255,0.12)',
+      boxShadow:
+        '0 0 80px rgba(30,115,255,0.08), inset 0 0 80px rgba(30,115,255,0.05)',
+      pointerEvents: 'none',
+    },
+  }}
+>
+
+  
+        
+      
         <Container
           maxWidth="xl"
           sx={{
