@@ -15,7 +15,7 @@ import { logout } from '../store/authSlice';
 import { useNavigate } from 'react-router-dom';
 
 // Website logo
-import logo from '../Logo.png.PNG';
+import logo from '../GlobalDigitalMarket-logo-clean.png';
 
 const Header: React.FC = () => {
   const [anchorEl, setAnchorEl] =
