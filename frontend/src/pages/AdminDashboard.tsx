@@ -77,7 +77,7 @@ Wallet,
 import { AxiosError } from 'axios';
 
 import apiClient from '../services/apiClient';
-
+import AdminLiveChat from '../components/AdminLiveChat';
 // ============================================================
 // TYPES
 // ============================================================
@@ -509,7 +509,8 @@ const AdminDashboard: React.FC<
     'deposits',
     'withdrawals',
     'kyc',
-    'investment-plans',
+'live-chat',
+'investment-plans',
     'signal-plans',
     'payment-methods',
     'funding',
@@ -5198,9 +5199,16 @@ const AdminDashboard: React.FC<
       icon: <Payments />,
     },
     {
-      key: 'kyc',
-      label: 'KYC',
-      icon: <VerifiedUser />,
+      
+  key: 'kyc',
+  label: 'KYC',
+  icon: <VerifiedUser />,
+},
+{
+  key: 'live-chat',
+  label: 'Live Chat',
+  icon: <SupportAgent />,
+
     },
     {
       key: 'investment-plans',
