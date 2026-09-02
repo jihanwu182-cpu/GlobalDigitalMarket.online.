@@ -2074,23 +2074,21 @@ const updateTransactionStatus = async (
   res,
   next
 ) => {
-  const client =
-    await pool.connect();
+  const client = await pool.connect();
 
   try {
-    const transactionId =
-      Number(req.params.id);
+    const transactionId = Number(
+      req.params.id
+    );
 
-    const status =
-      normalizeStatus(
-        req.body?.status
-      );
+    const status = normalizeStatus(
+      req.body?.status
+    );
 
-    const adminNote =
-      cleanString(
-        req.body?.adminNote ||
-        req.body?.reason
-      );
+    const adminNote = cleanString(
+      req.body?.adminNote ||
+      req.body?.reason
+    );
 
     const allowedStatuses = [
       'PENDING',
@@ -2102,29 +2100,63 @@ const updateTransactionStatus = async (
 
     if (!isPositiveInteger(transactionId)) {
       return res.status(400).json({
-        message:
-          'Invalid transaction ID.',
+        message: 'Invalid transaction ID.',
       });
     }
 
     if (!allowedStatuses.includes(status)) {
       return res.status(400).json({
-        message:
-          'Invalid transaction status.',
+        message: 'Invalid transaction status.',
         allowedStatuses,
+      });
+    }
+
+    // --------------------------------------------------------
+    // GET ADMIN ID SAFELY
+    // --------------------------------------------------------
+
+    const adminId =
+      req.user?.id ||
+      req.user?.userId ||
+      req.user?.user_id ||
+      null;
+
+    if (!adminId) {
+      return res.status(401).json({
+        message:
+          'Administrator authentication information is missing.',
       });
     }
 
     await client.query('BEGIN');
 
+    // --------------------------------------------------------
+    // LOCK TRANSACTION AND ACCOUNT
+    // --------------------------------------------------------
+
     const transactionResult =
       await client.query(
         `
         SELECT
-          t.*,
+          t.id,
+          t.account_id,
+          t.transaction_reference,
+          t.transaction_type,
+          t.amount,
+          t.currency,
+          t.status,
+          t.description,
+          t.admin_note,
+          t.verified_by,
+          t.verified_at,
 
+          a.id AS locked_account_id,
           a.balance,
+          a.deposit,
+          a.profits,
           a.available_balance,
+          a.bonus,
+          a.referrer_bonus,
           a.buying_power,
           a.margin_available
 
@@ -2168,34 +2200,22 @@ const updateTransactionStatus = async (
       );
 
     // --------------------------------------------------------
-    // COMPLETED TRANSACTIONS CANNOT BE CHANGED
-    // --------------------------------------------------------
-
-    if (
-      previousStatus === 'COMPLETED' &&
-      status !== 'COMPLETED'
-    ) {
-      await client.query('ROLLBACK');
-
-      return res.status(400).json({
-        message:
-          'A completed transaction cannot be changed to another status.',
-      });
-    }
-
-    // --------------------------------------------------------
     // SAME STATUS
     // --------------------------------------------------------
 
     if (previousStatus === status) {
-      const result =
+      const sameStatusResult =
         await client.query(
           `
           UPDATE transactions
 
           SET
             admin_note =
-              COALESCE(NULLIF($1, ''), admin_note),
+              CASE
+                WHEN $1 <> ''
+                THEN $1
+                ELSE admin_note
+              END,
 
             updated_at =
               CURRENT_TIMESTAMP
@@ -2217,17 +2237,30 @@ const updateTransactionStatus = async (
           'Transaction already has this status.',
 
         transaction:
-          result.rows[0],
+          sameStatusResult.rows[0],
+      });
+    }
+
+    // --------------------------------------------------------
+    // COMPLETED TRANSACTIONS CANNOT BE CHANGED
+    // --------------------------------------------------------
+
+    if (
+      previousStatus === 'COMPLETED'
+    ) {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          'A completed transaction cannot be changed to another status.',
+        currentStatus:
+          previousStatus,
       });
     }
 
     // --------------------------------------------------------
     // COMPLETE DEPOSIT
     // --------------------------------------------------------
-    //
-    // Only PENDING or PROCESSING deposits can be completed.
-    // The account is credited exactly once.
-    //
 
     if (
       status === 'COMPLETED' &&
@@ -2242,11 +2275,43 @@ const updateTransactionStatus = async (
         return res.status(400).json({
           message:
             'Only pending or processing deposits can be completed.',
+
           currentStatus:
             previousStatus,
         });
       }
 
+      // Make absolutely sure the account still exists.
+      const accountCheck =
+        await client.query(
+          `
+          SELECT
+            id,
+            balance,
+            deposit,
+            available_balance,
+            buying_power,
+            margin_available
+
+          FROM accounts
+
+          WHERE id = $1
+
+          FOR UPDATE
+          `,
+          [transaction.account_id]
+        );
+
+      if (accountCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+
+        return res.status(404).json({
+          message:
+            'The account connected to this deposit was not found.',
+        });
+      }
+
+      // Credit the user's main account balance.
       await client.query(
         `
         UPDATE accounts
@@ -2282,12 +2347,6 @@ const updateTransactionStatus = async (
     // --------------------------------------------------------
     // COMPLETE WITHDRAWAL
     // --------------------------------------------------------
-    //
-    // The normal withdrawal process should already reserve
-    // available_balance when the withdrawal is submitted.
-    //
-    // Completion therefore reduces actual balance only.
-    //
 
     if (
       status === 'COMPLETED' &&
@@ -2302,6 +2361,7 @@ const updateTransactionStatus = async (
         return res.status(400).json({
           message:
             'Only pending or processing withdrawals can be completed.',
+
           currentStatus:
             previousStatus,
         });
@@ -2347,6 +2407,10 @@ const updateTransactionStatus = async (
       );
     }
 
+    // --------------------------------------------------------
+    // UPDATE TRANSACTION
+    // --------------------------------------------------------
+
     const updatedResult =
       await client.query(
         `
@@ -2386,15 +2450,24 @@ const updateTransactionStatus = async (
         [
           status,
           adminNote,
-          req.user.id,
+          adminId,
           transactionId,
         ]
       );
 
+    if (updatedResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'Transaction could not be updated.',
+      });
+    }
+
     await client.query('COMMIT');
 
     logger.info(
-      `Admin ${req.user.id} changed transaction ${transactionId} from ${previousStatus} to ${status}`
+      `Admin ${adminId} changed transaction ${transactionId} from ${previousStatus} to ${status}`
     );
 
     return res.status(200).json({
@@ -2404,6 +2477,7 @@ const updateTransactionStatus = async (
       transaction:
         updatedResult.rows[0],
     });
+
   } catch (error) {
     try {
       await client.query('ROLLBACK');
@@ -2414,12 +2488,42 @@ const updateTransactionStatus = async (
       );
     }
 
+    // --------------------------------------------------------
+    // IMPORTANT:
+    // RETURN THE REAL DATABASE ERROR SO WE CAN SEE IT
+    // --------------------------------------------------------
+
     logger.error(
       'Admin transaction update error:',
-      error
+      {
+        message: error.message,
+        code: error.code,
+        detail: error.detail,
+        hint: error.hint,
+        table: error.table,
+        column: error.column,
+        constraint: error.constraint,
+        stack: error.stack,
+      }
     );
 
-    return next(error);
+    return res.status(500).json({
+      message:
+        'Failed to update transaction status.',
+
+      error:
+        error.message || 'Unknown database error.',
+
+      code:
+        error.code || null,
+
+      detail:
+        error.detail || null,
+
+      hint:
+        error.hint || null,
+    });
+
   } finally {
     client.release();
   }
