@@ -31,8 +31,30 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 
 import { useNavigate } from 'react-router-dom';
 
-import apiClient from '../services/apiClient';
+import import apiClient from '../services/apiClient';
 import logo from '../GlobalDigitalMarket-logo-clean.png';
+
+interface PublicTestimonial {
+  id: number;
+  name: string;
+  country: string;
+  rating: number;
+  testimonial: string;
+  photoUrl?: string;
+  status: 'PUBLISHED' | 'DRAFT';
+}
+
+/* =========================================
+   TYPES
+========================================= */
+
+interface MarketItem {
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  positive: boolean;
+}
 /* ============================================================
    TYPES
 ============================================================ */
