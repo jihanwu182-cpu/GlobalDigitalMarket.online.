@@ -79,6 +79,7 @@ import { AxiosError } from 'axios';
 import apiClient from '../services/apiClient';
 import AdminLiveChat from '../components/AdminLiveChat';
 import AdminTestimonials from '../components/AdminTestimonials';
+import AdminNotifications from '../components/AdminNotifications';
 // ============================================================
 // TYPES
 // ============================================================
@@ -5146,17 +5147,7 @@ const AdminDashboard: React.FC<
   return <AdminTestimonials />;
 
 case 'notifications':
-  return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h5" fontWeight={700}>
-        Notifications
-      </Typography>
-
-      <Typography sx={{ mt: 1, color: 'text.secondary' }}>
-        User notifications will appear here.
-      </Typography>
-    </Box>
-  );
+  return <AdminNotifications />;
 
 case 'investment-plans':
   return renderInvestmentPlans();
