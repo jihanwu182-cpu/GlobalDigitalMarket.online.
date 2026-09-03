@@ -977,11 +977,11 @@ const Home: React.FC = () => {
       position: 'absolute',
       inset: 0,
       pointerEvents: 'none',
-      background:
-        'linear-gradient(rgba(90,150,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(90,150,255,0.035) 1px, transparent 1px)',
-      backgroundSize: '70px 70px',
-      maskImage:
-        'linear-gradient(to bottom, rgba(0,0,0,0.9), transparent 85%)',
+      backgroundImage:
+  'linear-gradient(90deg, rgba(1,7,22,0.96) 0%, rgba(1,12,35,0.82) 42%, rgba(1,10,28,0.25) 100%), url("/global-market-hero.png.PNG")',
+backgroundSize: 'cover',
+backgroundPosition: 'center',
+backgroundRepeat: 'no-repeat',
     },
     '&::after': {
       content: '""',
