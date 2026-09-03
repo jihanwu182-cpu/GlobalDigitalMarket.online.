@@ -10,10 +10,6 @@ const {
   // Authentication
   adminLogin,
 
-  // Notifications
-  getAdminNotifications,
-  createNotification,
-
   // Dashboard
   getDashboard,
 
@@ -21,6 +17,14 @@ const {
   getUsers,
   getUser,
   updateUserStatus,
+
+  // ...
+} = require('../controllers/adminController');
+
+const {
+  getAdminNotifications,
+  createNotification,
+} = require('../controllers/notificationController');
 
   // Account Funding / Debit
   fundUserAccount,
