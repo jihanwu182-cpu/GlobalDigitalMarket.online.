@@ -1995,7 +1995,7 @@ backgroundRepeat: 'no-repeat',
       }}
     >
       
-          {testimonials.map((testimonial) => 
+          {testimonials.map((testimonial) => (
         <Card
           key={testimonial.name}
           sx={{
