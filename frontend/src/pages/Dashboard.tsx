@@ -1423,10 +1423,10 @@ const Dashboard: React.FC = () => {
 
 <Button
   onClick={() => setProfileOpen(true)}
-              
-            <Avatar
+  
+              <Avatar
                 sx={{
-                  width: 40,
+                  I'm width: 40,
                   height: 40,
                   fontSize: 14,
                   fontWeight: 900,
