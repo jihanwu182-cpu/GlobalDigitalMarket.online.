@@ -5243,6 +5243,11 @@ const AdminDashboard: React.FC<
       key: 'withdrawal-code',
       label: 'Withdrawal Generating Code',
       icon: <Key />,
+     },
+   {
+  key: 'notifications',
+  label: 'Notifications',
+  icon: <Email />,
     },
     {
       key: 'settings',
