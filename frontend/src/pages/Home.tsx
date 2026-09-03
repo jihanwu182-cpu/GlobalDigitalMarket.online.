@@ -1047,7 +1047,6 @@ const Home: React.FC = () => {
     }}
   >
           
-        <Stack
     <Typography
       sx={{
         color: '#d4a646',
