@@ -1,4 +1,4 @@
-rimport React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
   Alert,
@@ -1066,14 +1066,8 @@ const Home: React.FC = () => {
     />
   </Stack>
 
-  <Stack
-    direction="row"
-    spacing={1}
-    alignItems="center"
-    sx={{
-      mb: 2,
-    }}
-  >
+
+  
            
               <Stack
                 direction="row"
