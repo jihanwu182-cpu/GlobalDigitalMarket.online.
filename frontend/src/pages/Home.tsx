@@ -31,7 +31,7 @@ import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
 
 import { useNavigate } from 'react-router-dom';
 
-import import apiClient from '../services/apiClient';
+import apiClient from '../services/apiClient';
 import logo from '../GlobalDigitalMarket-logo-clean.png';
 
 interface PublicTestimonial {
