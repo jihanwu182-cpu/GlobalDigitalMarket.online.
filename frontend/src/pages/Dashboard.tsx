@@ -1423,22 +1423,22 @@ const Dashboard: React.FC = () => {
 
 <Button
   onClick={() => setProfileOpen(true)}
-  
-              <Avatar
-                sx={{
-                  I'm width: 40,
-                  height: 40,
-                  fontSize: 14,
-                  fontWeight: 900,
-                  background:
-                    'linear-gradient(135deg,#19d8ff,#285cff)',
-                }}
-              >
-                {initials}
-              </Avatar>
-            </Button>
-          </Stack>
-        </Container>
+>
+  <Avatar
+    sx={{
+      width: 40,
+      height: 40,
+      fontSize: 14,
+      fontWeight: 900,
+      background:
+        'linear-gradient(135deg,#19d8ff,#285cff)',
+    }}
+  >
+    {initials}
+  </Avatar>
+</Button>
+</Stack>
+</Container>
 
         <MarketTicker
           markets={markets}
