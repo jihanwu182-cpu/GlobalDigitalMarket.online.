@@ -571,7 +571,20 @@ const Benefit: React.FC<{
 
 const Home: React.FC = () => {
   const [testimonials, setTestimonials] = useState<PublicTestimonial[]>([]);
+  useEffect(() => {
+  const loadTestimonials = async () => {
+    try {
+      const response = await apiClient.get('/testimonials');
+      setTestimonials(response.data?.testimonials || response.data || []);
+    } catch (error) {
+      console.error('Failed to load testimonials:', error);
+    }
+  };
+
+  loadTestimonials();
+}, []);
   const navigate = useNavigate();
+
 
   const [
     mobileMenu,
