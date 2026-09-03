@@ -10,6 +10,10 @@ const {
   // Authentication
   adminLogin,
 
+  // Notifications
+  getAdminNotifications,
+  createNotification,
+
   // Dashboard
   getDashboard,
 
