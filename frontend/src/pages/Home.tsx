@@ -333,8 +333,9 @@ const TradingChart: React.FC = () => {
       sx={{
         width: '100%',
         height: {
-          xs: 270,
+          xs: 210,
           md: 330,
+
         },
         position: 'relative',
         overflow: 'hidden',
@@ -979,8 +980,14 @@ const Home: React.FC = () => {
       pointerEvents: 'none',
       backgroundImage:
   'linear-gradient(90deg, rgba(1,7,22,0.96) 0%, rgba(1,12,35,0.82) 42%, rgba(1,10,28,0.25) 100%), url("/global-market-hero.png.PNG")',
-backgroundSize: 'cover',
-backgroundPosition: 'center',
+backgroundSize: {
+  xs: 'auto 100%',
+  md: 'cover',
+},
+backgroundPosition: {
+  xs: '75% center',
+  md: 'center',
+},
 backgroundRepeat: 'no-repeat',
     },
     '&::after': {
