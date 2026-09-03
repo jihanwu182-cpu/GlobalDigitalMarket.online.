@@ -18,14 +18,6 @@ const {
   getUser,
   updateUserStatus,
 
-  // ...
-} = require('../controllers/adminController');
-
-const {
-  getAdminNotifications,
-  createNotification,
-} = require('../controllers/notificationController');
-
   // Account Funding / Debit
   fundUserAccount,
   debitUserAccount,
@@ -66,11 +58,16 @@ const {
 
   // Withdrawal
   generateWithdrawalCodeForUser,
-sendWithdrawalCodeEmail,
+  sendWithdrawalCodeEmail,
   getWithdrawalDetails,
   reverseWithdrawal,
   rejectWithdrawal,
 } = require('../controllers/adminController');
+
+const {
+  getAdminNotifications,
+  createNotification,
+} = require('../controllers/notificationController');
 
 // ============================================================
 // ADMIN MIDDLEWARE
