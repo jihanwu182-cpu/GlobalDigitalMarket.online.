@@ -1994,20 +1994,8 @@ backgroundRepeat: 'no-repeat',
         mt: 4,
       }}
     >
-      {[
-        {
-          name: 'Customer 1',
-          country: 'Global Client',
-        },
-        {
-          name: 'Customer 2',
-          country: 'Global Client',
-        },
-        {
-          name: 'Customer 3',
-          country: 'Global Client',
-        },
-      ].map((testimonial) => (
+      
+          {testimonials.map((testimonial) => 
         <Card
           key={testimonial.name}
           sx={{
