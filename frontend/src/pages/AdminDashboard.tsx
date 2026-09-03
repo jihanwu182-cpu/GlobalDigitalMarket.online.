@@ -5144,8 +5144,22 @@ const AdminDashboard: React.FC<
   return <AdminLiveChat />;
         case 'testimonials':
   return <AdminTestimonials />;
-      case 'investment-plans':
-        return renderInvestmentPlans();
+
+case 'notifications':
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h5" fontWeight={700}>
+        Notifications
+      </Typography>
+
+      <Typography sx={{ mt: 1, color: 'text.secondary' }}>
+        User notifications will appear here.
+      </Typography>
+    </Box>
+  );
+
+case 'investment-plans':
+  return renderInvestmentPlans();
 
       case 'signal-plans':
         return renderSignalPlans();
