@@ -1881,7 +1881,175 @@ backgroundRepeat: 'no-repeat',
           </Box>
         </Container>
       </Box>
+{/* ====================================================
+    TESTIMONIALS
+==================================================== */}
 
+<Box
+  id="testimonials"
+  sx={{
+    background:
+      'linear-gradient(180deg,#f7f9fd,#ffffff)',
+    color: '#071331',
+  }}
+>
+  <Container
+    maxWidth="xl"
+    sx={{
+      py: {
+        xs: 5,
+        md: 7,
+      },
+    }}
+  >
+    <Box
+      sx={{
+        textAlign: 'center',
+        maxWidth: 760,
+        mx: 'auto',
+      }}
+    >
+      <Typography
+        sx={{
+          color: '#146cff',
+          fontSize: 10,
+          fontWeight: 900,
+          letterSpacing: 1.5,
+        }}
+      >
+        CLIENT EXPERIENCE
+      </Typography>
+
+      <Typography
+        sx={{
+          fontSize: {
+            xs: 28,
+            md: 40,
+          },
+          fontWeight: 950,
+          mt: 1,
+        }}
+      >
+        What Our Clients Say
+      </Typography>
+
+      <Typography
+        sx={{
+          color: '#68758f',
+          fontSize: 14,
+          lineHeight: 1.8,
+          mt: 1.5,
+        }}
+      >
+        Genuine customer experiences will be
+        displayed here as verified testimonials
+        become available.
+      </Typography>
+    </Box>
+
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          md: 'repeat(3,1fr)',
+        },
+        gap: 2,
+        mt: 4,
+      }}
+    >
+      {[
+        {
+          name: 'Customer 1',
+          country: 'Global Client',
+        },
+        {
+          name: 'Customer 2',
+          country: 'Global Client',
+        },
+        {
+          name: 'Customer 3',
+          country: 'Global Client',
+        },
+      ].map((testimonial) => (
+        <Card
+          key={testimonial.name}
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            background:
+              'rgba(255,255,255,0.96)',
+            border:
+              '1px solid #e1e7f0',
+            boxShadow:
+              '0 12px 35px rgba(7,19,49,0.07)',
+          }}
+        >
+          <Typography
+            sx={{
+              color: '#d3a63f',
+              fontSize: 18,
+              letterSpacing: 2,
+            }}
+          >
+            ★★★★★
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#68758f',
+              fontSize: 13,
+              lineHeight: 1.8,
+              mt: 2,
+            }}
+          >
+            Genuine customer testimonial will
+            be displayed here.
+          </Typography>
+
+          <Typography
+            sx={{
+              fontSize: 14,
+              fontWeight: 900,
+              mt: 2.5,
+            }}
+          >
+            {testimonial.name}
+          </Typography>
+
+          <Typography
+            sx={{
+              color: '#8490a7',
+              fontSize: 10,
+              mt: 0.4,
+            }}
+          >
+            {testimonial.country}
+          </Typography>
+        </Card>
+      ))}
+    </Box>
+
+    <Box
+      sx={{
+        textAlign: 'center',
+        mt: 3,
+      }}
+    >
+      <Button
+        onClick={() => navigate('/company')}
+        endIcon={<ArrowForwardIcon />}
+        sx={{
+          color: '#146cff',
+          fontWeight: 900,
+          textTransform: 'none',
+        }}
+      >
+        View All Client Testimonials
+      </Button>
+    </Box>
+  </Container>
+</Box>
       {/* ====================================================
           SUPPORT
       ==================================================== */}
