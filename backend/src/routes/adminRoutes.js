@@ -398,7 +398,19 @@ router.get(
   '/kyc',
   getKycRequests
 );
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
 
+router.get(
+  '/notifications',
+  getAdminNotifications
+);
+
+router.post(
+  '/notifications',
+  createNotification
+);
 // ============================================================
 // INVESTMENT PLANS
 // ============================================================
