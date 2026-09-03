@@ -340,7 +340,7 @@ const TradingChart: React.FC = () => {
         overflow: 'hidden',
         borderRadius: 3,
         background:
-          'linear-gradient(180deg,#041532,#020b20)',
+           'rgba(2,11,32,0.38)',
         border:
           '1px solid rgba(105,145,230,0.15)',
       }}
