@@ -5142,6 +5142,8 @@ const AdminDashboard: React.FC<
         return renderKyc();
       case 'live-chat':
   return <AdminLiveChat />;
+        case 'testimonials':
+  return <AdminTestimonials />;
       case 'investment-plans':
         return renderInvestmentPlans();
 
