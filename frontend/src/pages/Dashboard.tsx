@@ -1,4 +1,4 @@
-import React, {
+ import React, {
   useEffect,
   useMemo,
   useState,
@@ -2882,7 +2882,7 @@ const Dashboard: React.FC = () => {
           </Button>
         </Box>
     </Drawer>
-        
+      </Box>
 /* ============================================================
    SIDEBAR HEADING
 ============================================================ */
