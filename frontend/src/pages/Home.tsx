@@ -570,6 +570,7 @@ const Benefit: React.FC<{
 ============================================================ */
 
 const Home: React.FC = () => {
+  const [testimonials, setTestimonials] = useState<PublicTestimonial[]>([]);
   const navigate = useNavigate();
 
   const [
