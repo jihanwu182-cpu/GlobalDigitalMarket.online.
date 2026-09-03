@@ -7,6 +7,7 @@ import logo from '../GlobalDigitalMarket-logo-clean.png';
 import {
   Alert,
   Avatar,
+  Badge,
   Box,
   Button,
   Card,
@@ -52,6 +53,7 @@ import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import PublicIcon from '@mui/icons-material/Public';
 
@@ -122,7 +124,15 @@ interface MarketItem {
   change: number;
   changePercent: number;
 }
-
+interface UserNotification {
+  id: number;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  created_at: string;
+  read_at?: string | null;
+}
 /* ============================================================
    DEMO MARKET DATA
    Replace with real market API later.
@@ -494,7 +504,25 @@ const MarketTicker: React.FC<MarketTickerProps> = ({
 ============================================================ */
 
 const Dashboard: React.FC = () => {
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  useEffect(() => {
+  const loadNotifications = async () => {
+    try {
+      const response = await apiClient.get('/notifications');
+
+      setNotifications(
+        response.data?.notifications || response.data || []
+      );
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+    }
+  };
+
+  loadNotifications();
+}, []);
   const navigate = useNavigate();
+
 
   const [menuOpen, setMenuOpen] =
     useState(false);
@@ -1373,16 +1401,28 @@ const Dashboard: React.FC = () => {
                 BUILT FOR TRADERS & INVESTORS
               </Typography>
             </Box>
+                
+       <IconButton
+  aria-label="notifications"
+  onClick={() => setNotificationsOpen(true)}
+  sx={{
+    color: '#fff',
+  }}
+>
+  <Badge
+    badgeContent={
+      notifications.filter(
+        (notification) => !notification.is_read
+      ).length
+    }
+    color="error"
+  >
+    <NotificationsNoneIcon />
+  </Badge>
+</IconButton>
 
-            <Button
-              onClick={() =>
-                setProfileOpen(true)
-              }
-              sx={{
-                minWidth: 0,
-                p: 0.5,
-              }}
-            >
+<Button
+  onClick={() => setProfileOpen(true)}
               <Avatar
                 sx={{
                   width: 40,
@@ -2840,11 +2880,93 @@ const Dashboard: React.FC = () => {
             Logout
           </Button>
         </Box>
-      </Drawer>
-    </Box>
-  );
-};
+    </Drawer>
+        
+  <Drawer
+  anchor="right"
+  open={notificationsOpen}
+  onClose={() => setNotificationsOpen(false)}
+>
+  <Box
+    sx={{
+      width: { xs: '88vw', sm: 400 },
+      maxWidth: 400,
+      height: '100%',
+      background: '#071331',
+      color: '#fff',
+      p: 2,
+    }}
+  >
+    <Typography
+      variant="h6"
+      sx={{
+        fontWeight: 800,
+        mb: 2,
+      }}
+    >
+      Notifications
+    </Typography>
 
+    {notifications.length === 0 ? (
+      <Typography
+        sx={{
+          color: '#9eb2f2',
+          textAlign: 'center',
+          mt: 5,
+        }}
+      >
+        No notifications yet.
+      </Typography>
+    ) : (
+      <Stack spacing={1.5}>
+        {notifications.map((notification) => (
+          <Card
+            key={notification.id}
+            sx={{
+              background: notification.is_read
+                ? 'rgba(255,255,255,0.06)'
+                : 'rgba(25,118,210,0.20)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.10)',
+            }}
+          >
+            <CardContent>
+              <Typography
+                variant="subtitle1"
+                sx={{ fontWeight: 800 }}
+              >
+                {notification.title}
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#dbe5ff',
+                  mt: 0.5,
+                }}
+              >
+                {notification.message}
+              </Typography>
+
+              <Typography
+                variant="caption"
+                sx={{
+                  color: '#8fa6df',
+                  display: 'block',
+                  mt: 1,
+                }}
+              >
+                {new Date(
+                  notification.created_at
+                ).toLocaleString()}
+              </Typography>
+            </CardContent>
+          </Card>
+        ))}
+      </Stack>
+    )}
+  </Box>
+</Drawer>
 /* ============================================================
    SIDEBAR HEADING
 ============================================================ */
