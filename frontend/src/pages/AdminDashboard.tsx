@@ -78,6 +78,7 @@ import { AxiosError } from 'axios';
 
 import apiClient from '../services/apiClient';
 import AdminLiveChat from '../components/AdminLiveChat';
+import AdminTestimonials from '../components/AdminTestimonials';
 // ============================================================
 // TYPES
 // ============================================================
@@ -510,6 +511,7 @@ const AdminDashboard: React.FC<
     'withdrawals',
     'kyc',
 'live-chat',
+'testimonials'
 'investment-plans',
     'signal-plans',
     'payment-methods',
@@ -5209,8 +5211,12 @@ const AdminDashboard: React.FC<
   key: 'live-chat',
   label: 'Live Chat',
   icon: <SupportAgent />,
-
-    },
+},
+{
+  key: 'testimonials',
+  label: 'Testimonials',
+  icon: <Groups />,
+},
     {
       key: 'investment-plans',
       label: 'Investment Plans',
