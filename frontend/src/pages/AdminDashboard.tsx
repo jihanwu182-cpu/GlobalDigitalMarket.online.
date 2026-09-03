@@ -511,7 +511,7 @@ const AdminDashboard: React.FC<
     'withdrawals',
     'kyc',
 'live-chat',
-'testimonials'
+'testimonials',
 'investment-plans',
     'signal-plans',
     'payment-methods',
