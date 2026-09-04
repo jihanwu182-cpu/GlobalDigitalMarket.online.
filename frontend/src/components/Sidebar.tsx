@@ -60,7 +60,7 @@ const Sidebar: React.FC = () => {
   icon: <KYCIcon />,
   path: '/kyc',
 },
-
+];
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
