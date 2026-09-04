@@ -1,32 +1,3 @@
-const nodemailer = require('nodemailer');
-
-console.log('SMTP CONFIG:', {
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  secure: process.env.SMTP_SECURE,
-  user: process.env.SMTP_USER,
-  from: process.env.SMTP_FROM,
-});
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-  console.log('STARTING SMTP VERIFICATION...');
-
-  transporter.verify((error, success) => {
-  if (error) {
-    console.error('SMTP CONNECTION ERROR:', error);
-  } else {
-    console.log('SMTP CONNECTION SUCCESS:', success);
-  }
-});
-
 const sendEmail = async ({
   to,
   subject,
@@ -37,7 +8,7 @@ const sendEmail = async ({
     throw new Error('Recipient email address is required.');
   }
 
-  if (!subject) {
+  if (!subject || !subject.trim()) {
     throw new Error('Email subject is required.');
   }
 
@@ -45,17 +16,42 @@ const sendEmail = async ({
     throw new Error('Email message is required.');
   }
 
-  const mailOptions = {
-    from:
-      process.env.SMTP_FROM ||
-      process.env.SMTP_USER,
-    to,
-    subject,
-    text,
-    html,
-  };
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('RESEND_API_KEY is not configured.');
+  }
 
-  return transporter.sendMail(mailOptions);
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from:
+        process.env.EMAIL_FROM ||
+        'Global Digital Market <support@globaldigitalmarket.online>',
+      to: [to],
+      subject: subject.trim(),
+      text: text || undefined,
+      html: html || undefined,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('RESEND API ERROR:', data);
+
+    throw new Error(
+      data?.message ||
+      data?.error ||
+      'Failed to send email through Resend.'
+    );
+  }
+
+  console.log('RESEND EMAIL SENT:', data);
+
+  return data;
 };
 
 module.exports = {
