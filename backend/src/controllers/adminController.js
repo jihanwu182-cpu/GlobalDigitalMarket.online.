@@ -2552,7 +2552,55 @@ const updateTransactionStatus = async (
     `,
   });
 }
+if (
+  transactionType === 'WITHDRAWAL' &&
+  status === 'COMPLETED' &&
+  transaction.email
+) {
+  await sendEmail({
+    to: transaction.email,
 
+    subject:
+      'Withdrawal approved - GlobalDigitalMarket',
+
+    text:
+      `Hello ${transaction.first_name || ''},\n\n` +
+      `Your withdrawal of ${amount.toFixed(2)} ${transaction.currency || ''} ` +
+      `has been approved and completed.\n\n` +
+      `Transaction reference: ${transaction.transaction_reference}\n\n` +
+      `GlobalDigitalMarket.online`,
+
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Withdrawal approved</h2>
+
+        <p>
+          Hello ${transaction.first_name || ''},
+        </p>
+
+        <p>
+          Your withdrawal has been
+          <strong>approved and completed</strong>.
+        </p>
+
+        <p>
+          <strong>Amount:</strong>
+          ${amount.toFixed(2)}
+          ${transaction.currency || ''}
+        </p>
+
+        <p>
+          <strong>Transaction reference:</strong>
+          ${transaction.transaction_reference}
+        </p>
+
+        <p>
+          GlobalDigitalMarket.online
+        </p>
+      </div>
+    `,
+  });
+}
     logger.info(
       `Admin ${adminId} changed transaction ${transactionId} from ${previousStatus} to ${status}`
     );
