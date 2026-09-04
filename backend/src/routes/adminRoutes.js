@@ -395,19 +395,21 @@ router.post(
   '/withdrawal-codes/:id/email',
   sendWithdrawalCodeEmail
 );
-
 // ============================================================
 // KYC
 // ============================================================
 //
-// GET /api/admin/kyc
+// GET   /api/admin/kyc
+// PATCH /api/admin/kyc/:id/approve
+// PATCH /api/admin/kyc/:id/reject
 //
 
 router.get(
   '/kyc',
   getKycRequests
+);
 
-  router.patch(
+router.patch(
   '/kyc/:id/approve',
   approveKyc
 );
@@ -416,6 +418,7 @@ router.patch(
   '/kyc/:id/reject',
   rejectKyc
 );
+
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
