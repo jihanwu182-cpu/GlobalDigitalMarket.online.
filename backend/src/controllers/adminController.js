@@ -6302,6 +6302,8 @@ module.exports = {
 
   // KYC
   getKycRequests,
+  approveKyc,
+  rejectKyc,
 
   // Investment Plans
   getInvestmentPlans,
