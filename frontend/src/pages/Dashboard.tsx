@@ -1262,7 +1262,15 @@ const Dashboard: React.FC = () => {
           <SidebarHeading>
             ACCOUNT
           </SidebarHeading>
-
+         
+         <MenuItem
+         icon={<VerifiedUserIcon />}
+         text="KYC Verification"
+         onClick={() => {
+         setMenuOpen(false);
+         navigate('/kyc');
+       }}
+      />
           <MenuItem
             icon={
               <PersonOutlineIcon />
