@@ -2762,6 +2762,479 @@ const getKycRequests = async (
 
     return next(error);
   }
+  };
+// ============================================================
+// APPROVE KYC
+// ============================================================
+
+const approveKyc = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const documentId =
+      Number(req.params.id);
+
+    if (!isPositiveInteger(documentId)) {
+      return res.status(400).json({
+        message:
+          'Invalid KYC document ID.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // --------------------------------------------------------
+    // GET AND LOCK KYC DOCUMENT + USER
+    // --------------------------------------------------------
+
+    const result =
+      await client.query(
+        `
+        SELECT
+          d.id,
+          d.user_id,
+          d.document_type,
+          d.document_number,
+          d.document_url,
+          d.status,
+          d.created_at,
+
+          u.email,
+          u.first_name,
+          u.last_name
+
+        FROM identity_documents d
+
+        INNER JOIN users u
+          ON u.id = d.user_id
+
+        WHERE d.id = $1::INTEGER
+
+        FOR UPDATE OF d, u
+        `,
+        [documentId]
+      );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'KYC document not found.',
+      });
+    }
+
+    const document =
+      result.rows[0];
+
+    const currentStatus =
+      normalizeStatus(
+        document.status
+      );
+
+    if (currentStatus !== 'PENDING') {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          `This KYC request has already been ${currentStatus.toLowerCase()}.`,
+        currentStatus,
+      });
+    }
+
+    // --------------------------------------------------------
+    // APPROVE DOCUMENT
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE identity_documents
+
+      SET
+        status = 'APPROVED',
+        reviewed_by = $1::INTEGER,
+        reviewed_at = CURRENT_TIMESTAMP,
+        rejection_reason = NULL,
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $2::INTEGER
+      `,
+      [
+        req.user.id,
+        documentId,
+      ]
+    );
+
+    // --------------------------------------------------------
+    // UPDATE USER KYC STATUS
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE users
+
+      SET
+        identity_verification_status = 'APPROVED',
+        identity_document_type = $1,
+        identity_document_number = $2,
+        identity_document_url = $3,
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $4::INTEGER
+      `,
+      [
+        document.document_type,
+        document.document_number,
+        document.document_url,
+        document.user_id,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    // --------------------------------------------------------
+    // SEND EMAIL AFTER DATABASE COMMIT
+    // --------------------------------------------------------
+
+    if (document.email) {
+      try {
+        await sendEmail({
+          to: document.email,
+
+          subject:
+            'KYC Verification Approved - GlobalDigitalMarket',
+
+          text:
+            `Hello ${document.first_name || ''},\n\n` +
+            `Your KYC identity verification has been approved.\n\n` +
+            `Document type: ${document.document_type}\n\n` +
+            `You can now continue using your verified GlobalDigitalMarket account.\n\n` +
+            `GlobalDigitalMarket.online`,
+
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <h2>KYC Verification Approved</h2>
+
+              <p>
+                Hello ${document.first_name || ''},
+              </p>
+
+              <p>
+                Your KYC identity verification has been
+                <strong>approved</strong>.
+              </p>
+
+              <p>
+                <strong>Document type:</strong>
+                ${document.document_type}
+              </p>
+
+              <p>
+                Your account verification status is now
+                <strong>APPROVED</strong>.
+              </p>
+
+              <p>
+                GlobalDigitalMarket.online
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        logger.error(
+          'KYC approval email error:',
+          emailError
+        );
+      }
+    }
+
+    logger.info(
+      `Admin ${req.user.id} approved KYC document ${documentId} for user ${document.user_id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'KYC verification approved successfully.',
+
+      kyc: {
+        id:
+          document.id,
+
+        userId:
+          document.user_id,
+
+        status:
+          'APPROVED',
+
+        reviewedBy:
+          req.user.id,
+      },
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'KYC approval rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin approve KYC error:',
+      error
+    );
+
+    return next(error);
+  } finally {
+    client.release();
+  }
+};
+
+// ============================================================
+// REJECT KYC
+// ============================================================
+
+const rejectKyc = async (
+  req,
+  res,
+  next
+) => {
+  const client = await pool.connect();
+
+  try {
+    const documentId =
+      Number(req.params.id);
+
+    const reason =
+      cleanString(
+        req.body?.reason ||
+        req.body?.rejectionReason
+      );
+
+    if (!isPositiveInteger(documentId)) {
+      return res.status(400).json({
+        message:
+          'Invalid KYC document ID.',
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        message:
+          'A rejection reason is required.',
+      });
+    }
+
+    await client.query('BEGIN');
+
+    // --------------------------------------------------------
+    // GET AND LOCK KYC DOCUMENT + USER
+    // --------------------------------------------------------
+
+    const result =
+      await client.query(
+        `
+        SELECT
+          d.id,
+          d.user_id,
+          d.document_type,
+          d.document_number,
+          d.document_url,
+          d.status,
+          d.created_at,
+
+          u.email,
+          u.first_name,
+          u.last_name
+
+        FROM identity_documents d
+
+        INNER JOIN users u
+          ON u.id = d.user_id
+
+        WHERE d.id = $1::INTEGER
+
+        FOR UPDATE OF d, u
+        `,
+        [documentId]
+      );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+
+      return res.status(404).json({
+        message:
+          'KYC document not found.',
+      });
+    }
+
+    const document =
+      result.rows[0];
+
+    const currentStatus =
+      normalizeStatus(
+        document.status
+      );
+
+    if (currentStatus !== 'PENDING') {
+      await client.query('ROLLBACK');
+
+      return res.status(400).json({
+        message:
+          `This KYC request has already been ${currentStatus.toLowerCase()}.`,
+        currentStatus,
+      });
+    }
+
+    // --------------------------------------------------------
+    // REJECT DOCUMENT
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE identity_documents
+
+      SET
+        status = 'REJECTED',
+        reviewed_by = $1::INTEGER,
+        reviewed_at = CURRENT_TIMESTAMP,
+        rejection_reason = $2::TEXT,
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $3::INTEGER
+      `,
+      [
+        req.user.id,
+        reason,
+        documentId,
+      ]
+    );
+
+    // --------------------------------------------------------
+    // UPDATE USER KYC STATUS
+    // --------------------------------------------------------
+
+    await client.query(
+      `
+      UPDATE users
+
+      SET
+        identity_verification_status = 'REJECTED',
+        updated_at = CURRENT_TIMESTAMP
+
+      WHERE id = $1::INTEGER
+      `,
+      [document.user_id]
+    );
+
+    await client.query('COMMIT');
+
+    // --------------------------------------------------------
+    // SEND EMAIL AFTER DATABASE COMMIT
+    // --------------------------------------------------------
+
+    if (document.email) {
+      try {
+        await sendEmail({
+          to: document.email,
+
+          subject:
+            'KYC Verification Update - GlobalDigitalMarket',
+
+          text:
+            `Hello ${document.first_name || ''},\n\n` +
+            `Your KYC identity verification could not be approved at this time.\n\n` +
+            `Reason: ${reason}\n\n` +
+            `Please log in to your GlobalDigitalMarket account and submit the required information again.\n\n` +
+            `GlobalDigitalMarket.online`,
+
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+              <h2>KYC Verification Update</h2>
+
+              <p>
+                Hello ${document.first_name || ''},
+              </p>
+
+              <p>
+                Your KYC identity verification could not be
+                <strong>approved</strong> at this time.
+              </p>
+
+              <p>
+                <strong>Reason:</strong>
+                ${reason}
+              </p>
+
+              <p>
+                Please log in to your
+                GlobalDigitalMarket account and submit the
+                required information again.
+              </p>
+
+              <p>
+                GlobalDigitalMarket.online
+              </p>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        logger.error(
+          'KYC rejection email error:',
+          emailError
+        );
+      }
+    }
+
+    logger.info(
+      `Admin ${req.user.id} rejected KYC document ${documentId} for user ${document.user_id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'KYC verification rejected successfully.',
+
+      kyc: {
+        id:
+          document.id,
+
+        userId:
+          document.user_id,
+
+        status:
+          'REJECTED',
+
+        rejectionReason:
+          reason,
+
+        reviewedBy:
+          req.user.id,
+      },
+    });
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      logger.error(
+        'KYC rejection rollback error:',
+        rollbackError
+      );
+    }
+
+    logger.error(
+      'Admin reject KYC error:',
+      error
+    );
+
+    return next(error);
+  } finally {
+    client.release();
+  }
 };
 
 // ============================================================
