@@ -513,8 +513,9 @@ const AdminDashboard: React.FC<
     'kyc',
 'live-chat',
 'testimonials',
+'email',
 'investment-plans',
-    'signal-plans',
+'signal-plans',
     'payment-methods',
     'funding',
     'withdrawal-code',
@@ -5148,6 +5149,8 @@ const AdminDashboard: React.FC<
 
 case 'notifications':
   return <AdminNotifications />;
+        case 'email':
+  return <AdminEmail />;
 
 case 'investment-plans':
   return renderInvestmentPlans();
@@ -5253,11 +5256,16 @@ case 'investment-plans':
   key: 'notifications',
   label: 'Notifications',
   icon: <Email />,
-    },
-    {
-      key: 'settings',
-      label: 'Settings',
-      icon: <Settings />,
+},
+{
+  key: 'email',
+  label: 'Email',
+  icon: <Email />,
+},
+{
+  key: 'settings',
+  label: 'Settings',
+  icon: <Settings />,
     },
   ];
 
