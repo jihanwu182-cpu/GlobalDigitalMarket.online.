@@ -97,6 +97,7 @@ interface AccountData {
   buyingPower?: number;
   marginAvailable?: number;
   status?: string;
+  currency?: string;
 }
 
 interface Holding {
@@ -947,23 +948,31 @@ const Dashboard: React.FC = () => {
         .toUpperCase();
     }, [displayName]);
 
-  const money = (
-    value: number
-  ) => {
-    if (
-      !Number.isFinite(value)
-    ) {
-      return '$0.00';
-    }
+  const money = (value: number) => {
+  const currency =
+    account?.currency || 'USD';
 
-    return `$${value.toLocaleString(
+  if (!Number.isFinite(value)) {
+    value = 0;
+  }
+
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${Number(value).toLocaleString(
       'en-US',
       {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }
     )}`;
-  };
+  }
+};
 
   const number = (
     value: number
