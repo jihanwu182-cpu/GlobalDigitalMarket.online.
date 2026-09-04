@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 const pool = require('../config/database');
 const logger = require('../utils/logger');
+const { sendEmail } = require('../utils/email');
 
 const {
   generateAccessToken,
@@ -841,7 +842,7 @@ const fundUserAccount = async (
     }
 
     await client.query('BEGIN');
-
+    
     const accountResult =
       await client.query(
         `
@@ -2157,6 +2158,10 @@ const updateTransactionStatus = async (
 
           a.id AS locked_account_id,
           a.balance,
+
+           u.email,
+         u.first_name,
+          u.last_name,
           a.deposit,
           a.profits,
           a.available_balance,
@@ -2167,10 +2172,13 @@ const updateTransactionStatus = async (
 
         FROM transactions t
 
-        INNER JOIN accounts a
-          ON a.id = t.account_id
+      INNER JOIN accounts a
+    ON a.id = t.account_id
 
-        WHERE t.id = $1::INTEGER
+      INNER JOIN users u
+       ON u.id = a.user_id
+
+     WHERE t.id = $1::INTEGER
 
         FOR UPDATE OF t, a
         `,
@@ -2474,6 +2482,76 @@ const updateTransactionStatus = async (
     }
 
     await client.query('COMMIT');
+    if (
+  transactionType === 'DEPOSIT' &&
+  (status === 'COMPLETED' || status === 'CANCELLED') &&
+  transaction.email
+) {
+  const action =
+    status === 'COMPLETED'
+      ? 'approved'
+      : 'rejected';
+
+  await sendEmail({
+    to: transaction.email,
+
+    subject:
+      `Deposit ${action} - GlobalDigitalMarket`,
+
+    text:
+      `Hello ${transaction.first_name || ''},\n\n` +
+      `Your deposit of ${amount.toFixed(2)} ${transaction.currency || ''} ` +
+      `has been ${action}.\n\n` +
+      `Transaction reference: ${transaction.transaction_reference}\n\n` +
+      `${
+        adminNote
+          ? `Admin note: ${adminNote}\n\n`
+          : ''
+      }` +
+      `GlobalDigitalMarket.online`,
+
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6;">
+        <h2>Deposit ${action}</h2>
+
+        <p>
+          Hello ${transaction.first_name || ''},
+        </p>
+
+        <p>
+          Your deposit has been
+          <strong>${action}</strong>.
+        </p>
+
+        <p>
+          <strong>Amount:</strong>
+          ${amount.toFixed(2)}
+          ${transaction.currency || ''}
+        </p>
+
+        <p>
+          <strong>Transaction reference:</strong>
+          ${transaction.transaction_reference}
+        </p>
+
+        ${
+          adminNote
+            ? `
+              <p>
+                <strong>Admin note:</strong>
+                ${adminNote}
+              </p>
+            `
+            : ''
+        }
+
+        <p>
+          GlobalDigitalMarket.online
+        </p>
+      </div>
+    `,
+  });
+}
 
     logger.info(
       `Admin ${adminId} changed transaction ${transactionId} from ${previousStatus} to ${status}`
