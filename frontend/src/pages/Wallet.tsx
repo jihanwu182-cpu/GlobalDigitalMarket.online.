@@ -105,6 +105,10 @@ const Wallet: React.FC = () => {
     identityDocumentNumber,
     setIdentityDocumentNumber,
   ] = useState('');
+  const [
+  withdrawalCode,
+  setWithdrawalCode,
+] = useState('');
 
   // ============================================================
   // FORMAT MONEY
@@ -407,7 +411,7 @@ const Wallet: React.FC = () => {
       setErrorMessage(
         'Please select a withdrawal method.'
       );
-      return;
+  return;
     }
 
     if (!identityDocumentNumber.trim()) {
@@ -415,22 +419,29 @@ const Wallet: React.FC = () => {
         'Your ID or passport number is required for withdrawal.'
       );
       return;
-    }
+      }
+      if (!withdrawalCode.trim()) {
+  setErrorMessage(
+    'A withdrawal authorization code is required before submitting your withdrawal request.'
+  );
+  return;
+}
 
     try {
       setActionLoading(true);
 
-      const response =
-        await apiClient.post(
-          '/wallet/withdraw',
-          {
-            amount,
-            method: withdrawMethod,
-            identityDocumentNumber:
-              identityDocumentNumber.trim(),
-          }
-        );
-
+     const response =
+  await apiClient.post(
+    '/wallet/withdraw',
+    {
+      amount,
+      method: withdrawMethod,
+      identityDocumentNumber:
+        identityDocumentNumber.trim(),
+      withdrawalCode:
+        withdrawalCode.trim(),
+    }
+  );
       setSuccessMessage(
         response.data?.message ||
           'Withdrawal request submitted successfully.'
@@ -438,6 +449,7 @@ const Wallet: React.FC = () => {
 
       setWithdrawAmount('');
       setIdentityDocumentNumber('');
+      setWithdrawalCode('');
       setWithdrawMethod('Bank Account');
 
       setOpenWithdraw(false);
@@ -1583,20 +1595,33 @@ const Wallet: React.FC = () => {
             </TextField>
 
             <TextField
-              fullWidth
-              required
-              label="ID / Passport Number"
-              value={
-                identityDocumentNumber
-              }
-              onChange={(event) =>
-                setIdentityDocumentNumber(
-                  event.target.value
-                )
-              }
-              disabled={actionLoading}
-              helperText="Enter the same ID or passport number used during identity verification."
-            />
+            fullWidth
+            required
+            label="Withdrawal Authorization Code"
+            value={withdrawalCode}
+          onChange={(event) =>
+            setWithdrawalCode(event.target.value)
+          }
+           disabled={actionLoading}
+           helperText="Enter the one-time authorization code provided by the administrator."
+          inputProps={{
+          maxLength: 32,
+        }}
+       />
+
+         <TextField
+          fullWidth
+          required
+          label="ID / Passport Number"
+          value={identityDocumentNumber}
+          onChange={(event) =>
+            setIdentityDocumentNumber(
+              event.target.value
+           )
+          }
+           disabled={actionLoading}
+           helperText="Enter the same ID or passport number used during identity verification."
+          />
 
             <Typography
               variant="body2"
@@ -1638,8 +1663,9 @@ const Wallet: React.FC = () => {
               !withdrawAmount ||
               Number(withdrawAmount) < 10 ||
               Number(withdrawAmount) >
-                wallet.availableBalance ||
-              !identityDocumentNumber.trim()
+              wallet.availableBalance ||
+             !identityDocumentNumber.trim() ||
+             !withdrawalCode.trim()
             }
           >
             {actionLoading
