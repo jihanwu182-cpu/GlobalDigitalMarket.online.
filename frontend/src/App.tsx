@@ -307,6 +307,10 @@ const App: React.FC = () => {
   path="/company"
   element={<Company />}
 />
+  <Route
+  path="/kyc"
+  element={<KYC />}
+ />      
 
             {/* ==================================================
                 PROTECTED USER ROUTES
