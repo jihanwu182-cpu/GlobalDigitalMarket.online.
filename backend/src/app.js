@@ -165,6 +165,14 @@ app.use(
 app.use(
   `${API_PREFIX}/testimonials`,
   require('./routes/testimonialRoutes')
+  
+);// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+app.use(
+  `${API_PREFIX}/notifications`,
+  require('./routes/notificationRoutes')
 );
 // ============================================================
 // LEGACY SIGNUP REDIRECT
