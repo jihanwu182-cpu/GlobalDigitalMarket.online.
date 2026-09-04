@@ -80,6 +80,7 @@ import apiClient from '../services/apiClient';
 import AdminLiveChat from '../components/AdminLiveChat';
 import AdminTestimonials from '../components/AdminTestimonials';
 import AdminNotifications from '../components/AdminNotifications';
+import AdminEmail from '../components/AdminEmail';
 // ============================================================
 // TYPES
 // ============================================================
