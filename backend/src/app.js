@@ -173,6 +173,13 @@ app.use(
 app.use(
   `${API_PREFIX}/notifications`,
   require('./routes/notificationRoutes')
+  // ============================================================
+// EMAIL
+// ============================================================
+
+app.use(
+  `${API_PREFIX}/email`,
+  require('./routes/emailRoutes')
 );
 // ============================================================
 // LEGACY SIGNUP REDIRECT
