@@ -16,8 +16,10 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
-})
-  ;transporter.verify((error, success) => {
+});
+  console.log('STARTING SMTP VERIFICATION...');
+
+  transporter.verify((error, success) => {
   if (error) {
     console.error('SMTP CONNECTION ERROR:', error);
   } else {
