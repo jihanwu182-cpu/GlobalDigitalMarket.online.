@@ -611,7 +611,6 @@ const KYC: React.FC = () => {
             fontWeight: 700,
            }}
             >
-                
                 >
                   {loading
                     ? 'Submitting...'
