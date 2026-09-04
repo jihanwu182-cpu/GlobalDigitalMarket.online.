@@ -30,6 +30,7 @@ import Trading from './pages/Trading';
 import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 import ContactSupport from './pages/ContactSupport';
+import KYC from './pages/KYC';
 
 // ============================================================
 // ADMIN PAGES
