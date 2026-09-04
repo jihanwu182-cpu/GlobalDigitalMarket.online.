@@ -14,6 +14,7 @@ const getAccount = async (userId) => {
       account_number,
       account_type,
       account_name,
+      currency,
       balance,
       deposit,
       profits,
@@ -259,6 +260,7 @@ const getAccountSummary = async (req, res, next) => {
         accountNumber: account.account_number,
         accountType: account.account_type,
         accountName: account.account_name,
+        currency: account.currency || 'USD',
 
         balance: Number(account.balance || 0),
 
