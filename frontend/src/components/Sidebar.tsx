@@ -15,6 +15,7 @@ import {
   TrendingUp as TradingIcon,
   Equalizer as MarketIcon,
   AccountBalance as WalletIcon,
+  VerifiedUser as KYCIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 
@@ -54,7 +55,11 @@ const Sidebar: React.FC = () => {
       icon: <WalletIcon />,
       path: '/wallet',
     },
-  ];
+  {
+  text: 'KYC Verification',
+  icon: <KYCIcon />,
+  path: '/kyc',
+},
 
   const handleLogout = () => {
     dispatch(logout());
