@@ -293,7 +293,12 @@ const KYC: React.FC = () => {
 
   const hasApprovedKyc =
     status === 'APPROVED';
-
+  
+  const hasSubmittedDocument =
+  Boolean(
+    verification?.document ||
+      verification?.documentUrl
+  );
   return (
     <Container
       maxWidth="md"
@@ -589,31 +594,31 @@ const KYC: React.FC = () => {
                 {/* =============================================
                     SUBMIT
                 ============================================= */}
-
-                <Button
-                  type="button"
-                  variant="contained"
-                  size="large"
-                  disabled={
-                    loading ||
-                    status ===
-                      'PENDING'
-                  }
-                  onClick={
-                    handleSubmit
-                  }
-                  sx={{
-                    py: 1.5,
-                    borderRadius: 2,
-                    fontWeight: 700,
-                  }}
+                 <Button
+                   type="submit"
+              variant="contained"
+                size="large"
+                 disabled={
+                  loading ||
+                 (
+               status === 'PENDING' &&
+              hasSubmittedDocument
+           )
+          }
+          sx={{
+            py: 1.5,
+            borderRadius: 2,
+            fontWeight: 700,
+           }}
+            >
+                
                 >
                   {loading
                     ? 'Submitting...'
-                    : status ===
-                        'PENDING'
-                      ? 'KYC Pending Review'
-                      : 'Submit KYC Verification'}
+                   : status === 'PENDING' &&
+                    hasSubmittedDocument
+                    ? 'KYC Pending Review'
+                    : 'Submit KYC Verification'}
                 </Button>
               </>
             )}
