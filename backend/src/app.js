@@ -152,6 +152,14 @@ app.use(
   `${API_PREFIX}/wallet`,
   require('./routes/walletRoutes')
 );
+// ============================================================
+// KYC / IDENTITY VERIFICATION
+// ============================================================
+
+app.use(
+  `${API_PREFIX}/kyc`,
+  require('./routes/kycRoutes')
+);
 
 // ADMIN
 app.use(
