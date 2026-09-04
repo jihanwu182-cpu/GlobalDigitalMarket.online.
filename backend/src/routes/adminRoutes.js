@@ -33,6 +33,8 @@ const {
 
   // KYC
   getKycRequests,
+  approveKyc,
+  rejectKyc,
 
   // Investment Plans
   getInvestmentPlans,
@@ -108,6 +110,8 @@ const requiredHandlers = {
 
   // KYC
   getKycRequests,
+  approveKyc,
+  rejectKyc,
 
   // Investment Plans
   getInvestmentPlans,
@@ -402,6 +406,15 @@ router.post(
 router.get(
   '/kyc',
   getKycRequests
+
+  router.patch(
+  '/kyc/:id/approve',
+  approveKyc
+);
+
+router.patch(
+  '/kyc/:id/reject',
+  rejectKyc
 );
 // ============================================================
 // NOTIFICATIONS
