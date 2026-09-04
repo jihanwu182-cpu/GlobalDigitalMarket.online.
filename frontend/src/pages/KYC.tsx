@@ -52,48 +52,32 @@ const KYC: React.FC = () => {
   const fileInputRef =
     useRef<HTMLInputElement | null>(null);
 
-  const [
-    documentType,
-    setDocumentType,
-  ] = useState('');
+  const [documentType, setDocumentType] =
+    useState('');
 
-  const [
-    documentNumber,
-    setDocumentNumber,
-  ] = useState('');
+  const [documentNumber, setDocumentNumber] =
+    useState('');
 
-  const [
-    documentFile,
-    setDocumentFile,
-  ] = useState<File | null>(null);
+  const [documentFile, setDocumentFile] =
+    useState<File | null>(null);
 
-  const [
-    verification,
-    setVerification,
-  ] = useState<KycVerification | null>(
-    null
-  );
+  const [verification, setVerification] =
+    useState<KycVerification | null>(null);
 
   const [loading, setLoading] =
     useState(false);
 
-  const [
-    loadingStatus,
-    setLoadingStatus,
-  ] = useState(true);
+  const [loadingStatus, setLoadingStatus] =
+    useState(true);
 
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] = useState('');
+  const [errorMessage, setErrorMessage] =
+    useState('');
 
-  const [
-    successMessage,
-    setSuccessMessage,
-  ] = useState('');
+  const [successMessage, setSuccessMessage] =
+    useState('');
 
   // ==========================================================
-  // LOAD CURRENT KYC STATUS
+  // LOAD KYC STATUS
   // ==========================================================
 
   const loadKycStatus = async () => {
@@ -104,8 +88,7 @@ const KYC: React.FC = () => {
         await apiClient.get('/kyc');
 
       setVerification(
-        response.data?.verification ||
-          null
+        response.data?.verification || null
       );
     } catch (error: any) {
       console.error(
@@ -151,11 +134,7 @@ const KYC: React.FC = () => {
       'application/pdf',
     ];
 
-    if (
-      !allowedTypes.includes(
-        file.type
-      )
-    ) {
+    if (!allowedTypes.includes(file.type)) {
       setErrorMessage(
         'Please upload a JPG, PNG, WEBP image, or PDF document.'
       );
@@ -211,8 +190,7 @@ const KYC: React.FC = () => {
     try {
       setLoading(true);
 
-      const formData =
-        new FormData();
+      const formData = new FormData();
 
       formData.append(
         'documentType',
@@ -248,7 +226,6 @@ const KYC: React.FC = () => {
         fileInputRef.current.value = '';
       }
 
-      // Refresh status immediately
       await loadKycStatus();
     } catch (error: any) {
       console.error(
@@ -266,16 +243,24 @@ const KYC: React.FC = () => {
   };
 
   // ==========================================================
-  // STATUS HELPERS
+  // STATUS
   // ==========================================================
 
   const status =
     String(
-      verification?.status ||
-        'PENDING'
+      verification?.status || 'PENDING'
     )
       .trim()
       .toUpperCase();
+
+  const hasApprovedKyc =
+    status === 'APPROVED';
+
+  const hasSubmittedDocument =
+    Boolean(
+      verification?.document ||
+        verification?.documentUrl
+    );
 
   const statusColor =
     status === 'APPROVED'
@@ -291,14 +276,6 @@ const KYC: React.FC = () => {
         ? 'Rejected'
         : 'Pending Review';
 
-  const hasApprovedKyc =
-    status === 'APPROVED';
-  
-  const hasSubmittedDocument =
-  Boolean(
-    verification?.document ||
-      verification?.documentUrl
-  );
   return (
     <Container
       maxWidth="md"
@@ -361,9 +338,8 @@ const KYC: React.FC = () => {
                   opacity: 0.85,
                 }}
               >
-                Verify your identity by
-                uploading your official
-                identification document.
+                Verify your identity by uploading
+                your official identification document.
               </Typography>
             </Box>
           </Stack>
@@ -377,9 +353,13 @@ const KYC: React.FC = () => {
             },
           }}
         >
-          <Stack spacing={3}>
+          <Stack
+            component="form"
+            spacing={3}
+            onSubmit={handleSubmit}
+          >
             {/* =================================================
-                CURRENT STATUS
+                STATUS
             ================================================= */}
 
             {!loadingStatus && (
@@ -388,10 +368,8 @@ const KYC: React.FC = () => {
                   p: 2,
                   borderRadius: 2,
                   border: '1px solid',
-                  borderColor:
-                    'divider',
-                  backgroundColor:
-                    '#f8fafc',
+                  borderColor: 'divider',
+                  backgroundColor: '#f8fafc',
                 }}
               >
                 <Stack
@@ -420,18 +398,17 @@ const KYC: React.FC = () => {
                     >
                       {hasApprovedKyc
                         ? 'Your identity has been successfully verified.'
-                        : status ===
-                            'REJECTED'
+                        : status === 'REJECTED'
                           ? 'Your previous verification was rejected. You can submit a new document.'
-                          : 'Your identity verification is awaiting administrator review.'}
+                          : hasSubmittedDocument
+                            ? 'Your identity verification is awaiting administrator review.'
+                            : 'Please submit your identity document for verification.'}
                     </Typography>
                   </Box>
 
                   <Chip
                     label={statusLabel}
-                    color={
-                      statusColor
-                    }
+                    color={statusColor}
                     sx={{
                       fontWeight: 700,
                     }}
@@ -453,37 +430,30 @@ const KYC: React.FC = () => {
             )}
 
             {/* =================================================
-                APPROVED MESSAGE
+                APPROVED
             ================================================= */}
 
             {hasApprovedKyc ? (
               <Alert
                 severity="success"
-                icon={
-                  <VerifiedUser />
-                }
+                icon={<VerifiedUser />}
               >
-                Your identity verification
-                has been approved. You do not
-                need to submit another document.
+                Your identity verification has
+                been approved. You do not need
+                to submit another document.
               </Alert>
             ) : (
               <>
-                {/* =============================================
-                    INFORMATION
-                ============================================= */}
-
                 <Alert severity="info">
                   Please upload a clear, valid
-                  government-issued
-                  identification document.
-                  Your document will be
+                  government-issued identification
+                  document. Your document will be
                   reviewed by an administrator.
                 </Alert>
 
-                {/* =============================================
+                {/* =================================================
                     DOCUMENT TYPE
-                ============================================= */}
+                ================================================= */}
 
                 <FormControl fullWidth>
                   <InputLabel id="document-type-label">
@@ -494,12 +464,9 @@ const KYC: React.FC = () => {
                     labelId="document-type-label"
                     value={documentType}
                     label="Document Type"
-                    onChange={(
-                      event
-                    ) =>
+                    onChange={(event) =>
                       setDocumentType(
-                        event.target
-                          .value
+                        event.target.value
                       )
                     }
                   >
@@ -517,49 +484,39 @@ const KYC: React.FC = () => {
                   </Select>
                 </FormControl>
 
-                {/* =============================================
+                {/* =================================================
                     DOCUMENT NUMBER
-                ============================================= */}
+                ================================================= */}
 
                 <TextField
                   fullWidth
                   label="ID / Document Number"
-                  value={
-                    documentNumber
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                  value={documentNumber}
+                  onChange={(event) =>
                     setDocumentNumber(
-                      event.target
-                        .value
+                      event.target.value
                     )
                   }
                   placeholder="Enter your document number"
                 />
 
-                {/* =============================================
+                {/* =================================================
                     DOCUMENT UPLOAD
-                ============================================= */}
+                ================================================= */}
 
                 <Box>
                   <input
-                    ref={
-                      fileInputRef
-                    }
+                    ref={fileInputRef}
                     type="file"
                     hidden
                     accept=".jpg,.jpeg,.png,.webp,.pdf"
-                    onChange={
-                      handleFileChange
-                    }
+                    onChange={handleFileChange}
                   />
 
                   <Button
+                    type="button"
                     variant="outlined"
-                    startIcon={
-                      <CloudUpload />
-                    }
+                    startIcon={<CloudUpload />}
                     onClick={() =>
                       fileInputRef.current?.click()
                     }
@@ -577,47 +534,44 @@ const KYC: React.FC = () => {
                       variant="body2"
                       sx={{
                         mt: 1,
-                        wordBreak:
-                          'break-word',
+                        wordBreak: 'break-word',
                       }}
                     >
                       Selected file:{' '}
                       <strong>
-                        {
-                          documentFile.name
-                        }
+                        {documentFile.name}
                       </strong>
                     </Typography>
                   )}
                 </Box>
 
-                {/* =============================================
+                {/* =================================================
                     SUBMIT
-                ============================================= */}
-                 <Button
-                   type="submit"
-              variant="contained"
-                size="large"
-                 disabled={
-                  loading ||
-                 (
-               status === 'PENDING' &&
-              hasSubmittedDocument
-           )
-          }
-          sx={{
-            py: 1.5,
-            borderRadius: 2,
-            fontWeight: 700,
-           }}
-            >
+                ================================================= */}
+
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={
+                    loading ||
+                    (
+                      status === 'PENDING' &&
+                      hasSubmittedDocument
+                    )
+                  }
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    fontWeight: 700,
+                  }}
                 >
                   {loading
                     ? 'Submitting...'
-                   : status === 'PENDING' &&
-                    hasSubmittedDocument
-                    ? 'KYC Pending Review'
-                    : 'Submit KYC Verification'}
+                    : status === 'PENDING' &&
+                        hasSubmittedDocument
+                      ? 'KYC Pending Review'
+                      : 'Submit KYC Verification'}
                 </Button>
               </>
             )}
