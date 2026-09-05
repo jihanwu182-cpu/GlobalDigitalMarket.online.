@@ -580,7 +580,10 @@ const AdminDashboard: React.FC<
   
   const [kycRejectLoading, setKycRejectLoading] =
     useState(false);
-
+  
+const [rejectKycDialogOpen, setRejectKycDialogOpen] =
+  useState(false);
+  
   const [investmentPlans, setInvestmentPlans] =
     useState<InvestmentPlan[]>([]);
 
