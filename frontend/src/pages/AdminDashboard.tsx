@@ -1060,47 +1060,41 @@ const approveKyc = async (
   }
 };
 
-
 // ==========================================================
 // REJECT KYC
 // ==========================================================
 
-const rejectKyc = async (
-  request: KycRequest
-) => {
-  const reason =
-    window.prompt(
-      'Enter the reason for rejecting this KYC:'
-    );
-
-  if (reason === null) {
+const rejectKyc = async () => {
+  if (!selectedKycRequest) {
     return;
   }
 
-  if (!reason.trim()) {
-    setError(
-      'A rejection reason is required.'
-    );
+  const reason = kycRejectionReason.trim();
 
+  if (!reason) {
+    setError('A rejection reason is required.');
     return;
   }
 
-  setLoading(true);
+  setKycRejectLoading(true);
   setError('');
 
   try {
     const response = await api.patch(
-      `/admin/kyc/${request.id}/reject`,
+      `/admin/kyc/${selectedKycRequest.id}/reject`,
       {
-        rejectionReason:
-          reason.trim(),
+        rejectionReason: reason,
       }
     );
 
     setSuccess(
       response.data?.message ||
-      'KYC rejected successfully.'
+        'KYC rejected successfully.'
     );
+
+    setRejectKycDialogOpen(false);
+    setSelectedKycRequest(null);
+    setKycRejectionReason('');
 
     await Promise.all([
       loadKyc(),
@@ -1108,11 +1102,9 @@ const rejectKyc = async (
       loadUsers(),
     ]);
   } catch (err) {
-    setError(
-      getErrorMessage(err)
-    );
+    setError(getErrorMessage(err));
   } finally {
-    setLoading(false);
+    setKycRejectLoading(false);
   }
 };
   // ==========================================================
@@ -4379,11 +4371,15 @@ const rejectKyc = async (
                         size="small"
                         variant="contained"
                         color="error"
-                        onClick={() => rejectKyc(k)}
-                        disabled={transactionLoading}
-                      >
+                        onClick={() => {
+                         setSelectedKycRequest(kyc);
+                          setKycRejectionReason('');
+                          setRejectKycDialogOpen(true);
+                        }}
+                          disabled={transactionLoading}
+                         >
                         Reject
-                      </Button>
+                       </Button>
                     </Stack>
                   ) : (
                     <Typography
