@@ -571,6 +571,7 @@ const AdminDashboard: React.FC<
 
   const [kycRequests, setKycRequests] =
     useState<KycRequest[]>([]);
+  const [selectedKycRequest, setSelectedKycRequest] = useState<KycRequest | null>(null);
 
   const [investmentPlans, setInvestmentPlans] =
     useState<InvestmentPlan[]>([]);
