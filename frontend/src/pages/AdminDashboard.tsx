@@ -1038,10 +1038,7 @@ const approveKyc = async (
 
   try {
     const response = await api.patch(
-      `/admin/kyc/${request.id}/status`,
-      {
-        status: 'APPROVED',
-      }
+      `/admin/kyc/${request.id}/approve`
     );
 
     setSuccess(
@@ -1062,6 +1059,7 @@ const approveKyc = async (
     setLoading(false);
   }
 };
+
 
 // ==========================================================
 // REJECT KYC
@@ -1092,9 +1090,8 @@ const rejectKyc = async (
 
   try {
     const response = await api.patch(
-      `/admin/kyc/${request.id}/status`,
+      `/admin/kyc/${request.id}/reject`,
       {
-        status: 'REJECTED',
         rejectionReason:
           reason.trim(),
       }
