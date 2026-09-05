@@ -16,7 +16,11 @@ import {
   CircularProgress,
   Container,
   Divider,
+  FormControl,
   IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Typography,
@@ -56,6 +60,43 @@ interface UserProfile {
   currency?: string;
   referralCode?: string;
 }
+
+/* ============================================================
+   COUNTRIES LIST
+============================================================ */
+
+const COUNTRIES = [
+  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Argentina', 'Armenia',
+  'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain', 'Bangladesh', 'Barbados',
+  'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan', 'Bolivia', 'Bosnia and Herzegovina',
+  'Botswana', 'Brazil', 'Brunei', 'Bulgaria', 'Burkina Faso', 'Burundi', 'Cambodia',
+  'Cameroon', 'Canada', 'Cape Verde', 'Central African Republic', 'Chad', 'Chile',
+  'China', 'Colombia', 'Comoros', 'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus',
+  'Czech Republic', 'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador',
+  'Egypt', 'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini',
+  'Ethiopia', 'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany',
+  'Ghana', 'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana',
+  'Haiti', 'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq',
+  'Ireland', 'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan',
+  'Kazakhstan', 'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia',
+  'Lebanon', 'Lesotho', 'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg',
+  'Madagascar', 'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands',
+  'Mauritania', 'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia',
+  'Montenegro', 'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal',
+  'Netherlands', 'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea',
+  'North Macedonia', 'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama',
+  'Papua New Guinea', 'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal',
+  'Qatar', 'Romania', 'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia',
+  'Saint Vincent and the Grenadines', 'Samoa', 'San Marino', 'Sao Tome and Principe',
+  'Saudi Arabia', 'Senegal', 'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore',
+  'Slovakia', 'Slovenia', 'Solomon Islands', 'Somalia', 'South Africa', 'South Korea',
+  'South Sudan', 'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland',
+  'Syria', 'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo',
+  'Tonga', 'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu',
+  'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States',
+  'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam',
+  'Yemen', 'Zambia', 'Zimbabwe'
+];
 
 /* ============================================================
    PROFILE
@@ -330,7 +371,6 @@ const Profile: React.FC = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Basic validation
     if (!file.type.startsWith('image/')) {
       setError('Please select a valid image file.');
       return;
@@ -346,10 +386,10 @@ const Profile: React.FC = () => {
       setSuccess('');
 
       const formData = new FormData();
-      formData.append('photo', file); // change to 'image' or 'avatar' if your backend expects a different key
+      formData.append('photo', file); // change key if your backend expects different name
 
       const response = await apiClient.post(
-        '/auth/profile/photo', // change this endpoint if yours is different
+        '/auth/profile/photo', // change this if your endpoint is different
         formData,
         {
           headers: {
@@ -371,7 +411,6 @@ const Profile: React.FC = () => {
           profilePhoto: newPhotoUrl,
         }));
 
-        // Also update localStorage
         const possibleKeys = ['user', 'currentUser', 'authUser', 'profile'];
         for (const key of possibleKeys) {
           const stored = localStorage.getItem(key);
@@ -708,16 +747,40 @@ const Profile: React.FC = () => {
                   sx={inputSx}
                 />
 
-                <TextField
-                  fullWidth
-                  label="Country"
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  InputProps={{
-                    startAdornment: <PublicIcon sx={{ color: '#6edcff', mr: 1 }} />,
-                  }}
-                  sx={inputSx}
-                />
+                {/* COUNTRY DROPDOWN */}
+                <FormControl fullWidth sx={inputSx}>
+                  <InputLabel sx={{ color: '#aebeff' }}>Country</InputLabel>
+                  <Select
+                    label="Country"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    startAdornment={<PublicIcon sx={{ color: '#6edcff', mr: 1 }} />}
+                    sx={{
+                      color: '#fff',
+                      '.MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'rgba(140,170,255,0.35)',
+                      },
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#5ce8ff',
+                      },
+                      '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#5ce8ff',
+                      },
+                      '.MuiSvgIcon-root': {
+                        color: '#aebeff',
+                      },
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Select your country</em>
+                    </MenuItem>
+                    {COUNTRIES.map((c) => (
+                      <MenuItem key={c} value={c}>
+                        {c}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Stack>
 
               <Button
