@@ -577,6 +577,9 @@ const AdminDashboard: React.FC<
   
   const [kycRejectionReason, setKycRejectionReason] =
     useState('');
+  
+  const [kycRejectLoading, setKycRejectLoading] =
+    useState(false);
 
   const [investmentPlans, setInvestmentPlans] =
     useState<InvestmentPlan[]>([]);
