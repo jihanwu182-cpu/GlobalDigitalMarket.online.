@@ -1013,6 +1013,111 @@ const AdminDashboard: React.FC<
       );
     }, []);
 
+// ==========================================================
+// APPROVE KYC
+// ==========================================================
+
+const approveKyc = async (
+  request: KycRequest
+) => {
+  if (
+    !window.confirm(
+      `Approve KYC for ${
+        request.user?.firstName ||
+        request.user?.username ||
+        request.user?.email ||
+        `User #${request.userId}`
+      }?`
+    )
+  ) {
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const response = await api.patch(
+      `/admin/kyc/${request.id}/status`,
+      {
+        status: 'APPROVED',
+      }
+    );
+
+    setSuccess(
+      response.data?.message ||
+      'KYC approved successfully.'
+    );
+
+    await Promise.all([
+      loadKyc(),
+      loadDashboard(),
+      loadUsers(),
+    ]);
+  } catch (err) {
+    setError(
+      getErrorMessage(err)
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+// ==========================================================
+// REJECT KYC
+// ==========================================================
+
+const rejectKyc = async (
+  request: KycRequest
+) => {
+  const reason =
+    window.prompt(
+      'Enter the reason for rejecting this KYC:'
+    );
+
+  if (reason === null) {
+    return;
+  }
+
+  if (!reason.trim()) {
+    setError(
+      'A rejection reason is required.'
+    );
+
+    return;
+  }
+
+  setLoading(true);
+  setError('');
+
+  try {
+    const response = await api.patch(
+      `/admin/kyc/${request.id}/status`,
+      {
+        status: 'REJECTED',
+        rejectionReason:
+          reason.trim(),
+      }
+    );
+
+    setSuccess(
+      response.data?.message ||
+      'KYC rejected successfully.'
+    );
+
+    await Promise.all([
+      loadKyc(),
+      loadDashboard(),
+      loadUsers(),
+    ]);
+  } catch (err) {
+    setError(
+      getErrorMessage(err)
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   // ==========================================================
   // LOAD INVESTMENT PLANS
   // ==========================================================
