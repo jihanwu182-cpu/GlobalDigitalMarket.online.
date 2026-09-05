@@ -4164,148 +4164,153 @@ const AdminDashboard: React.FC<
   // ==========================================================
 
   const renderKyc = () => (
-    <Stack spacing={2}>
-      <Box>
-        <Typography
-          variant="h4"
-          fontWeight={800}
-        >
-          KYC Requests
-        </Typography>
+  <Stack spacing={2}>
+    <Box>
+      <Typography variant="h4" fontWeight={800}>
+        KYC Requests
+      </Typography>
 
-        <Typography
-          color="text.secondary"
-        >
-          Review submitted identity documents.
-        </Typography>
-      </Box>
+      <Typography color="text.secondary">
+        Review submitted identity documents and approve or reject KYC requests.
+      </Typography>
+    </Box>
 
-      <TableContainer
-        component={Paper}
-        sx={{
-          overflowX: 'auto',
-        }}
-      >
-        <Table
-          sx={{
-            minWidth: 850,
-          }}
-        >
-          <TableHead>
-            <TableRow>
-              <TableCell>User</TableCell>
-              <TableCell>Document</TableCell>
-              <TableCell>
-                Document Number
-              </TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Submitted</TableCell>
-              <TableCell>Document</TableCell>
-            </TableRow>
-          </TableHead>
+    <TableContainer
+      component={Paper}
+      sx={{ overflowX: 'auto' }}
+    >
+      <Table sx={{ minWidth: 1050 }}>
+        <TableHead>
+          <TableRow>
+            <TableCell>User</TableCell>
+            <TableCell>Document</TableCell>
+            <TableCell>Number</TableCell>
+            <TableCell>Status</TableCell>
+            <TableCell>Submitted</TableCell>
+            <TableCell>Document</TableCell>
+            <TableCell align="right">Actions</TableCell>
+          </TableRow>
+        </TableHead>
 
-          <TableBody>
-            {kycRequests.map(
-              (request) => (
-                <TableRow
-                  key={request.id}
-                >
-                  <TableCell>
-                    <Typography
-                      fontWeight={700}
-                    >
-                      {
-                        request.user
-                          ?.firstName
-                      }{' '}
-                      {
-                        request.user
-                          ?.lastName
-                      }
-                    </Typography>
+        <TableBody>
+          {kycRequests.map((k) => {
+            const status = String(
+              k.status || 'UNKNOWN'
+            ).toUpperCase();
 
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                    >
-                      {
-                        request.user
-                          ?.email
-                      }
-                    </Typography>
-                  </TableCell>
+            const pending =
+              status === 'PENDING' ||
+              status === 'PROCESSING';
 
-                  <TableCell>
-                    {
-                      request.documentType ||
-                      '—'
-                    }
-                  </TableCell>
+            return (
+              <TableRow key={k.id}>
+                <TableCell>
+                  {[k.user?.firstName, k.user?.lastName]
+                    .filter(Boolean)
+                    .join(' ') || 'User'}
 
-                  <TableCell>
-                    {
-                      request.documentNumber ||
-                      '—'
-                    }
-                  </TableCell>
+                  <Typography
+                    variant="caption"
+                    display="block"
+                  >
+                    {k.user?.email}
+                  </Typography>
+                </TableCell>
 
-                  <TableCell>
-                    <Chip
+                <TableCell>
+                  {k.documentType || '—'}
+                </TableCell>
+
+                <TableCell>
+                  {k.documentNumber || '—'}
+                </TableCell>
+
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={status}
+                    color={statusColor(k.status)}
+                  />
+                </TableCell>
+
+                <TableCell>
+                  {formatDate(k.createdAt)}
+                </TableCell>
+
+                <TableCell>
+                  {k.documentUrl ? (
+                    <Button
                       size="small"
-                      label={
-                        request.status ||
-                        'UNKNOWN'
-                      }
-                      color={statusColor(
-                        request.status
-                      )}
-                    />
-                  </TableCell>
+                      variant="outlined"
+                      component="a"
+                      href={k.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open
+                    </Button>
+                  ) : (
+                    '—'
+                  )}
+                </TableCell>
 
-                  <TableCell>
-                    {formatDate(
-                      request.createdAt
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {request.documentUrl ? (
+                <TableCell align="right">
+                  {pending ? (
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      justifyContent="flex-end"
+                      flexWrap="wrap"
+                    >
                       <Button
                         size="small"
-                        component="a"
-                        href={
-                          request.documentUrl
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircle />}
+                        onClick={() => approveKyc(k)}
+                        disabled={transactionLoading}
                       >
-                        Open
+                        Approve
                       </Button>
-                    ) : (
-                      '—'
-                    )}
-                  </TableCell>
-                </TableRow>
-              )
-            )}
 
-            {kycRequests.length ===
-              0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  align="center"
-                >
-                  No KYC requests found.
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="error"
+                        onClick={() => rejectKyc(k)}
+                        disabled={transactionLoading}
+                      >
+                        Reject
+                      </Button>
+                    </Stack>
+                  ) : (
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                    >
+                      Reviewed
+                    </Typography>
+                  )}
                 </TableCell>
               </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Stack>
-  );
+            );
+          })}
 
+          {kycRequests.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={7}
+                align="center"
+              >
+                No KYC requests found.
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  </Stack>
+);
   // ==========================================================
   // INVESTMENT PLANS
   // ==========================================================
