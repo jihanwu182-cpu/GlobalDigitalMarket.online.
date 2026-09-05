@@ -4384,7 +4384,7 @@ const rejectKyc = async () => {
                         variant="contained"
                         color="error"
                         onClick={() => {
-                         setSelectedKycRequest(kyc);
+                         setSelectedKycRequest(k);
                           setKycRejectionReason('');
                           setRejectKycDialogOpen(true);
                         }}
