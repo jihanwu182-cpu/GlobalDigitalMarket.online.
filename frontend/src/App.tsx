@@ -31,6 +31,7 @@ import Market from './pages/Market';
 import Wallet from './pages/Wallet';
 import ContactSupport from './pages/ContactSupport';
 import KYC from './pages/KYC';
+import Settings from './pages/Settings';
 
 // ============================================================
 // ADMIN PAGES
