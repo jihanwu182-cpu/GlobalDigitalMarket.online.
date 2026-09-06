@@ -33,6 +33,7 @@ import ContactSupport from './pages/ContactSupport';
 import KYC from './pages/KYC';
 import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 // ============================================================
 // ADMIN PAGES
@@ -416,6 +417,10 @@ const App: React.FC = () => {
           path="/forgot-password"
           element={<ForgotPassword />}
         />
+            <Route
+              path="/reset-password"
+              element={<ResetPassword />}
+           />
 
             {/* ==================================================
                 ADMIN LOGIN
