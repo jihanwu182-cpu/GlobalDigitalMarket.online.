@@ -4388,7 +4388,7 @@ const rejectKyc = async () => {
                           setKycRejectionReason('');
                           setRejectKycDialogOpen(true);
                         }}
-                          disabled={transactionLoading}
+                          disabled={kycRejectLoading}
                          >
                         Reject
                        </Button>
