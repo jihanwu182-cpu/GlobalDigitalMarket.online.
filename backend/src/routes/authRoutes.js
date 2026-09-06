@@ -6,12 +6,20 @@ const {
   login,
   logout,
   refreshToken,
-} = require('../controllers/authController');   // ← make sure this path is correct
+  changePassword,
+  forgotPassword,
+  resetPassword,
+} = require('../controllers/authController');
 
 // Auth routes
 router.post('/register', register);
 router.post('/login', login);
 router.post('/logout', logout);
 router.post('/refresh-token', refreshToken);
+
+// Password routes
+router.put('/change-password', changePassword);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 module.exports = router;
