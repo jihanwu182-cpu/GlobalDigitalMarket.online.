@@ -405,12 +405,9 @@ const App: React.FC = () => {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute>
-                  <Navigate
-                    to="/profile"
-                    replace
-                  />
-                </ProtectedRoute>
+               <ProtectedRoute>
+                 <Settings />
+              </ProtectedRoute>
               }
             />
 
