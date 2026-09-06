@@ -1,76 +1,32 @@
 import React, { useState } from 'react';
+
 import {
+  Alert,
   Box,
   Button,
   Card,
   CardContent,
+  CircularProgress,
+  Container,
+  IconButton,
+  InputAdornment,
+  Link,
+  Stack,
   TextField,
   Typography,
-  Alert,
-  CircularProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
-const API_URL =
-  'https://globalmarket-com.onrender.com/api';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import EmailOutlinedIcon from '@mui/icons-material/EmailOutlined';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 
-interface LoginUser {
-  id?: string;
-  email?: string;
-  firstName?: string;
-  lastName?: string;
-  role?: string;
-  status?: string;
-  emailVerified?: boolean;
-  createdAt?: string;
-}
+import {
+  Link as RouterLink,
+  useNavigate,
+} from 'react-router-dom';
 
-interface LoginData {
-  message?: unknown;
-  accessToken?: string;
-  refreshToken?: string;
-  user?: LoginUser;
-}
-
-const getSafeMessage = (
-  value: unknown,
-  fallback: string
-): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
-
-  if (
-    typeof value === 'number' ||
-    typeof value === 'boolean'
-  ) {
-    return String(value);
-  }
-
-  if (value instanceof Error) {
-    return value.message;
-  }
-
-  if (value && typeof value === 'object') {
-    const objectValue =
-      value as Record<string, unknown>;
-
-    if (
-      typeof objectValue.message === 'string'
-    ) {
-      return objectValue.message;
-    }
-
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return fallback;
-    }
-  }
-
-  return fallback;
-};
+import apiClient from '../services/apiClient';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -78,343 +34,559 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
-  const [successMessage, setSuccessMessage] =
-    useState('');
-  const [errorMessage, setErrorMessage] =
-    useState('');
+
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // ============================================================
+  // LOGIN
+  // ============================================================
 
   const handleLogin = async (
     event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    setSuccessMessage('');
     setErrorMessage('');
+    setSuccessMessage('');
 
-    if (!email.trim()) {
-      setErrorMessage(
-        'Please enter your email address.'
-      );
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setErrorMessage('Please enter your email address.');
       return;
     }
 
     if (!password) {
-      setErrorMessage(
-        'Please enter your password.'
-      );
+      setErrorMessage('Please enter your password.');
       return;
     }
 
     try {
       setLoading(true);
 
-      console.log('LOGIN: starting request');
-
-      const response = await axios.post<LoginData>(
-        `${API_URL}/auth/login`,
+      const response = await apiClient.post(
+        '/auth/login',
         {
-          email: email.trim().toLowerCase(),
+          email: normalizedEmail,
           password,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
         }
-      );
-
-      console.log(
-        'LOGIN: response received:',
-        response.data
       );
 
       const data = response.data;
 
-      // --------------------------------------------------------
-      // Save access token
-      // --------------------------------------------------------
+      // ----------------------------------------------------------
+      // SAVE TOKENS
+      // ----------------------------------------------------------
 
-      if (
-        typeof data.accessToken === 'string' &&
-        data.accessToken.length > 0
-      ) {
+      if (data?.accessToken) {
+        localStorage.setItem(
+          'accessToken',
+          data.accessToken
+        );
+
+        // Also keep authToken for compatibility
+        // with the existing ProtectedRoute.
         localStorage.setItem(
           'authToken',
           data.accessToken
         );
+
+        localStorage.setItem(
+          'token',
+          data.accessToken
+        );
       }
 
-      // --------------------------------------------------------
-      // Save refresh token
-      // --------------------------------------------------------
-
-      if (
-        typeof data.refreshToken === 'string' &&
-        data.refreshToken.length > 0
-      ) {
+      if (data?.refreshToken) {
         localStorage.setItem(
           'refreshToken',
           data.refreshToken
         );
       }
 
-      // --------------------------------------------------------
-      // Save user
-      // --------------------------------------------------------
+      // ----------------------------------------------------------
+      // SAVE USER
+      // ----------------------------------------------------------
 
-      if (
-        data.user &&
-        typeof data.user === 'object'
-      ) {
+      if (data?.user) {
         localStorage.setItem(
           'user',
           JSON.stringify(data.user)
         );
       }
 
-      // --------------------------------------------------------
-      // SUCCESS MESSAGE
-      // --------------------------------------------------------
+      // ----------------------------------------------------------
+      // SAVE ACCOUNT
+      // ----------------------------------------------------------
 
-      const safeSuccessMessage =
-        getSafeMessage(
-          data.message,
-          'Login successful!'
-        );
-
-      setSuccessMessage(
-  safeSuccessMessage
-);
-
-setLoading(false);
-
-navigate('/dashboard');
-
-    } catch (error: unknown) {
-      console.error(
-        'LOGIN ERROR:',
-        error
-      );
-
-      setLoading(false);
-
-      // --------------------------------------------------------
-      // AXIOS ERROR
-      // --------------------------------------------------------
-
-      if (axios.isAxiosError(error)) {
-        console.error(
-          'LOGIN STATUS:',
-          error.response?.status
-        );
-
-        console.error(
-          'LOGIN RESPONSE:',
-          error.response?.data
-        );
-
-        const responseData =
-          error.response?.data;
-
-        let message =
-          'Login failed. Please check your email and password.';
-
-        if (
-          responseData &&
-          typeof responseData === 'object'
-        ) {
-          const dataObject =
-            responseData as Record<
-              string,
-              unknown
-            >;
-
-          if (
-            dataObject.message !== undefined
-          ) {
-            message = getSafeMessage(
-              dataObject.message,
-              message
-            );
-          } else if (
-            dataObject.error !== undefined
-          ) {
-            message = getSafeMessage(
-              dataObject.error,
-              message
-            );
-          } else {
-            message = getSafeMessage(
-              responseData,
-              message
-            );
-          }
-        }
-
-        setErrorMessage(message);
-
-      } else if (error instanceof Error) {
-
-        setErrorMessage(
-          error.message ||
-            'Login failed. Please try again.'
-        );
-
-      } else {
-
-        setErrorMessage(
-          'Login failed. Please try again.'
+      if (data?.account) {
+        localStorage.setItem(
+          'account',
+          JSON.stringify(data.account)
         );
       }
+
+      setSuccessMessage(
+        data?.message || 'Login successful.'
+      );
+
+      // ----------------------------------------------------------
+      // GO TO DASHBOARD
+      // ----------------------------------------------------------
+
+      setTimeout(() => {
+        navigate('/dashboard', {
+          replace: true,
+        });
+      }, 500);
+
+    } catch (err: any) {
+      console.error(
+        'Login error:',
+        err
+      );
+
+      setErrorMessage(
+        err?.response?.data?.message ||
+          'Unable to login. Please check your email and password and try again.'
+      );
+
+    } finally {
+      setLoading(false);
     }
   };
+
+  // ============================================================
+  // INPUT STYLES
+  // ============================================================
+
+  const inputSx = {
+    '& .MuiInputLabel-root': {
+      color: '#64748b',
+    },
+
+    '& .MuiInputLabel-root.Mui-focused': {
+      color: '#2563eb',
+    },
+
+    '& .MuiOutlinedInput-root': {
+      color: '#111827',
+      backgroundColor: '#ffffff',
+      borderRadius: 2,
+
+      '& fieldset': {
+        borderColor: '#d1d5db',
+      },
+
+      '&:hover fieldset': {
+        borderColor: '#2563eb',
+      },
+
+      '&.Mui-focused fieldset': {
+        borderColor: '#2563eb',
+      },
+    },
+  };
+
+  // ============================================================
+  // PAGE
+  // ============================================================
 
   return (
     <Box
       sx={{
         minHeight: '100vh',
+
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+
+        py: 5,
+
         background:
-          'linear-gradient(135deg, #0f172a 0%, #16213e 50%, #1e3a5f 100%)',
-        p: 2,
+          'linear-gradient(180deg, #f8fafc 0%, #eef4ff 50%, #e8f0ff 100%)',
       }}
     >
-      <Card
+      <Container
+        maxWidth="xs"
         sx={{
           width: '100%',
-          maxWidth: 450,
-          boxShadow: 5,
         }}
       >
-        <CardContent sx={{ p: 4 }}>
+        {/* ======================================================
+            LOGIN CARD
+        ====================================================== */}
 
-          <Typography
-            variant="h4"
-            component="h1"
+        <Card
+          elevation={0}
+          sx={{
+            width: '100%',
+            borderRadius: 4,
+
+            backgroundColor: '#ffffff',
+
+            border:
+              '1px solid rgba(37,99,235,0.10)',
+
+            boxShadow:
+              '0 20px 60px rgba(15,23,42,0.12)',
+          }}
+        >
+          <CardContent
             sx={{
-              textAlign: 'center',
-              fontWeight: 700,
-              mb: 3,
-            }}
-          >
-            Login
-          </Typography>
-
-          {errorMessage && (
-            <Alert
-              severity="error"
-              sx={{ mb: 2 }}
-            >
-              {errorMessage}
-            </Alert>
-          )}
-
-          {successMessage && (
-            <Alert
-              severity="success"
-              sx={{ mb: 2 }}
-            >
-              {successMessage}
-            </Alert>
-          )}
-
-          <Box
-            component="form"
-            onSubmit={handleLogin}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
+              p: {
+                xs: 3,
+                sm: 4,
+              },
             }}
           >
 
-            <TextField
-              fullWidth
-              required
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
-              disabled={loading}
-            />
+            {/* ==================================================
+                TITLE
+            ================================================== */}
 
-            <TextField
-              fullWidth
-              required
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              disabled={loading}
-            />
-
-            <Button
-              fullWidth
-              type="submit"
-              variant="contained"
-              disabled={loading}
+            <Box
               sx={{
-                py: 1.5,
-                mt: 1,
+                textAlign: 'center',
+                mb: 3,
               }}
             >
-              {loading ? (
-                <>
-                  <CircularProgress
-                    size={24}
-                    sx={{ mr: 1 }}
-                  />
-                  Logging in...
-                </>
-              ) : (
-                'LOGIN'
-              )}
-            </Button>
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  mx: 'auto',
+                  mb: 2,
 
-            <Button
-              type="button"
-              disabled={loading}
-              onClick={() =>
-                navigate('/register')
-              }
-            >
-              Don't have an account? Register
-            </Button>
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
 
-            <Button
-              type="button"
-              disabled={loading}
-              onClick={() =>
-                navigate('/')
-              }
-            >
-              Back to Home
-            </Button>
+                  borderRadius: '50%',
 
-            {successMessage && (
-              <Button
-                type="button"
-                variant="outlined"
-                onClick={() =>
-                  navigate('/dashboard')
+                  background:
+                    'linear-gradient(135deg, #2563eb, #1d4ed8)',
+
+                  boxShadow:
+                    '0 10px 30px rgba(37,99,235,0.25)',
+                }}
+              >
+                <LockOutlinedIcon
+                  sx={{
+                    color: '#ffffff',
+                    fontSize: 30,
+                  }}
+                />
+              </Box>
+
+              <Typography
+                sx={{
+                  fontSize: 32,
+                  fontWeight: 900,
+                  color: '#111827',
+                }}
+              >
+                Login
+              </Typography>
+
+              <Typography
+                sx={{
+                  mt: 0.75,
+                  color: '#64748b',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                }}
+              >
+                GLOBAL DIGITAL MARKET
+              </Typography>
+            </Box>
+
+            {/* ==================================================
+                ERROR
+            ================================================== */}
+
+            {errorMessage && (
+              <Alert
+                severity="error"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                }}
+                onClose={() =>
+                  setErrorMessage('')
                 }
               >
-                Continue to Dashboard
-              </Button>
+                {errorMessage}
+              </Alert>
             )}
 
-          </Box>
+            {/* ==================================================
+                SUCCESS
+            ================================================== */}
 
-        </CardContent>
-      </Card>
+            {successMessage && (
+              <Alert
+                severity="success"
+                sx={{
+                  mb: 2,
+                  borderRadius: 2,
+                }}
+                onClose={() =>
+                  setSuccessMessage('')
+                }
+              >
+                {successMessage}
+              </Alert>
+            )}
+
+            {/* ==================================================
+                LOGIN FORM
+            ================================================== */}
+
+            <Box
+              component="form"
+              onSubmit={handleLogin}
+            >
+              <Stack spacing={2.5}>
+
+                {/* =================================================
+                    EMAIL
+                ================================================= */}
+
+                <TextField
+                  fullWidth
+                  required
+                  label="Email"
+                  type="email"
+                  value={email}
+                  autoComplete="email"
+                  onChange={(event) =>
+                    setEmail(
+                      event.target.value
+                    )
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <EmailOutlinedIcon
+                          sx={{
+                            color: '#2563eb',
+                          }}
+                        />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={inputSx}
+                />
+
+                {/* =================================================
+                    PASSWORD
+                ================================================= */}
+
+                <TextField
+                  fullWidth
+                  required
+                  label="Password"
+                  type={
+                    showPassword
+                      ? 'text'
+                      : 'password'
+                  }
+                  value={password}
+                  autoComplete="current-password"
+                  onChange={(event) =>
+                    setPassword(
+                      event.target.value
+                    )
+                  }
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockOutlinedIcon
+                          sx={{
+                            color: '#2563eb',
+                          }}
+                        />
+                      </InputAdornment>
+                    ),
+
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          type="button"
+                          onClick={() =>
+                            setShowPassword(
+                              (previous) =>
+                                !previous
+                            )
+                          }
+                          edge="end"
+                          aria-label={
+                            showPassword
+                              ? 'Hide password'
+                              : 'Show password'
+                          }
+                        >
+                          {showPassword ? (
+                            <VisibilityOff />
+                          ) : (
+                            <Visibility />
+                          )}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={inputSx}
+                />
+
+                {/* =================================================
+                    FORGOT PASSWORD
+                ================================================= */}
+
+                <Box
+                  sx={{
+                    textAlign: 'right',
+                    mt: -1,
+                  }}
+                >
+                  <Link
+                    component={RouterLink}
+                    to="/forgot-password"
+                    underline="none"
+                    sx={{
+                      color: '#2563eb',
+                      fontSize: 14,
+                      fontWeight: 700,
+
+                      '&:hover': {
+                        textDecoration:
+                          'underline',
+                      },
+                    }}
+                  >
+                    Forgot Password?
+                  </Link>
+                </Box>
+
+                {/* =================================================
+                    LOGIN BUTTON
+                ================================================= */}
+
+                <Button
+                  fullWidth
+                  type="submit"
+                  variant="contained"
+                  disabled={loading}
+                  sx={{
+                    py: 1.6,
+
+                    borderRadius: 2.5,
+
+                    textTransform:
+                      'uppercase',
+
+                    fontSize: 16,
+                    fontWeight: 800,
+
+                    background:
+                      'linear-gradient(90deg, #2563eb, #1d4ed8)',
+
+                    boxShadow:
+                      '0 10px 25px rgba(37,99,235,0.25)',
+
+                    '&:hover': {
+                      background:
+                        'linear-gradient(90deg, #1d4ed8, #1e40af)',
+                    },
+
+                    '&:disabled': {
+                      background:
+                        '#93c5fd',
+                    },
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress
+                      size={24}
+                      sx={{
+                        color: '#ffffff',
+                      }}
+                    />
+                  ) : (
+                    'Login'
+                  )}
+                </Button>
+
+                {/* =================================================
+                    REGISTER
+                ================================================= */}
+
+                <Typography
+                  sx={{
+                    textAlign: 'center',
+                    color: '#64748b',
+                    fontSize: 14,
+                    pt: 1,
+                  }}
+                >
+                  Don't have an account?{' '}
+
+                  <Link
+                    component={RouterLink}
+                    to="/register"
+                    underline="none"
+                    sx={{
+                      color: '#2563eb',
+                      fontWeight: 800,
+
+                      '&:hover': {
+                        textDecoration:
+                          'underline',
+                      },
+                    }}
+                  >
+                    Register
+                  </Link>
+                </Typography>
+
+                {/* =================================================
+                    HOME
+                ================================================= */}
+
+                <Typography
+                  sx={{
+                    textAlign: 'center',
+                    pt: 1,
+                  }}
+                >
+                  <Link
+                    component={RouterLink}
+                    to="/"
+                    underline="none"
+                    sx={{
+                      color: '#64748b',
+                      fontSize: 14,
+                      fontWeight: 700,
+
+                      '&:hover': {
+                        color: '#2563eb',
+                      },
+                    }}
+                  >
+                    Back to Home
+                  </Link>
+                </Typography>
+
+              </Stack>
+            </Box>
+          </CardContent>
+        </Card>
+      </Container>
     </Box>
   );
 };
