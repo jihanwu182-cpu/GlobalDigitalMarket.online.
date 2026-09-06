@@ -1861,4 +1861,6 @@ module.exports = {
   changePassword,
   forgotPassword,
   resetPassword,
+  sendVerificationEmail,
+  verifyEmail,
 };
