@@ -1513,6 +1513,341 @@ const resetPassword = async (
     return next(error);
   }
 };
+// ============================================================
+// SEND EMAIL VERIFICATION
+// ============================================================
+
+const sendVerificationEmail = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const authenticatedUser =
+      getAuthenticatedUser(req);
+
+    if (!authenticatedUser?.id) {
+      return res.status(401).json({
+        message:
+          'Authentication is required.',
+      });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        email,
+        first_name,
+        email_verified,
+        status
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [authenticatedUser.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (user.email_verified) {
+      return res.status(400).json({
+        message:
+          'Your email address is already verified.',
+      });
+    }
+
+    if (
+      user.status &&
+      [
+        'blocked',
+        'suspended',
+        'disabled',
+      ].includes(
+        String(user.status).toLowerCase()
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          'Your account is currently unavailable.',
+      });
+    }
+
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not configured.'
+      );
+    }
+
+    const verificationToken =
+      jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          purpose: 'email-verification',
+        },
+        secret,
+        {
+          expiresIn: '24h',
+        }
+      );
+
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      'https://www.globaldigitalmarket.online';
+
+    const verificationUrl =
+      `${frontendUrl}/#/verify-email?token=${encodeURIComponent(
+        verificationToken
+      )}`;
+
+    await sendEmail({
+      to: user.email,
+
+      subject:
+        'Verify Your Global Digital Market Email',
+
+      html: `
+        <div
+          style="
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 30px;
+            color: #172033;
+          "
+        >
+          <h2>
+            Verify Your Email Address
+          </h2>
+
+          <p>
+            Hello ${user.first_name || 'there'},
+          </p>
+
+          <p>
+            Please verify your email address
+            to complete your Global Digital Market
+            account setup.
+          </p>
+
+          <p>
+            <a
+              href="${verificationUrl}"
+              style="
+                display: inline-block;
+                padding: 14px 24px;
+                background: #2563eb;
+                color: #ffffff;
+                text-decoration: none;
+                border-radius: 8px;
+                font-weight: bold;
+              "
+            >
+              Verify Email
+            </a>
+          </p>
+
+          <p>
+            This verification link will expire
+            in <strong>24 hours</strong>.
+          </p>
+
+          <p>
+            If you did not create this account,
+            you can safely ignore this email.
+          </p>
+
+          <p>
+            Regards,<br>
+            Global Digital Market Support
+          </p>
+        </div>
+      `,
+
+      text: `
+Verify Your Global Digital Market Email
+
+Hello ${user.first_name || 'there'},
+
+Please verify your email address to complete your Global Digital Market account setup.
+
+Verify your email here:
+
+${verificationUrl}
+
+This verification link will expire in 24 hours.
+
+If you did not create this account, you can safely ignore this email.
+
+Regards,
+Global Digital Market Support
+      `,
+    });
+
+    logger.info(
+      `Verification email sent to ${user.email}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Verification email sent successfully.',
+    });
+
+  } catch (error) {
+    logger.error(
+      'Send verification email error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+
+// ============================================================
+// VERIFY EMAIL
+// ============================================================
+
+const verifyEmail = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const { token } = req.body || {};
+
+    if (!token) {
+      return res.status(400).json({
+        message:
+          'Verification token is required.',
+      });
+    }
+
+    const secret = process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not configured.'
+      );
+    }
+
+    let decoded;
+
+    try {
+      decoded = jwt.verify(
+        token,
+        secret
+      );
+    } catch (tokenError) {
+      return res.status(400).json({
+        message:
+          'This verification link is invalid or has expired. Please request a new verification email.',
+      });
+    }
+
+    if (
+      decoded?.purpose !==
+      'email-verification'
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid email verification token.',
+      });
+    }
+
+    if (!decoded?.id) {
+      return res.status(400).json({
+        message:
+          'Invalid email verification token.',
+      });
+    }
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        email,
+        email_verified,
+        status
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [decoded.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const user = result.rows[0];
+
+    if (
+      user.status &&
+      [
+        'blocked',
+        'suspended',
+        'disabled',
+      ].includes(
+        String(user.status).toLowerCase()
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          'Your account is currently unavailable.',
+      });
+    }
+
+    if (user.email_verified) {
+      return res.status(200).json({
+        message:
+          'Your email address is already verified.',
+      });
+    }
+
+    await pool.query(
+      `
+      UPDATE users
+      SET
+        email_verified = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      `,
+      [user.id]
+    );
+
+    logger.info(
+      `Email verified successfully for user ID ${user.id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Email verified successfully. You can now continue using your account.',
+    });
+
+  } catch (error) {
+    logger.error(
+      'Verify email error:',
+      error
+    );
+
+    return next(error);
+  }
+};
 
 // ============================================================
 // EXPORTS
