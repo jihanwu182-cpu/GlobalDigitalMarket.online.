@@ -32,6 +32,7 @@ import Wallet from './pages/Wallet';
 import ContactSupport from './pages/ContactSupport';
 import KYC from './pages/KYC';
 import Settings from './pages/Settings';
+import ForgotPassword from './pages/ForgotPassword';
 
 // ============================================================
 // ADMIN PAGES
@@ -403,13 +404,18 @@ const App: React.FC = () => {
             />
 
             <Route
-              path="/settings"
-              element={
-               <ProtectedRoute>
-                 <Settings />
+             path="/settings"
+             element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
-              }
-            />
+            }
+         />
+
+        <Route
+          path="/forgot-password"
+          element={<ForgotPassword />}
+        />
 
             {/* ==================================================
                 ADMIN LOGIN
