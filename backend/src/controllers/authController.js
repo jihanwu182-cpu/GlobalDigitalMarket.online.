@@ -15,6 +15,8 @@ const {
   sendEmail,
 } = require('../utils/email');
 
+const jwt = require('jsonwebtoken');
+
 
 // ============================================================
 // SUPPORTED CURRENCIES
@@ -91,10 +93,6 @@ const register = async (req, res, next) => {
       referrerCode,
     } = req.body || {};
 
-    // --------------------------------------------------------
-    // REQUIRED FIELDS
-    // --------------------------------------------------------
-
     if (
       !email ||
       !password ||
@@ -110,10 +108,6 @@ const register = async (req, res, next) => {
           'Please provide email, password, first name, last name, username, phone number, country and preferred currency.',
       });
     }
-
-    // --------------------------------------------------------
-    // NORMALIZE
-    // --------------------------------------------------------
 
     const normalizedEmail =
       normalizeText(email).toLowerCase();
@@ -138,10 +132,6 @@ const register = async (req, res, next) => {
 
     const normalizedReferrerCode =
       normalizeText(referrerCode);
-
-    // --------------------------------------------------------
-    // BASIC VALIDATION
-    // --------------------------------------------------------
 
     if (
       !normalizedEmail.includes('@') ||
@@ -212,15 +202,7 @@ const register = async (req, res, next) => {
       `New registration attempt for email: ${normalizedEmail}`
     );
 
-    // --------------------------------------------------------
-    // START TRANSACTION
-    // --------------------------------------------------------
-
     await client.query('BEGIN');
-
-    // --------------------------------------------------------
-    // CHECK EMAIL
-    // --------------------------------------------------------
 
     const existingEmail =
       await client.query(
@@ -242,10 +224,6 @@ const register = async (req, res, next) => {
       });
     }
 
-    // --------------------------------------------------------
-    // CHECK USERNAME
-    // --------------------------------------------------------
-
     const existingUsername =
       await client.query(
         `
@@ -266,10 +244,6 @@ const register = async (req, res, next) => {
       });
     }
 
-    // --------------------------------------------------------
-    // CHECK PHONE
-    // --------------------------------------------------------
-
     const existingPhone =
       await client.query(
         `
@@ -289,10 +263,6 @@ const register = async (req, res, next) => {
           'This phone number is already associated with an account.',
       });
     }
-
-    // --------------------------------------------------------
-    // VALIDATE OPTIONAL REFERRER CODE
-    // --------------------------------------------------------
 
     let validReferrerCode = null;
 
@@ -321,16 +291,8 @@ const register = async (req, res, next) => {
         normalizedReferrerCode;
     }
 
-    // --------------------------------------------------------
-    // HASH PASSWORD
-    // --------------------------------------------------------
-
     const passwordHash =
       await hashPassword(password);
-
-    // --------------------------------------------------------
-    // CREATE USER
-    // --------------------------------------------------------
 
     const userResult =
       await client.query(
@@ -399,10 +361,6 @@ const register = async (req, res, next) => {
     const databaseUser =
       userResult.rows[0];
 
-    // --------------------------------------------------------
-    // GENERATE UNIQUE REFERRAL CODE
-    // --------------------------------------------------------
-
     let referralCode =
       generateReferralCode(
         databaseUser.id
@@ -447,10 +405,6 @@ const register = async (req, res, next) => {
         databaseUser.id,
       ]
     );
-
-    // --------------------------------------------------------
-    // CREATE ACCOUNT
-    // --------------------------------------------------------
 
     const accountNumber =
       generateAccountNumber(
@@ -515,15 +469,7 @@ const register = async (req, res, next) => {
     const account =
       accountResult.rows[0];
 
-    // --------------------------------------------------------
-    // COMMIT
-    // --------------------------------------------------------
-
     await client.query('COMMIT');
-
-    // --------------------------------------------------------
-    // SEND WELCOME EMAIL
-    // --------------------------------------------------------
 
     try {
       await sendEmail({
@@ -612,10 +558,6 @@ Global Digital Market Support
       );
     }
 
-    // --------------------------------------------------------
-    // USER RESPONSE OBJECT
-    // --------------------------------------------------------
-
     const user = {
       id:
         databaseUser.id,
@@ -663,10 +605,6 @@ Global Digital Market Support
         databaseUser.created_at,
     };
 
-    // --------------------------------------------------------
-    // TOKENS
-    // --------------------------------------------------------
-
     const accessToken =
       generateAccessToken({
         id: user.id,
@@ -683,10 +621,6 @@ Global Digital Market Support
     logger.info(
       `Successful registration for email: ${normalizedEmail}`
     );
-
-    // --------------------------------------------------------
-    // RESPONSE
-    // --------------------------------------------------------
 
     return res.status(201).json({
       message:
@@ -840,10 +774,6 @@ const login = async (req, res, next) => {
       });
     }
 
-    // --------------------------------------------------------
-    // ACCOUNT STATUS
-    // --------------------------------------------------------
-
     if (
       databaseUser.status &&
       [
@@ -861,10 +791,6 @@ const login = async (req, res, next) => {
           'Your account is currently unavailable. Please contact support.',
       });
     }
-
-    // --------------------------------------------------------
-    // USER OBJECT
-    // --------------------------------------------------------
 
     const user = {
       id:
@@ -916,10 +842,6 @@ const login = async (req, res, next) => {
         databaseUser.created_at,
     };
 
-    // --------------------------------------------------------
-    // ACCOUNT OBJECT
-    // --------------------------------------------------------
-
     const account =
       databaseUser.account_id
         ? {
@@ -945,10 +867,6 @@ const login = async (req, res, next) => {
               ),
           }
         : null;
-
-    // --------------------------------------------------------
-    // TOKENS
-    // --------------------------------------------------------
 
     const accessToken =
       generateAccessToken({
@@ -1050,6 +968,591 @@ const refreshToken = async (
 
 
 // ============================================================
+// GET USER FROM ACCESS TOKEN
+// ============================================================
+
+const getAuthenticatedUser = (req) => {
+  const authHeader =
+    req.headers.authorization || '';
+
+  if (!authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  const token =
+    authHeader.substring(7).trim();
+
+  if (!token) {
+    return null;
+  }
+
+  const secret =
+    process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET is not configured.'
+    );
+  }
+
+  try {
+    return jwt.verify(
+      token,
+      secret
+    );
+  } catch (error) {
+    return null;
+  }
+};
+
+
+// ============================================================
+// CHANGE PASSWORD
+// ============================================================
+
+const changePassword = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      currentPassword,
+      newPassword,
+    } = req.body || {};
+
+    if (
+      !currentPassword ||
+      !newPassword
+    ) {
+      return res.status(400).json({
+        message:
+          'Current password and new password are required.',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        message:
+          'New password must contain at least 8 characters.',
+      });
+    }
+
+    if (
+      currentPassword === newPassword
+    ) {
+      return res.status(400).json({
+        message:
+          'New password must be different from your current password.',
+      });
+    }
+
+    const authenticatedUser =
+      getAuthenticatedUser(req);
+
+    if (!authenticatedUser?.id) {
+      return res.status(401).json({
+        message:
+          'Authentication is required.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          password_hash,
+          status
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [authenticatedUser.id]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const user =
+      result.rows[0];
+
+    if (
+      user.status &&
+      [
+        'blocked',
+        'suspended',
+        'disabled',
+      ].includes(
+        String(
+          user.status
+        ).toLowerCase()
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          'Your account is currently unavailable.',
+      });
+    }
+
+    const passwordMatches =
+      await comparePassword(
+        currentPassword,
+        user.password_hash
+      );
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message:
+          'Current password is incorrect.',
+      });
+    }
+
+    const newPasswordHash =
+      await hashPassword(
+        newPassword
+      );
+
+    await pool.query(
+      `
+      UPDATE users
+      SET
+        password_hash = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      `,
+      [
+        newPasswordHash,
+        user.id,
+      ]
+    );
+
+    logger.info(
+      `Password changed successfully for user ID ${user.id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Password changed successfully.',
+    });
+
+  } catch (error) {
+    logger.error(
+      'Change password error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+
+// ============================================================
+// FORGOT PASSWORD
+// ============================================================
+
+const forgotPassword = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      email,
+    } = req.body || {};
+
+    if (!email) {
+      return res.status(400).json({
+        message:
+          'Please enter your email address.',
+      });
+    }
+
+    const normalizedEmail =
+      normalizeText(email).toLowerCase();
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          first_name,
+          status
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
+        `,
+        [normalizedEmail]
+      );
+
+    /*
+     * Always return the same response whether
+     * the email exists or not.
+     */
+    const safeMessage =
+      'If an account exists with this email, a reset link has been sent.';
+
+    if (result.rows.length === 0) {
+      return res.status(200).json({
+        message: safeMessage,
+      });
+    }
+
+    const user =
+      result.rows[0];
+
+    if (
+      user.status &&
+      [
+        'blocked',
+        'suspended',
+        'disabled',
+      ].includes(
+        String(
+          user.status
+        ).toLowerCase()
+      )
+    ) {
+      return res.status(200).json({
+        message: safeMessage,
+      });
+    }
+
+    const secret =
+      process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not configured.'
+      );
+    }
+
+    /*
+     * Reset token expires after 30 minutes.
+     */
+    const resetToken =
+      jwt.sign(
+        {
+          id: user.id,
+          email: user.email,
+          purpose: 'password-reset',
+        },
+        secret,
+        {
+          expiresIn: '30m',
+        }
+      );
+
+    /*
+     * React HashRouter reset URL.
+     *
+     * Change this if your production frontend
+     * uses a different domain.
+     */
+    const frontendUrl =
+      process.env.FRONTEND_URL ||
+      'https://www.globaldigitalmarket.online';
+
+    const resetUrl =
+      `${frontendUrl}/#/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+    try {
+      await sendEmail({
+        to: user.email,
+
+        subject:
+          'Reset Your Global Digital Market Password',
+
+        html: `
+          <div
+            style="
+              font-family: Arial, sans-serif;
+              line-height: 1.6;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 30px;
+              color: #172033;
+            "
+          >
+
+            <h2>
+              Password Reset Request
+            </h2>
+
+            <p>
+              Hello ${user.first_name || 'there'},
+            </p>
+
+            <p>
+              We received a request to reset the
+              password for your Global Digital Market
+              account.
+            </p>
+
+            <p>
+              Click the button below to create a
+              new password:
+            </p>
+
+            <p>
+              <a
+                href="${resetUrl}"
+                style="
+                  display: inline-block;
+                  padding: 14px 24px;
+                  background: #2563eb;
+                  color: #ffffff;
+                  text-decoration: none;
+                  border-radius: 8px;
+                  font-weight: bold;
+                "
+              >
+                Reset Password
+              </a>
+            </p>
+
+            <p>
+              This link will expire in
+              <strong>30 minutes</strong>.
+            </p>
+
+            <p>
+              If you did not request a password reset,
+              you can safely ignore this email.
+            </p>
+
+            <p>
+              Regards,<br>
+              Global Digital Market Support
+            </p>
+
+          </div>
+        `,
+
+        text: `
+Password Reset Request
+
+Hello ${user.first_name || 'there'},
+
+We received a request to reset the password for your Global Digital Market account.
+
+Reset your password here:
+
+${resetUrl}
+
+This link will expire in 30 minutes.
+
+If you did not request a password reset, you can safely ignore this email.
+
+Regards,
+Global Digital Market Support
+        `,
+      });
+
+      logger.info(
+        `Password reset email sent to ${user.email}`
+      );
+
+    } catch (emailError) {
+      logger.error(
+        `Password reset email failed for ${user.email}:`,
+        emailError
+      );
+
+      /*
+       * Do not expose the email failure to the user.
+       */
+    }
+
+    return res.status(200).json({
+      message: safeMessage,
+    });
+
+  } catch (error) {
+    logger.error(
+      'Forgot password error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+
+// ============================================================
+// RESET PASSWORD
+// ============================================================
+
+const resetPassword = async (
+  req,
+  res,
+  next
+) => {
+  try {
+    const {
+      token,
+      newPassword,
+    } = req.body || {};
+
+    if (!token || !newPassword) {
+      return res.status(400).json({
+        message:
+          'Reset token and new password are required.',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        message:
+          'New password must contain at least 8 characters.',
+      });
+    }
+
+    const secret =
+      process.env.JWT_SECRET;
+
+    if (!secret) {
+      throw new Error(
+        'JWT_SECRET is not configured.'
+      );
+    }
+
+    let decoded;
+
+    try {
+      decoded =
+        jwt.verify(
+          token,
+          secret
+        );
+    } catch (tokenError) {
+      return res.status(400).json({
+        message:
+          'This password reset link is invalid or has expired. Please request a new one.',
+      });
+    }
+
+    if (
+      decoded?.purpose !==
+      'password-reset'
+    ) {
+      return res.status(400).json({
+        message:
+          'Invalid password reset token.',
+      });
+    }
+
+    if (!decoded?.id) {
+      return res.status(400).json({
+        message:
+          'Invalid password reset token.',
+      });
+    }
+
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          password_hash,
+          status
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [decoded.id]
+      );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message:
+          'User account not found.',
+      });
+    }
+
+    const user =
+      result.rows[0];
+
+    if (
+      user.status &&
+      [
+        'blocked',
+        'suspended',
+        'disabled',
+      ].includes(
+        String(
+          user.status
+        ).toLowerCase()
+      )
+    ) {
+      return res.status(403).json({
+        message:
+          'Your account is currently unavailable.',
+      });
+    }
+
+    /*
+     * Prevent using the same password.
+     */
+    const samePassword =
+      await comparePassword(
+        newPassword,
+        user.password_hash
+      );
+
+    if (samePassword) {
+      return res.status(400).json({
+        message:
+          'Please choose a different password from your previous password.',
+      });
+    }
+
+    const newPasswordHash =
+      await hashPassword(
+        newPassword
+      );
+
+    await pool.query(
+      `
+      UPDATE users
+      SET
+        password_hash = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      `,
+      [
+        newPasswordHash,
+        user.id,
+      ]
+    );
+
+    logger.info(
+      `Password reset successfully for user ID ${user.id}`
+    );
+
+    return res.status(200).json({
+      message:
+        'Password reset successfully. You can now log in with your new password.',
+    });
+TV
+  } catch (error) {
+    logger.error(
+      'Reset password error:',
+      error
+    );
+
+    return next(error);
+  }
+};
+
+
+// ============================================================
 // EXPORTS
 // ============================================================
 
@@ -1058,4 +1561,7 @@ module.exports = {
   login,
   logout,
   refreshToken,
+  changePassword,
+  forgotPassword,
+  resetPassword,
 };
