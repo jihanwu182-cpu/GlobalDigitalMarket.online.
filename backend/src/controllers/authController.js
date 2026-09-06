@@ -17,7 +17,6 @@ const {
 
 const jwt = require('jsonwebtoken');
 
-
 // ============================================================
 // SUPPORTED CURRENCIES
 // ============================================================
@@ -40,7 +39,6 @@ const SUPPORTED_CURRENCIES = [
   'INR',
 ];
 
-
 // ============================================================
 // HELPERS
 // ============================================================
@@ -53,7 +51,6 @@ const normalizeText = (value) => {
   return String(value).trim();
 };
 
-
 const generateReferralCode = (userId) => {
   const randomPart = Math.random()
     .toString(36)
@@ -63,7 +60,6 @@ const generateReferralCode = (userId) => {
   return `GDM${userId}${randomPart}`;
 };
 
-
 const generateAccountNumber = (userId) => {
   const timestamp = Date.now()
     .toString()
@@ -71,7 +67,6 @@ const generateAccountNumber = (userId) => {
 
   return `GDM-${userId}-${timestamp}`;
 };
-
 
 // ============================================================
 // REGISTER
@@ -109,27 +104,14 @@ const register = async (req, res, next) => {
       });
     }
 
-    const normalizedEmail =
-      normalizeText(email).toLowerCase();
-
-    const normalizedFirstName =
-      normalizeText(firstName);
-
-    const normalizedLastName =
-      normalizeText(lastName);
-
-    const normalizedUsername =
-      normalizeText(username);
-
-    const normalizedPhone =
-      normalizeText(phone);
-
-    const normalizedCountry =
-      normalizeText(country);
-
+    const normalizedEmail = normalizeText(email).toLowerCase();
+    const normalizedFirstName = normalizeText(firstName);
+    const normalizedLastName = normalizeText(lastName);
+    const normalizedUsername = normalizeText(username);
+    const normalizedPhone = normalizeText(phone);
+    const normalizedCountry = normalizeText(country);
     const normalizedCurrency =
       normalizeText(preferredCurrency).toUpperCase();
-
     const normalizedReferrerCode =
       normalizeText(referrerCode);
 
@@ -138,8 +120,7 @@ const register = async (req, res, next) => {
       !normalizedEmail.includes('.')
     ) {
       return res.status(400).json({
-        message:
-          'Please provide a valid email address.',
+        message: 'Please provide a valid email address.',
       });
     }
 
@@ -152,15 +133,13 @@ const register = async (req, res, next) => {
 
     if (normalizedFirstName.length < 2) {
       return res.status(400).json({
-        message:
-          'Please provide a valid first name.',
+        message: 'Please provide a valid first name.',
       });
     }
 
     if (normalizedLastName.length < 2) {
       return res.status(400).json({
-        message:
-          'Please provide a valid last name.',
+        message: 'Please provide a valid last name.',
       });
     }
 
@@ -173,15 +152,13 @@ const register = async (req, res, next) => {
 
     if (normalizedPhone.length < 7) {
       return res.status(400).json({
-        message:
-          'Please provide a valid phone number.',
+        message: 'Please provide a valid phone number.',
       });
     }
 
     if (!normalizedCountry) {
       return res.status(400).json({
-        message:
-          'Please select your country.',
+        message: 'Please select your country.',
       });
     }
 
@@ -204,16 +181,19 @@ const register = async (req, res, next) => {
 
     await client.query('BEGIN');
 
-    const existingEmail =
-      await client.query(
-        `
-        SELECT id
-        FROM users
-        WHERE LOWER(email) = LOWER($1)
-        LIMIT 1
-        `,
-        [normalizedEmail]
-      );
+    // --------------------------------------------------------
+    // CHECK EMAIL
+    // --------------------------------------------------------
+
+    const existingEmail = await client.query(
+      `
+      SELECT id
+      FROM users
+      WHERE LOWER(email) = LOWER($1)
+      LIMIT 1
+      `,
+      [normalizedEmail]
+    );
 
     if (existingEmail.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -224,16 +204,19 @@ const register = async (req, res, next) => {
       });
     }
 
-    const existingUsername =
-      await client.query(
-        `
-        SELECT id
-        FROM users
-        WHERE LOWER(username) = LOWER($1)
-        LIMIT 1
-        `,
-        [normalizedUsername]
-      );
+    // --------------------------------------------------------
+    // CHECK USERNAME
+    // --------------------------------------------------------
+
+    const existingUsername = await client.query(
+      `
+      SELECT id
+      FROM users
+      WHERE LOWER(username) = LOWER($1)
+      LIMIT 1
+      `,
+      [normalizedUsername]
+    );
 
     if (existingUsername.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -244,16 +227,19 @@ const register = async (req, res, next) => {
       });
     }
 
-    const existingPhone =
-      await client.query(
-        `
-        SELECT id
-        FROM users
-        WHERE phone = $1
-        LIMIT 1
-        `,
-        [normalizedPhone]
-      );
+    // --------------------------------------------------------
+    // CHECK PHONE
+    // --------------------------------------------------------
+
+    const existingPhone = await client.query(
+      `
+      SELECT id
+      FROM users
+      WHERE phone = $1
+      LIMIT 1
+      `,
+      [normalizedPhone]
+    );
 
     if (existingPhone.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -264,19 +250,22 @@ const register = async (req, res, next) => {
       });
     }
 
+    // --------------------------------------------------------
+    // REFERRER
+    // --------------------------------------------------------
+
     let validReferrerCode = null;
 
     if (normalizedReferrerCode) {
-      const referrerResult =
-        await client.query(
-          `
-          SELECT id
-          FROM users
-          WHERE referral_code = $1
-          LIMIT 1
-          `,
-          [normalizedReferrerCode]
-        );
+      const referrerResult = await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE referral_code = $1
+        LIMIT 1
+        `,
+        [normalizedReferrerCode]
+      );
 
       if (referrerResult.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -291,75 +280,86 @@ const register = async (req, res, next) => {
         normalizedReferrerCode;
     }
 
+    // --------------------------------------------------------
+    // HASH PASSWORD
+    // --------------------------------------------------------
+
     const passwordHash =
       await hashPassword(password);
 
-    const userResult =
-      await client.query(
-        `
-        INSERT INTO users
-        (
-          email,
-          password_hash,
-          first_name,
-          last_name,
-          username,
-          phone,
-          country,
-          preferred_currency,
-          referrer_code,
-          role,
-          status,
-          email_verified,
-          identity_verification_status
-        )
-        VALUES
-        (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          $8,
-          $9,
-          'user',
-          'active',
-          FALSE,
-          'PENDING'
-        )
-        RETURNING
-          id,
-          email,
-          first_name,
-          last_name,
-          username,
-          phone,
-          country,
-          preferred_currency,
-          referrer_code,
-          role,
-          status,
-          email_verified,
-          identity_verification_status,
-          created_at
-        `,
-        [
-          normalizedEmail,
-          passwordHash,
-          normalizedFirstName,
-          normalizedLastName,
-          normalizedUsername,
-          normalizedPhone,
-          normalizedCountry,
-          normalizedCurrency,
-          validReferrerCode,
-        ]
-      );
+    // --------------------------------------------------------
+    // CREATE USER
+    // --------------------------------------------------------
+
+    const userResult = await client.query(
+      `
+      INSERT INTO users
+      (
+        email,
+        password_hash,
+        first_name,
+        last_name,
+        username,
+        phone,
+        country,
+        preferred_currency,
+        referrer_code,
+        role,
+        status,
+        email_verified,
+        identity_verification_status
+      )
+      VALUES
+      (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        'user',
+        'active',
+        FALSE,
+        'PENDING'
+      )
+      RETURNING
+        id,
+        email,
+        first_name,
+        last_name,
+        username,
+        phone,
+        country,
+        preferred_currency,
+        referrer_code,
+        role,
+        status,
+        email_verified,
+        identity_verification_status,
+        created_at
+      `,
+      [
+        normalizedEmail,
+        passwordHash,
+        normalizedFirstName,
+        normalizedLastName,
+        normalizedUsername,
+        normalizedPhone,
+        normalizedCountry,
+        normalizedCurrency,
+        validReferrerCode,
+      ]
+    );
 
     const databaseUser =
       userResult.rows[0];
+
+    // --------------------------------------------------------
+    // REFERRAL CODE
+    // --------------------------------------------------------
 
     let referralCode =
       generateReferralCode(
@@ -405,6 +405,10 @@ const register = async (req, res, next) => {
         databaseUser.id,
       ]
     );
+
+    // --------------------------------------------------------
+    // CREATE ACCOUNT
+    // --------------------------------------------------------
 
     const accountNumber =
       generateAccountNumber(
@@ -470,6 +474,10 @@ const register = async (req, res, next) => {
       accountResult.rows[0];
 
     await client.query('COMMIT');
+
+    // --------------------------------------------------------
+    // WELCOME EMAIL
+    // --------------------------------------------------------
 
     try {
       await sendEmail({
@@ -550,7 +558,6 @@ Global Digital Market Support
       logger.info(
         `Welcome email sent successfully to ${normalizedEmail}`
       );
-
     } catch (emailError) {
       logger.error(
         `Welcome email failed for ${normalizedEmail}:`,
@@ -558,52 +565,36 @@ Global Digital Market Support
       );
     }
 
+    // --------------------------------------------------------
+    // USER OBJECT
+    // --------------------------------------------------------
+
     const user = {
-      id:
-        databaseUser.id,
-
-      email:
-        databaseUser.email,
-
-      firstName:
-        databaseUser.first_name,
-
-      lastName:
-        databaseUser.last_name,
-
-      username:
-        databaseUser.username,
-
-      phone:
-        databaseUser.phone,
-
-      country:
-        databaseUser.country,
-
+      id: databaseUser.id,
+      email: databaseUser.email,
+      firstName: databaseUser.first_name,
+      lastName: databaseUser.last_name,
+      username: databaseUser.username,
+      phone: databaseUser.phone,
+      country: databaseUser.country,
       preferredCurrency:
         databaseUser.preferred_currency,
-
-      referralCode:
-        referralCode,
-
+      referralCode,
       referrerCode:
         databaseUser.referrer_code,
-
-      role:
-        databaseUser.role,
-
-      status:
-        databaseUser.status,
-
+      role: databaseUser.role,
+      status: databaseUser.status,
       emailVerified:
         databaseUser.email_verified,
-
       identityVerificationStatus:
         databaseUser.identity_verification_status,
-
       createdAt:
         databaseUser.created_at,
     };
+
+    // --------------------------------------------------------
+    // TOKENS
+    // --------------------------------------------------------
 
     const accessToken =
       generateAccessToken({
@@ -629,41 +620,30 @@ Global Digital Market Support
       user,
 
       account: {
-        id:
-          account.id,
-
+        id: account.id,
         accountNumber:
           account.account_number,
-
         accountType:
           account.account_type,
-
         accountName:
           account.account_name,
-
         currency:
           account.currency,
-
         balance:
           Number(account.balance || 0),
-
         availableBalance:
           Number(
             account.available_balance || 0
           ),
-
         status:
           account.status,
-
         createdAt:
           account.created_at,
       },
 
       accessToken,
-
       refreshToken,
     });
-
   } catch (error) {
     try {
       await client.query('ROLLBACK');
@@ -680,12 +660,10 @@ Global Digital Market Support
     );
 
     return next(error);
-
   } finally {
     client.release();
   }
 };
-
 
 // ============================================================
 // LOGIN
@@ -793,51 +771,35 @@ const login = async (req, res, next) => {
     }
 
     const user = {
-      id:
-        databaseUser.id,
-
-      email:
-        databaseUser.email,
-
+      id: databaseUser.id,
+      email: databaseUser.email,
       firstName:
         databaseUser.first_name,
-
       lastName:
         databaseUser.last_name,
-
       username:
         databaseUser.username || '',
-
       phone:
         databaseUser.phone || '',
-
       country:
         databaseUser.country || '',
-
       preferredCurrency:
         databaseUser.preferred_currency ||
         databaseUser.account_currency ||
         'USD',
-
       referralCode:
         databaseUser.referral_code || '',
-
       referrerCode:
         databaseUser.referrer_code || '',
-
       role:
         databaseUser.role,
-
       status:
         databaseUser.status,
-
       emailVerified:
         databaseUser.email_verified,
-
       identityVerificationStatus:
         databaseUser.identity_verification_status ||
         'PENDING',
-
       createdAt:
         databaseUser.created_at,
     };
@@ -888,16 +850,11 @@ const login = async (req, res, next) => {
     return res.status(200).json({
       message:
         'Login successful.',
-
       user,
-
       account,
-
       accessToken,
-
       refreshToken,
     });
-
   } catch (error) {
     logger.error(
       'Login error:',
@@ -907,7 +864,6 @@ const login = async (req, res, next) => {
     return next(error);
   }
 };
-
 
 // ============================================================
 // LOGOUT
@@ -923,12 +879,10 @@ const logout = async (
       message:
         'Logout successful.',
     });
-
   } catch (error) {
     return next(error);
   }
 };
-
 
 // ============================================================
 // REFRESH TOKEN
@@ -955,7 +909,6 @@ const refreshToken = async (
       message:
         'Refresh token verification is not configured yet.',
     });
-
   } catch (error) {
     logger.error(
       'Refresh token error:',
@@ -965,7 +918,6 @@ const refreshToken = async (
     return next(error);
   }
 };
-
 
 // ============================================================
 // GET USER FROM ACCESS TOKEN
@@ -1004,7 +956,6 @@ const getAuthenticatedUser = (req) => {
     return null;
   }
 };
-
 
 // ============================================================
 // CHANGE PASSWORD
@@ -1139,7 +1090,6 @@ const changePassword = async (
       message:
         'Password changed successfully.',
     });
-
   } catch (error) {
     logger.error(
       'Change password error:',
@@ -1149,7 +1099,6 @@ const changePassword = async (
     return next(error);
   }
 };
-
 
 // ============================================================
 // FORGOT PASSWORD
@@ -1190,10 +1139,6 @@ const forgotPassword = async (
         [normalizedEmail]
       );
 
-    /*
-     * Always return the same response whether
-     * the email exists or not.
-     */
     const safeMessage =
       'If an account exists with this email, a reset link has been sent.';
 
@@ -1232,9 +1177,10 @@ const forgotPassword = async (
       );
     }
 
-    /*
-     * Reset token expires after 30 minutes.
-     */
+    // --------------------------------------------------------
+    // RESET TOKEN
+    // --------------------------------------------------------
+
     const resetToken =
       jwt.sign(
         {
@@ -1248,18 +1194,22 @@ const forgotPassword = async (
         }
       );
 
-    /*
-     * React HashRouter reset URL.
-     *
-     * Change this if your production frontend
-     * uses a different domain.
-     */
+    // --------------------------------------------------------
+    // FRONTEND URL
+    // --------------------------------------------------------
+
     const frontendUrl =
       process.env.FRONTEND_URL ||
       'https://www.globaldigitalmarket.online';
 
     const resetUrl =
-      `${frontendUrl}/#/reset-password?token=${encodeURIComponent(resetToken)}`;
+      `${frontendUrl}/#/reset-password?token=${encodeURIComponent(
+        resetToken
+      )}`;
+
+    // --------------------------------------------------------
+    // SEND EMAIL
+    // --------------------------------------------------------
 
     try {
       await sendEmail({
@@ -1357,22 +1307,16 @@ Global Digital Market Support
       logger.info(
         `Password reset email sent to ${user.email}`
       );
-
     } catch (emailError) {
       logger.error(
         `Password reset email failed for ${user.email}:`,
         emailError
       );
-
-      /*
-       * Do not expose the email failure to the user.
-       */
     }
 
     return res.status(200).json({
       message: safeMessage,
     });
-
   } catch (error) {
     logger.error(
       'Forgot password error:',
@@ -1382,7 +1326,6 @@ Global Digital Market Support
     return next(error);
   }
 };
-
 
 // ============================================================
 // RESET PASSWORD
@@ -1422,6 +1365,10 @@ const resetPassword = async (
       );
     }
 
+    // --------------------------------------------------------
+    // VERIFY RESET TOKEN
+    // --------------------------------------------------------
+
     let decoded;
 
     try {
@@ -1454,6 +1401,10 @@ const resetPassword = async (
       });
     }
 
+    // --------------------------------------------------------
+    // FIND USER
+    // --------------------------------------------------------
+
     const result =
       await pool.query(
         `
@@ -1479,6 +1430,10 @@ const resetPassword = async (
     const user =
       result.rows[0];
 
+    // --------------------------------------------------------
+    // ACCOUNT STATUS
+    // --------------------------------------------------------
+
     if (
       user.status &&
       [
@@ -1497,9 +1452,10 @@ const resetPassword = async (
       });
     }
 
-    /*
-     * Prevent using the same password.
-     */
+    // --------------------------------------------------------
+    // PREVENT SAME PASSWORD
+    // --------------------------------------------------------
+
     const samePassword =
       await comparePassword(
         newPassword,
@@ -1513,10 +1469,18 @@ const resetPassword = async (
       });
     }
 
+    // --------------------------------------------------------
+    // HASH NEW PASSWORD
+    // --------------------------------------------------------
+
     const newPasswordHash =
       await hashPassword(
         newPassword
       );
+
+    // --------------------------------------------------------
+    // UPDATE PASSWORD
+    // --------------------------------------------------------
 
     await pool.query(
       `
@@ -1540,7 +1504,6 @@ const resetPassword = async (
       message:
         'Password reset successfully. You can now log in with your new password.',
     });
-TV
   } catch (error) {
     logger.error(
       'Reset password error:',
@@ -1550,7 +1513,6 @@ TV
     return next(error);
   }
 };
-
 
 // ============================================================
 // EXPORTS
