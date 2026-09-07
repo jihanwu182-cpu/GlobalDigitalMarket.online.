@@ -69,6 +69,140 @@ const generateAccountNumber = (userId) => {
 };
 
 // ============================================================
+// SEND VERIFICATION EMAIL HELPER
+// ============================================================
+
+const sendVerificationEmailToUser = async ({
+  id,
+  email,
+  firstName,
+}) => {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET is not configured.'
+    );
+  }
+
+  const verificationToken = jwt.sign(
+    {
+      id,
+      email,
+      purpose: 'email-verification',
+    },
+    secret,
+    {
+      expiresIn: '24h',
+    }
+  );
+
+  const frontendUrl =
+    process.env.FRONTEND_URL ||
+    'https://www.globaldigitalmarket.online';
+
+  const verificationUrl =
+    `${frontendUrl}/#/verify-email?token=${encodeURIComponent(
+      verificationToken
+    )}`;
+
+  await sendEmail({
+    to: email,
+
+    subject:
+      'Verify Your Global Digital Market Email',
+
+    html: `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 30px;
+          color: #172033;
+        "
+      >
+
+        <h2>
+          Verify Your Email Address
+        </h2>
+
+        <p>
+          Hello ${firstName || 'there'},
+        </p>
+
+        <p>
+          Thank you for creating your
+          Global Digital Market account.
+        </p>
+
+        <p>
+          Please verify your email address
+          by clicking the button below:
+        </p>
+
+        <p>
+          <a
+            href="${verificationUrl}"
+            style="
+              display: inline-block;
+              padding: 14px 24px;
+              background: #2563eb;
+              color: #ffffff;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;
+            "
+          >
+            Verify Email
+          </a>
+        </p>
+
+        <p>
+          This verification link will expire
+          in <strong>24 hours</strong>.
+        </p>
+
+        <p>
+          If you did not create this account,
+          you can safely ignore this email.
+        </p>
+
+        <p>
+          Regards,<br>
+          Global Digital Market Support
+        </p>
+
+      </div>
+    `,
+
+    text: `
+Verify Your Global Digital Market Email
+
+Hello ${firstName || 'there'},
+
+Thank you for creating your Global Digital Market account.
+
+Please verify your email address using the link below:
+
+${verificationUrl}
+
+This verification link will expire in 24 hours.
+
+If you did not create this account, you can safely ignore this email.
+
+Regards,
+Global Digital Market Support
+    `,
+  });
+
+  logger.info(
+    `Verification email sent successfully to ${email}`
+  );
+};
+
+// ============================================================
 // REGISTER
 // ============================================================
 
@@ -88,6 +222,10 @@ const register = async (req, res, next) => {
       referrerCode,
     } = req.body || {};
 
+    // --------------------------------------------------------
+    // REQUIRED FIELDS
+    // --------------------------------------------------------
+
     if (
       !email ||
       !password ||
@@ -104,23 +242,45 @@ const register = async (req, res, next) => {
       });
     }
 
-    const normalizedEmail = normalizeText(email).toLowerCase();
-    const normalizedFirstName = normalizeText(firstName);
-    const normalizedLastName = normalizeText(lastName);
-    const normalizedUsername = normalizeText(username);
-    const normalizedPhone = normalizeText(phone);
-    const normalizedCountry = normalizeText(country);
+    // --------------------------------------------------------
+    // NORMALIZE
+    // --------------------------------------------------------
+
+    const normalizedEmail =
+      normalizeText(email).toLowerCase();
+
+    const normalizedFirstName =
+      normalizeText(firstName);
+
+    const normalizedLastName =
+      normalizeText(lastName);
+
+    const normalizedUsername =
+      normalizeText(username);
+
+    const normalizedPhone =
+      normalizeText(phone);
+
+    const normalizedCountry =
+      normalizeText(country);
+
     const normalizedCurrency =
       normalizeText(preferredCurrency).toUpperCase();
+
     const normalizedReferrerCode =
       normalizeText(referrerCode);
+
+    // --------------------------------------------------------
+    // VALIDATION
+    // --------------------------------------------------------
 
     if (
       !normalizedEmail.includes('@') ||
       !normalizedEmail.includes('.')
     ) {
       return res.status(400).json({
-        message: 'Please provide a valid email address.',
+        message:
+          'Please provide a valid email address.',
       });
     }
 
@@ -133,13 +293,15 @@ const register = async (req, res, next) => {
 
     if (normalizedFirstName.length < 2) {
       return res.status(400).json({
-        message: 'Please provide a valid first name.',
+        message:
+          'Please provide a valid first name.',
       });
     }
 
     if (normalizedLastName.length < 2) {
       return res.status(400).json({
-        message: 'Please provide a valid last name.',
+        message:
+          'Please provide a valid last name.',
       });
     }
 
@@ -152,13 +314,15 @@ const register = async (req, res, next) => {
 
     if (normalizedPhone.length < 7) {
       return res.status(400).json({
-        message: 'Please provide a valid phone number.',
+        message:
+          'Please provide a valid phone number.',
       });
     }
 
     if (!normalizedCountry) {
       return res.status(400).json({
-        message: 'Please select your country.',
+        message:
+          'Please select your country.',
       });
     }
 
@@ -185,15 +349,16 @@ const register = async (req, res, next) => {
     // CHECK EMAIL
     // --------------------------------------------------------
 
-    const existingEmail = await client.query(
-      `
-      SELECT id
-      FROM users
-      WHERE LOWER(email) = LOWER($1)
-      LIMIT 1
-      `,
-      [normalizedEmail]
-    );
+    const existingEmail =
+      await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
+        `,
+        [normalizedEmail]
+      );
 
     if (existingEmail.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -208,15 +373,16 @@ const register = async (req, res, next) => {
     // CHECK USERNAME
     // --------------------------------------------------------
 
-    const existingUsername = await client.query(
-      `
-      SELECT id
-      FROM users
-      WHERE LOWER(username) = LOWER($1)
-      LIMIT 1
-      `,
-      [normalizedUsername]
-    );
+    const existingUsername =
+      await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE LOWER(username) = LOWER($1)
+        LIMIT 1
+        `,
+        [normalizedUsername]
+      );
 
     if (existingUsername.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -231,15 +397,16 @@ const register = async (req, res, next) => {
     // CHECK PHONE
     // --------------------------------------------------------
 
-    const existingPhone = await client.query(
-      `
-      SELECT id
-      FROM users
-      WHERE phone = $1
-      LIMIT 1
-      `,
-      [normalizedPhone]
-    );
+    const existingPhone =
+      await client.query(
+        `
+        SELECT id
+        FROM users
+        WHERE phone = $1
+        LIMIT 1
+        `,
+        [normalizedPhone]
+      );
 
     if (existingPhone.rows.length > 0) {
       await client.query('ROLLBACK');
@@ -257,15 +424,16 @@ const register = async (req, res, next) => {
     let validReferrerCode = null;
 
     if (normalizedReferrerCode) {
-      const referrerResult = await client.query(
-        `
-        SELECT id
-        FROM users
-        WHERE referral_code = $1
-        LIMIT 1
-        `,
-        [normalizedReferrerCode]
-      );
+      const referrerResult =
+        await client.query(
+          `
+          SELECT id
+          FROM users
+          WHERE referral_code = $1
+          LIMIT 1
+          `,
+          [normalizedReferrerCode]
+        );
 
       if (referrerResult.rows.length === 0) {
         await client.query('ROLLBACK');
@@ -291,68 +459,69 @@ const register = async (req, res, next) => {
     // CREATE USER
     // --------------------------------------------------------
 
-    const userResult = await client.query(
-      `
-      INSERT INTO users
-      (
-        email,
-        password_hash,
-        first_name,
-        last_name,
-        username,
-        phone,
-        country,
-        preferred_currency,
-        referrer_code,
-        role,
-        status,
-        email_verified,
-        identity_verification_status
-      )
-      VALUES
-      (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5,
-        $6,
-        $7,
-        $8,
-        $9,
-        'user',
-        'active',
-        FALSE,
-        'PENDING'
-      )
-      RETURNING
-        id,
-        email,
-        first_name,
-        last_name,
-        username,
-        phone,
-        country,
-        preferred_currency,
-        referrer_code,
-        role,
-        status,
-        email_verified,
-        identity_verification_status,
-        created_at
-      `,
-      [
-        normalizedEmail,
-        passwordHash,
-        normalizedFirstName,
-        normalizedLastName,
-        normalizedUsername,
-        normalizedPhone,
-        normalizedCountry,
-        normalizedCurrency,
-        validReferrerCode,
-      ]
-    );
+    const userResult =
+      await client.query(
+        `
+        INSERT INTO users
+        (
+          email,
+          password_hash,
+          first_name,
+          last_name,
+          username,
+          phone,
+          country,
+          preferred_currency,
+          referrer_code,
+          role,
+          status,
+          email_verified,
+          identity_verification_status
+        )
+        VALUES
+        (
+          $1,
+          $2,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          'user',
+          'active',
+          FALSE,
+          'PENDING'
+        )
+        RETURNING
+          id,
+          email,
+          first_name,
+          last_name,
+          username,
+          phone,
+          country,
+          preferred_currency,
+          referrer_code,
+          role,
+          status,
+          email_verified,
+          identity_verification_status,
+          created_at
+        `,
+        [
+          normalizedEmail,
+          passwordHash,
+          normalizedFirstName,
+          normalizedLastName,
+          normalizedUsername,
+          normalizedPhone,
+          normalizedCountry,
+          normalizedCurrency,
+          validReferrerCode,
+        ]
+      );
 
     const databaseUser =
       userResult.rows[0];
@@ -380,7 +549,9 @@ const register = async (req, res, next) => {
           [referralCode]
         );
 
-      if (referralCheck.rows.length === 0) {
+      if (
+        referralCheck.rows.length === 0
+      ) {
         break;
       }
 
@@ -473,6 +644,10 @@ const register = async (req, res, next) => {
     const account =
       accountResult.rows[0];
 
+    // --------------------------------------------------------
+    // COMMIT DATABASE TRANSACTION
+    // --------------------------------------------------------
+
     await client.query('COMMIT');
 
     // --------------------------------------------------------
@@ -496,6 +671,7 @@ const register = async (req, res, next) => {
               padding: 30px;
             "
           >
+
             <h2>
               Welcome to Global Digital Market
             </h2>
@@ -533,6 +709,7 @@ const register = async (req, res, next) => {
               Regards,<br>
               Global Digital Market Support
             </p>
+
           </div>
         `,
 
@@ -566,28 +743,66 @@ Global Digital Market Support
     }
 
     // --------------------------------------------------------
+    // VERIFICATION EMAIL
+    // --------------------------------------------------------
+
+    try {
+      await sendVerificationEmailToUser({
+        id: databaseUser.id,
+        email: normalizedEmail,
+        firstName: normalizedFirstName,
+      });
+    } catch (emailError) {
+      logger.error(
+        `Verification email failed for ${normalizedEmail}:`,
+        emailError
+      );
+    }
+
+    // --------------------------------------------------------
     // USER OBJECT
     // --------------------------------------------------------
 
     const user = {
       id: databaseUser.id,
+
       email: databaseUser.email,
-      firstName: databaseUser.first_name,
-      lastName: databaseUser.last_name,
-      username: databaseUser.username,
-      phone: databaseUser.phone,
-      country: databaseUser.country,
+
+      firstName:
+        databaseUser.first_name,
+
+      lastName:
+        databaseUser.last_name,
+
+      username:
+        databaseUser.username,
+
+      phone:
+        databaseUser.phone,
+
+      country:
+        databaseUser.country,
+
       preferredCurrency:
         databaseUser.preferred_currency,
+
       referralCode,
+
       referrerCode:
         databaseUser.referrer_code,
-      role: databaseUser.role,
-      status: databaseUser.status,
+
+      role:
+        databaseUser.role,
+
+      status:
+        databaseUser.status,
+
       emailVerified:
         databaseUser.email_verified,
+
       identityVerificationStatus:
         databaseUser.identity_verification_status,
+
       createdAt:
         databaseUser.created_at,
     };
@@ -613,6 +828,10 @@ Global Digital Market Support
       `Successful registration for email: ${normalizedEmail}`
     );
 
+    // --------------------------------------------------------
+    // RESPONSE
+    // --------------------------------------------------------
+
     return res.status(201).json({
       message:
         'Account created successfully.',
@@ -621,29 +840,39 @@ Global Digital Market Support
 
       account: {
         id: account.id,
+
         accountNumber:
           account.account_number,
+
         accountType:
           account.account_type,
+
         accountName:
           account.account_name,
+
         currency:
           account.currency,
+
         balance:
           Number(account.balance || 0),
+
         availableBalance:
           Number(
             account.available_balance || 0
           ),
+
         status:
           account.status,
+
         createdAt:
           account.created_at,
       },
 
       accessToken,
+
       refreshToken,
     });
+
   } catch (error) {
     try {
       await client.query('ROLLBACK');
@@ -660,6 +889,7 @@ Global Digital Market Support
     );
 
     return next(error);
+
   } finally {
     client.release();
   }
@@ -771,35 +1001,51 @@ const login = async (req, res, next) => {
     }
 
     const user = {
-      id: databaseUser.id,
-      email: databaseUser.email,
+      id:
+        databaseUser.id,
+
+      email:
+        databaseUser.email,
+
       firstName:
         databaseUser.first_name,
+
       lastName:
         databaseUser.last_name,
+
       username:
         databaseUser.username || '',
+
       phone:
         databaseUser.phone || '',
+
       country:
         databaseUser.country || '',
+
       preferredCurrency:
         databaseUser.preferred_currency ||
         databaseUser.account_currency ||
         'USD',
+
       referralCode:
         databaseUser.referral_code || '',
+
       referrerCode:
         databaseUser.referrer_code || '',
+
       role:
         databaseUser.role,
+
       status:
         databaseUser.status,
+
       emailVerified:
         databaseUser.email_verified,
+
       identityVerificationStatus:
         databaseUser.identity_verification_status ||
         'PENDING',
+
       createdAt:
         databaseUser.created_at,
     };
@@ -850,11 +1096,16 @@ const login = async (req, res, next) => {
     return res.status(200).json({
       message:
         'Login successful.',
+
       user,
+
       account,
+
       accessToken,
+
       refreshToken,
     });
+
   } catch (error) {
     logger.error(
       'Login error:',
@@ -879,6 +1130,7 @@ const logout = async (
       message:
         'Logout successful.',
     });
+
   } catch (error) {
     return next(error);
   }
@@ -909,6 +1161,7 @@ const refreshToken = async (
       message:
         'Refresh token verification is not configured yet.',
     });
+
   } catch (error) {
     logger.error(
       'Refresh token error:',
@@ -952,6 +1205,7 @@ const getAuthenticatedUser = (req) => {
       token,
       secret
     );
+
   } catch (error) {
     return null;
   }
@@ -1090,6 +1344,7 @@ const changePassword = async (
       message:
         'Password changed successfully.',
     });
+
   } catch (error) {
     logger.error(
       'Change password error:',
@@ -1177,10 +1432,6 @@ const forgotPassword = async (
       );
     }
 
-    // --------------------------------------------------------
-    // RESET TOKEN
-    // --------------------------------------------------------
-
     const resetToken =
       jwt.sign(
         {
@@ -1194,10 +1445,6 @@ const forgotPassword = async (
         }
       );
 
-    // --------------------------------------------------------
-    // FRONTEND URL
-    // --------------------------------------------------------
-
     const frontendUrl =
       process.env.FRONTEND_URL ||
       'https://www.globaldigitalmarket.online';
@@ -1206,10 +1453,6 @@ const forgotPassword = async (
       `${frontendUrl}/#/reset-password?token=${encodeURIComponent(
         resetToken
       )}`;
-
-    // --------------------------------------------------------
-    // SEND EMAIL
-    // --------------------------------------------------------
 
     try {
       await sendEmail({
@@ -1307,6 +1550,7 @@ Global Digital Market Support
       logger.info(
         `Password reset email sent to ${user.email}`
       );
+
     } catch (emailError) {
       logger.error(
         `Password reset email failed for ${user.email}:`,
@@ -1317,6 +1561,7 @@ Global Digital Market Support
     return res.status(200).json({
       message: safeMessage,
     });
+
   } catch (error) {
     logger.error(
       'Forgot password error:',
@@ -1365,10 +1610,6 @@ const resetPassword = async (
       );
     }
 
-    // --------------------------------------------------------
-    // VERIFY RESET TOKEN
-    // --------------------------------------------------------
-
     let decoded;
 
     try {
@@ -1377,6 +1618,7 @@ const resetPassword = async (
           token,
           secret
         );
+
     } catch (tokenError) {
       return res.status(400).json({
         message:
@@ -1400,10 +1642,6 @@ const resetPassword = async (
           'Invalid password reset token.',
       });
     }
-
-    // --------------------------------------------------------
-    // FIND USER
-    // --------------------------------------------------------
 
     const result =
       await pool.query(
@@ -1430,10 +1668,6 @@ const resetPassword = async (
     const user =
       result.rows[0];
 
-    // --------------------------------------------------------
-    // ACCOUNT STATUS
-    // --------------------------------------------------------
-
     if (
       user.status &&
       [
@@ -1452,10 +1686,6 @@ const resetPassword = async (
       });
     }
 
-    // --------------------------------------------------------
-    // PREVENT SAME PASSWORD
-    // --------------------------------------------------------
-
     const samePassword =
       await comparePassword(
         newPassword,
@@ -1469,18 +1699,10 @@ const resetPassword = async (
       });
     }
 
-    // --------------------------------------------------------
-    // HASH NEW PASSWORD
-    // --------------------------------------------------------
-
     const newPasswordHash =
       await hashPassword(
         newPassword
       );
-
-    // --------------------------------------------------------
-    // UPDATE PASSWORD
-    // --------------------------------------------------------
 
     await pool.query(
       `
@@ -1504,6 +1726,7 @@ const resetPassword = async (
       message:
         'Password reset successfully. You can now log in with your new password.',
     });
+
   } catch (error) {
     logger.error(
       'Reset password error:',
@@ -1513,6 +1736,7 @@ const resetPassword = async (
     return next(error);
   }
 };
+
 // ============================================================
 // SEND EMAIL VERIFICATION
 // ============================================================
@@ -1533,20 +1757,21 @@ const sendVerificationEmail = async (
       });
     }
 
-    const result = await pool.query(
-      `
-      SELECT
-        id,
-        email,
-        first_name,
-        email_verified,
-        status
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [authenticatedUser.id]
-    );
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          first_name,
+          email_verified,
+          status
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [authenticatedUser.id]
+      );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1555,7 +1780,8 @@ const sendVerificationEmail = async (
       });
     }
 
-    const user = result.rows[0];
+    const user =
+      result.rows[0];
 
     if (user.email_verified) {
       return res.status(400).json({
@@ -1571,7 +1797,9 @@ const sendVerificationEmail = async (
         'suspended',
         'disabled',
       ].includes(
-        String(user.status).toLowerCase()
+        String(
+          user.status
+        ).toLowerCase()
       )
     ) {
       return res.status(403).json({
@@ -1580,124 +1808,11 @@ const sendVerificationEmail = async (
       });
     }
 
-    const secret = process.env.JWT_SECRET;
-
-    if (!secret) {
-      throw new Error(
-        'JWT_SECRET is not configured.'
-      );
-    }
-
-    const verificationToken =
-      jwt.sign(
-        {
-          id: user.id,
-          email: user.email,
-          purpose: 'email-verification',
-        },
-        secret,
-        {
-          expiresIn: '24h',
-        }
-      );
-
-    const frontendUrl =
-      process.env.FRONTEND_URL ||
-      'https://www.globaldigitalmarket.online';
-
-    const verificationUrl =
-      `${frontendUrl}/#/verify-email?token=${encodeURIComponent(
-        verificationToken
-      )}`;
-
-    await sendEmail({
-      to: user.email,
-
-      subject:
-        'Verify Your Global Digital Market Email',
-
-      html: `
-        <div
-          style="
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 30px;
-            color: #172033;
-          "
-        >
-          <h2>
-            Verify Your Email Address
-          </h2>
-
-          <p>
-            Hello ${user.first_name || 'there'},
-          </p>
-
-          <p>
-            Please verify your email address
-            to complete your Global Digital Market
-            account setup.
-          </p>
-
-          <p>
-            <a
-              href="${verificationUrl}"
-              style="
-                display: inline-block;
-                padding: 14px 24px;
-                background: #2563eb;
-                color: #ffffff;
-                text-decoration: none;
-                border-radius: 8px;
-                font-weight: bold;
-              "
-            >
-              Verify Email
-            </a>
-          </p>
-
-          <p>
-            This verification link will expire
-            in <strong>24 hours</strong>.
-          </p>
-
-          <p>
-            If you did not create this account,
-            you can safely ignore this email.
-          </p>
-
-          <p>
-            Regards,<br>
-            Global Digital Market Support
-          </p>
-        </div>
-      `,
-
-      text: `
-Verify Your Global Digital Market Email
-
-Hello ${user.first_name || 'there'},
-
-Please verify your email address to complete your Global Digital Market account setup.
-
-Verify your email here:
-
-${verificationUrl}
-
-This verification link will expire in 24 hours.
-
-If you did not create this account, you can safely ignore this email.
-
-Regards,
-Global Digital Market Support
-      `,
+    await sendVerificationEmailToUser({
+      id: user.id,
+      email: user.email,
+      firstName: user.first_name,
     });
-
-    logger.info(
-      `Verification email sent to ${user.email}`
-    );
 
     return res.status(200).json({
       message:
@@ -1714,7 +1829,6 @@ Global Digital Market Support
   }
 };
 
-
 // ============================================================
 // VERIFY EMAIL
 // ============================================================
@@ -1725,7 +1839,9 @@ const verifyEmail = async (
   next
 ) => {
   try {
-    const { token } = req.body || {};
+    const {
+      token,
+    } = req.body || {};
 
     if (!token) {
       return res.status(400).json({
@@ -1734,7 +1850,8 @@ const verifyEmail = async (
       });
     }
 
-    const secret = process.env.JWT_SECRET;
+    const secret =
+      process.env.JWT_SECRET;
 
     if (!secret) {
       throw new Error(
@@ -1745,10 +1862,12 @@ const verifyEmail = async (
     let decoded;
 
     try {
-      decoded = jwt.verify(
-        token,
-        secret
-      );
+      decoded =
+        jwt.verify(
+          token,
+          secret
+        );
+
     } catch (tokenError) {
       return res.status(400).json({
         message:
@@ -1773,19 +1892,20 @@ const verifyEmail = async (
       });
     }
 
-    const result = await pool.query(
-      `
-      SELECT
-        id,
-        email,
-        email_verified,
-        status
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [decoded.id]
-    );
+    const result =
+      await pool.query(
+        `
+        SELECT
+          id,
+          email,
+          email_verified,
+          status
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [decoded.id]
+      );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -1794,7 +1914,8 @@ const verifyEmail = async (
       });
     }
 
-    const user = result.rows[0];
+    const user =
+      result.rows[0];
 
     if (
       user.status &&
@@ -1803,7 +1924,9 @@ const verifyEmail = async (
         'suspended',
         'disabled',
       ].includes(
-        String(user.status).toLowerCase()
+        String(
+          user.status
+        ).toLowerCase()
       )
     ) {
       return res.status(403).json({
@@ -1848,6 +1971,7 @@ const verifyEmail = async (
     return next(error);
   }
 };
+
 // ============================================================
 // EXPORTS
 // ============================================================
