@@ -34,6 +34,7 @@ import KYC from './pages/KYC';
 import Settings from './pages/Settings';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 
 // ============================================================
 // ADMIN PAGES
@@ -421,6 +422,10 @@ const App: React.FC = () => {
               path="/reset-password"
               element={<ResetPassword />}
            />
+            <Route
+              path="/verify-email"
+              element={<VerifyEmail />}
+             />
 
             {/* ==================================================
                 ADMIN LOGIN
