@@ -1848,7 +1848,141 @@ const verifyEmail = async (
     return next(error);
   }
 };
+// --------------------------------------------------------
+// EMAIL VERIFICATION
+// --------------------------------------------------------
 
+try {
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    throw new Error(
+      'JWT_SECRET is not configured.'
+    );
+  }
+
+  const verificationToken = jwt.sign(
+    {
+      id: databaseUser.id,
+      email: normalizedEmail,
+      purpose: 'email-verification',
+    },
+    secret,
+    {
+      expiresIn: '24h',
+    }
+  );
+
+  const frontendUrl =
+    process.env.FRONTEND_URL ||
+    'https://www.globaldigitalmarket.online';
+
+  const verificationUrl =
+    `${frontendUrl}/#/verify-email?token=${encodeURIComponent(
+      verificationToken
+    )}`;
+
+  await sendEmail({
+    to: normalizedEmail,
+
+    subject:
+      'Verify Your Global Digital Market Email',
+
+    html: `
+      <div
+        style="
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 30px;
+          color: #172033;
+        "
+      >
+
+        <h2>
+          Verify Your Email Address
+        </h2>
+
+        <p>
+          Hello ${normalizedFirstName},
+        </p>
+
+        <p>
+          Thank you for creating your
+          Global Digital Market account.
+        </p>
+
+        <p>
+          Please verify your email address
+          by clicking the button below:
+        </p>
+
+        <p>
+          <a
+            href="${verificationUrl}"
+            style="
+              display: inline-block;
+              padding: 14px 24px;
+              background: #2563eb;
+              color: #ffffff;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: bold;
+            "
+          >
+            Verify Email
+          </a>
+        </p>
+
+        <p>
+          This verification link will expire
+          in <strong>24 hours</strong>.
+        </p>
+
+        <p>
+          If you did not create this account,
+          you can safely ignore this email.
+        </p>
+
+        <p>
+          Regards,<br>
+          Global Digital Market Support
+        </p>
+
+      </div>
+    `,
+
+    text: `
+Verify Your Global Digital Market Email
+
+Hello ${normalizedFirstName},
+
+Thank you for creating your Global Digital Market account.
+
+Please verify your email address using the link below:
+
+${verificationUrl}
+
+This verification link will expire in 24 hours.
+
+If you did not create this account, you can safely ignore this email.
+
+Regards,
+Global Digital Market Support
+    `,
+  });
+
+  logger.info(
+    `Verification email sent successfully to ${normalizedEmail}`
+  );
+
+} catch (emailError) {
+  logger.error(
+    `Verification email failed for ${normalizedEmail}:`,
+    emailError
+  );
+}
 // ============================================================
 // EXPORTS
 // ============================================================
